@@ -1,4 +1,4 @@
-# Sistema de Facturación por Horas
+# Sistema de Facturación por Horas (billingAplyca)
 
 Sistema completo de facturación que permite gestionar contratos con asignación global de horas y seguimiento del consumo de las mismas.
 
@@ -10,61 +10,83 @@ Sistema completo de facturación que permite gestionar contratos con asignación
 - ✅ **Reportes Detallados**: Informes de facturación y uso de horas
 - ✅ **Dashboard Interactivo**: Panel de control con estadísticas en tiempo real
 - ✅ **API REST**: Endpoints para integración con otros sistemas
+- ✅ **Frontend React**: Interfaz moderna con React y Tailwind CSS
 
 ## Estructura del Proyecto
 
 ```
 billing_system/
-├── config/
-│   └── database.php          # Configuración de base de datos
-├── database/
-│   └── schema.sql            # Esquema de base de datos
-├── models/
-│   ├── Contract.php          # Modelo de contratos
-│   └── TimeEntry.php         # Modelo de entradas de tiempo
-├── controllers/
-│   └── ContractController.php # Controlador principal
-├── api/
-│   └── contracts.php         # API REST para contratos
-├── reports/
-│   └── BillingReports.php    # Generador de reportes
-├── web/
-│   ├── dashboard.html        # Interface web
-│   └── dashboard.js          # Lógica frontend
-└── README.md
+├── api/                    # Endpoints de la API REST
+├── billing-frontend/       # Aplicación React
+├── config/                 # Configuración de la base de datos
+├── controllers/            # Controladores PHP
+├── database/               # Base de datos SQLite y scripts
+├── models/                 # Modelos de datos PHP
+├── reports/                # Generador de reportes
+└── web/                    # Dashboard HTML básico
 ```
 
-## Instalación
+## Tecnologías Utilizadas
 
-### Requisitos
+### Backend
+- **PHP 7.4+**: Lenguaje principal del backend
+- **SQLite**: Base de datos ligera y portable
+- **RESTful API**: Arquitectura de servicios web
+
+### Frontend
+- **React 18**: Biblioteca de JavaScript para UI
+- **Vite**: Build tool y servidor de desarrollo
+- **Tailwind CSS**: Framework de CSS utility-first
+- **React Router**: Navegación del lado del cliente
+
+## Instalación y Configuración
+
+### Prerrequisitos
 - PHP 7.4 o superior
-- MySQL 5.7 o superior
-- Servidor web (Apache/Nginx)
+- Node.js 16 o superior
+- Servidor web (Apache/Nginx) o PHP built-in server
 
-### Pasos de Instalación
+### Backend Setup
 
-1. **Clonar el proyecto**
-   ```bash
-   git clone [repository-url]
-   cd billing_system
-   ```
+1. **Clonar el repositorio**
+```bash
+git clone https://github.com/evallejo-collab/billingAplyca.git
+cd billingAplyca
+```
 
 2. **Configurar la base de datos**
-   ```bash
-   mysql -u root -p < database/schema.sql
-   ```
+```bash
+php database/create_db.php
+```
 
-3. **Configurar conexión a BD**
-   Editar `config/database.php` con tus credenciales:
-   ```php
-   private $host = 'localhost';
-   private $db_name = 'billing_system';
-   private $username = 'tu_usuario';
-   private $password = 'tu_contraseña';
-   ```
+3. **Iniciar el servidor PHP** (opcional, para desarrollo)
+```bash
+php -S localhost:8000
+```
 
-4. **Configurar servidor web**
-   Apuntar el documento root a la carpeta del proyecto.
+### Frontend Setup
+
+1. **Navegar al directorio frontend**
+```bash
+cd billing-frontend
+```
+
+2. **Instalar dependencias**
+```bash
+npm install
+```
+
+3. **Iniciar el servidor de desarrollo**
+```bash
+npm run dev
+```
+
+4. **Para desarrollo con API mock**
+```bash
+npm run dev:full
+```
+
+El frontend estará disponible en `http://localhost:3000`
 
 ## Uso del Sistema
 
@@ -107,8 +129,23 @@ GET /api/contracts.php?id=1
 - `POST /api/contracts.php` - Crear nuevo contrato
 - `PUT /api/contracts.php?id={id}` - Actualizar estado del contrato
 
+### Proyectos
+- `GET /api/projects.php` - Listar proyectos
+- `POST /api/projects.php` - Crear proyecto
+- `PUT /api/projects.php` - Actualizar proyecto
+
+### Clientes
+- `GET /api/clients.php` - Listar clientes
+- `POST /api/clients.php` - Crear cliente
+- `PUT /api/clients.php` - Actualizar cliente
+
 ### Entradas de Tiempo
-- `POST /api/contracts.php` - Registrar horas (action: add_time_entry)
+- `GET /api/time_entries.php` - Listar entradas
+- `POST /api/time_entries.php` - Registrar tiempo
+- `PUT /api/time_entries.php` - Actualizar entrada
+
+### Reportes
+- `GET /api/reports.php` - Generar reportes de facturación
 
 ## Modelos de Datos
 
@@ -131,6 +168,16 @@ GET /api/contracts.php?id=1
 - **entry_date**: Fecha del trabajo
 - **created_by**: Quien registró las horas
 - **amount**: Monto facturado (calculado)
+
+## Base de Datos
+
+El sistema utiliza SQLite con las siguientes tablas principales:
+
+- `contracts`: Contratos con horas totales
+- `projects`: Proyectos asociados a contratos
+- `clients`: Información de clientes
+- `time_entries`: Registros de tiempo trabajado
+- `hour_categories`: Tipos y tarifas de horas
 
 ## Reportes Disponibles
 
@@ -157,15 +204,7 @@ El sistema incluye una interfaz web responsive con:
 - **Registro de Horas**: Formulario para registrar tiempo trabajado
 - **Reportes**: Generación de informes diversos
 
-Acceder a: `http://tu-servidor/web/dashboard.html`
-
-## Tecnologías Utilizadas
-
-- **Backend**: PHP con PDO
-- **Base de Datos**: MySQL
-- **Frontend**: HTML5, Bootstrap 5, JavaScript
-- **API**: REST JSON
-- **Validación**: Server-side y client-side
+Acceder a: `http://localhost:3000` (React) o `http://tu-servidor/web/dashboard.html` (HTML)
 
 ## Contribuir
 
