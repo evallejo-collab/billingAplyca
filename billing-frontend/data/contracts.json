@@ -1,0 +1,18 @@
+[
+  {
+    "id": 1,
+    "client_id": 1,
+    "contract_number": "CCB - publico",
+    "description": "lorem",
+    "total_hours": 4000,
+    "hourly_rate": 180000,
+    "start_date": "2025-09-04",
+    "end_date": "2026-04-30",
+    "status": "active",
+    "created_at": "2025-09-04T19:45:40.957Z",
+    "updated_at": "2025-09-04T22:38:01.282Z",
+    "billed_amount": 31450000,
+    "remaining_amount": 0,
+    "last_payment_date": "2025-09-04"
+  }
+]

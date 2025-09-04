@@ -1,0 +1,46 @@
+[
+  {
+    "id": 1,
+    "contract_id": null,
+    "project_id": 1,
+    "amount": 450000,
+    "description": "Pagaron el 10%",
+    "payment_date": "2025-09-03",
+    "payment_type": "percentage",
+    "percentage": 10,
+    "created_at": "2025-09-03T19:57:45.201Z"
+  },
+  {
+    "id": 2,
+    "contract_id": 1,
+    "project_id": null,
+    "amount": 15750000,
+    "description": "Soporte fijo - 2025-09",
+    "payment_date": "2025-09-04",
+    "payment_type": "recurring_support",
+    "percentage": null,
+    "created_at": "2025-09-04T20:15:57.795Z"
+  },
+  {
+    "id": 3,
+    "contract_id": null,
+    "project_id": 2,
+    "amount": 54000000,
+    "description": "Proyecto de alcance fijo - GJ Wordpress (30%)",
+    "payment_date": "2025-09-04",
+    "payment_type": "project_scope",
+    "percentage": null,
+    "created_at": "2025-09-04T22:28:42.345Z"
+  },
+  {
+    "id": 4,
+    "contract_id": 1,
+    "project_id": null,
+    "amount": 15700000,
+    "description": "Soporte fijo - 2025-08",
+    "payment_date": "2025-09-04",
+    "payment_type": "recurring_support",
+    "percentage": null,
+    "created_at": "2025-09-04T22:34:01.311Z"
+  }
+]

@@ -1,0 +1,56 @@
+[
+  {
+    "id": 1,
+    "name": "Análisis y Diseño",
+    "description": "Análisis de requerimientos, diseño de arquitectura y especificaciones",
+    "color": "#3B82F6",
+    "is_active": true,
+    "created_at": "2024-01-01T00:00:00.000Z",
+    "updated_at": "2024-01-01T00:00:00.000Z"
+  },
+  {
+    "id": 2,
+    "name": "Desarrollo",
+    "description": "Programación, codificación e implementación de funcionalidades",
+    "color": "#10B981",
+    "is_active": true,
+    "created_at": "2024-01-01T00:00:00.000Z",
+    "updated_at": "2024-01-01T00:00:00.000Z"
+  },
+  {
+    "id": 3,
+    "name": "Testing y QA",
+    "description": "Pruebas, control de calidad y corrección de errores",
+    "color": "#F59E0B",
+    "is_active": true,
+    "created_at": "2024-01-01T00:00:00.000Z",
+    "updated_at": "2024-01-01T00:00:00.000Z"
+  },
+  {
+    "id": 4,
+    "name": "Despliegue y Soporte",
+    "description": "Implementación en producción, mantenimiento y soporte técnico",
+    "color": "#EF4444",
+    "is_active": true,
+    "created_at": "2024-01-01T00:00:00.000Z",
+    "updated_at": "2024-01-01T00:00:00.000Z"
+  },
+  {
+    "id": 5,
+    "name": "Reuniones y Coordinación",
+    "description": "Reuniones con clientes, coordinación de equipos y gestión de proyectos",
+    "color": "#8B5CF6",
+    "is_active": true,
+    "created_at": "2024-01-01T00:00:00.000Z",
+    "updated_at": "2024-01-01T00:00:00.000Z"
+  },
+  {
+    "id": 6,
+    "name": "Testing",
+    "description": "Categoría para pruebas",
+    "color": "#FF6B6B",
+    "is_active": true,
+    "created_at": "2025-09-02T21:01:23.321Z",
+    "updated_at": "2025-09-02T21:01:23.321Z"
+  }
+]
