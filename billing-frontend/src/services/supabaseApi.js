@@ -1,0 +1,620 @@
+import { supabase } from '../config/supabase';
+
+// ================ CLIENTS API ================
+export const clientsApi = {
+  async getAll() {
+    // First get all clients
+    const { data: clients, error: clientsError } = await supabase
+      .from('clients')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (clientsError) throw clientsError;
+    
+    // Then get counts for each client
+    const clientsWithCounts = await Promise.all(
+      clients.map(async (client) => {
+        // Get contracts count
+        const { count: contractsCount } = await supabase
+          .from('contracts')
+          .select('*', { count: 'exact', head: true })
+          .eq('client_id', client.id);
+        
+        // Get projects count  
+        const { count: projectsCount } = await supabase
+          .from('projects')
+          .select('*', { count: 'exact', head: true })
+          .eq('client_id', client.id);
+        
+        return {
+          ...client,
+          contracts_count: contractsCount || 0,
+          projects_count: projectsCount || 0
+        };
+      })
+    );
+    
+    return { success: true, data: clientsWithCounts };
+  },
+
+  async getById(id) {
+    const { data, error } = await supabase
+      .from('clients')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  async create(client) {
+    const { data, error } = await supabase
+      .from('clients')
+      .insert([client])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  async update(id, client) {
+    const { data, error } = await supabase
+      .from('clients')
+      .update(client)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  async delete(id) {
+    const { error } = await supabase
+      .from('clients')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return { success: true };
+  }
+};
+
+// ================ PROJECTS API ================
+export const projectsApi = {
+  async getAll() {
+    const { data, error } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        client:clients(name, email, company)
+      `)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    
+    // Calculate hours for each project with fresh data
+    const projectsWithHours = await Promise.all(
+      data.map(async (project) => {
+        // Get total hours used from time_entries with fresh query
+        const { data: timeEntries, error: timeEntriesError } = await supabase
+          .from('time_entries')
+          .select('hours_used')
+          .eq('project_id', project.id);
+        
+        if (timeEntriesError) {
+          console.error('Error fetching time entries for project:', project.id, timeEntriesError);
+        }
+
+        // Get total paid amount from payments
+        const { data: payments, error: paymentsError } = await supabase
+          .from('payments')
+          .select('amount')
+          .eq('project_id', project.id);
+        
+        if (paymentsError) {
+          console.error('Error fetching payments for project:', project.id, paymentsError);
+        }
+        
+        const usedHours = timeEntries?.reduce((sum, entry) => sum + (parseFloat(entry.hours_used) || 0), 0) || 0;
+        const paidAmount = payments?.reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0) || 0;
+        const estimatedHours = parseFloat(project.estimated_hours) || 0;
+        const remainingHours = Math.max(0, estimatedHours - usedHours);
+        const hourlyRate = parseFloat(project.hourly_rate) || 0;
+        const totalAmount = project.total_amount && parseFloat(project.total_amount) > 0 
+          ? parseFloat(project.total_amount) 
+          : (estimatedHours * hourlyRate);
+        
+        console.log(`Project ${project.name}: total_amount=${project.total_amount}, estimated_hours=${estimatedHours}, hourly_rate=${hourlyRate}, calculated total=${totalAmount}`);
+        
+        return {
+          ...project,
+          client_name: project.client?.name || project.client?.company || 'Sin cliente',
+          used_hours: usedHours,
+          remaining_hours: remainingHours,
+          entries_count: timeEntries?.length || 0,
+          current_cost: usedHours * hourlyRate,
+          total_amount: totalAmount,
+          paid_amount: paidAmount
+        };
+      })
+    );
+    
+    return { success: true, data: projectsWithHours };
+  },
+
+  async getById(id) {
+    const { data, error } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        client:clients(name, email)
+      `)
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  async create(project) {
+    const { data, error } = await supabase
+      .from('projects')
+      .insert([project])
+      .select(`
+        *,
+        client:clients(name, email)
+      `)
+      .single();
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  async update(id, project) {
+    const { data, error } = await supabase
+      .from('projects')
+      .update(project)
+      .eq('id', id)
+      .select(`
+        *,
+        client:clients(name, email)
+      `)
+      .single();
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  async delete(id) {
+    const { error } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return { success: true };
+  },
+
+  async getByContract(contractId) {
+    const { data, error } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        client:clients(name, email, company)
+      `)
+      .eq('contract_id', contractId)
+      .eq('is_independent', false)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    
+    // Transform data to include client_name
+    const transformedData = data.map(project => ({
+      ...project,
+      client_name: project.client?.company || project.client?.name || 'Sin cliente'
+    }));
+    
+    return { success: true, data: transformedData };
+  },
+
+  async getIndependent() {
+    const { data, error } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        client:clients(name, email, company)
+      `)
+      .eq('is_independent', true)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    
+    // Transform data to include client_name
+    const transformedData = data.map(project => ({
+      ...project,
+      client_name: project.client?.company || project.client?.name || 'Sin cliente'
+    }));
+    
+    return { success: true, data: transformedData };
+  },
+
+  async addPayment(projectId, paymentData) {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    const { data, error } = await supabase
+      .from('payments')
+      .insert([{ 
+        ...paymentData, 
+        project_id: projectId,
+        contract_id: null,
+        created_by: user?.id 
+      }])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return { success: true, data };
+  }
+};
+
+// ================ CONTRACTS API ================
+export const contractsApi = {
+  async getAll() {
+    const { data, error } = await supabase
+      .from('contracts')
+      .select(`
+        *,
+        client:clients(name, email, company)
+      `)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    
+    // Calculate remaining hours and transform data
+    const contractsWithHours = await Promise.all(
+      data.map(async (contract) => {
+        // Get total hours used from time_entries
+        const { data: timeEntries } = await supabase
+          .from('time_entries')
+          .select('hours_used')
+          .eq('contract_id', contract.id);
+        
+        const usedHours = timeEntries?.reduce((sum, entry) => sum + (parseFloat(entry.hours_used) || 0), 0) || 0;
+        const totalHours = parseFloat(contract.total_hours) || 0;
+        const remainingHours = Math.max(0, totalHours - usedHours);
+        
+        return {
+          ...contract,
+          client_name: contract.client?.name || contract.client?.company || 'Sin cliente',
+          client_email: contract.client?.email || '',
+          used_hours: usedHours,
+          remaining_hours: remainingHours,
+          entries_count: timeEntries?.length || 0
+        };
+      })
+    );
+    
+    return { success: true, data: contractsWithHours };
+  },
+
+  async getById(id) {
+    const { data, error } = await supabase
+      .from('contracts')
+      .select(`
+        *,
+        client:clients(name, email)
+      `)
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  async create(contract) {
+    const { data, error } = await supabase
+      .from('contracts')
+      .insert([contract])
+      .select(`
+        *,
+        client:clients(name, email)
+      `)
+      .single();
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  async update(id, contract) {
+    const { data, error } = await supabase
+      .from('contracts')
+      .update(contract)
+      .eq('id', id)
+      .select(`
+        *,
+        client:clients(name, email)
+      `)
+      .single();
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  async delete(id) {
+    const { error } = await supabase
+      .from('contracts')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return { success: true };
+  },
+
+  async addPayment(contractId, paymentData) {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    const { data, error } = await supabase
+      .from('payments')
+      .insert([{ 
+        ...paymentData, 
+        contract_id: contractId,
+        project_id: null,
+        created_by: user?.id 
+      }])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return { success: true, data };
+  }
+};
+
+// ================ TIME ENTRIES API ================
+export const timeEntriesApi = {
+  async getAll() {
+    const { data, error } = await supabase
+      .from('time_entries')
+      .select(`
+        *,
+        contract:contracts(contract_number, description, client:clients(name, company)),
+        project:projects(name, client:clients(name, company))
+      `)
+      .order('entry_date', { ascending: false });
+    
+    if (error) throw error;
+    
+    // Get user profiles separately
+    const userIds = [...new Set(data.map(entry => entry.created_by).filter(Boolean))];
+    let userProfiles = {};
+    
+    if (userIds.length > 0) {
+      const { data: profiles, error: profilesError } = await supabase
+        .from('user_profiles')
+        .select('id, full_name, username')
+        .in('id', userIds);
+      
+      if (!profilesError && profiles) {
+        userProfiles = profiles.reduce((acc, profile) => {
+          acc[profile.id] = profile;
+          return acc;
+        }, {});
+      }
+    }
+    
+    // Transform data to flatten embedded fields for backward compatibility
+    const transformedData = data.map(entry => {
+      const userProfile = userProfiles[entry.created_by];
+      return {
+        ...entry,
+        contract_number: entry.contract?.contract_number || null,
+        contract_description: entry.contract?.description || null,
+        client_name: entry.contract?.client?.name || entry.contract?.client?.company || 
+                     entry.project?.client?.name || entry.project?.client?.company || 'Sin cliente',
+        project_name: entry.project?.name || null,
+        created_by: userProfile?.full_name || userProfile?.username || 'Usuario desconocido'
+      };
+    });
+    
+    return { success: true, data: transformedData };
+  },
+
+  async getByContractId(contractId) {
+    const { data, error } = await supabase
+      .from('time_entries')
+      .select(`
+        *,
+        contract:contracts(contract_number, description)
+      `)
+      .eq('contract_id', contractId)
+      .order('entry_date', { ascending: false });
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  async create(timeEntry) {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    const { data, error } = await supabase
+      .from('time_entries')
+      .insert([{ ...timeEntry, created_by: user?.id }])
+      .select(`
+        *,
+        contract:contracts(contract_number, description)
+      `)
+      .single();
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  async update(id, timeEntry) {
+    const { data, error } = await supabase
+      .from('time_entries')
+      .update(timeEntry)
+      .eq('id', id)
+      .select(`
+        *,
+        contract:contracts(contract_number, description)
+      `)
+      .single();
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  async delete(id) {
+    const { error } = await supabase
+      .from('time_entries')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return { success: true };
+  }
+};
+
+// ================ PAYMENTS API ================
+export const paymentsApi = {
+  async getAll() {
+    const { data, error } = await supabase
+      .from('payments')
+      .select(`
+        *,
+        contract:contracts(contract_number, description),
+        project:projects(name)
+      `)
+      .order('payment_date', { ascending: false });
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  async getById(id) {
+    const { data, error } = await supabase
+      .from('payments')
+      .select(`
+        *,
+        contract:contracts(contract_number, description),
+        project:projects(name)
+      `)
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  async create(payment) {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    const { data, error } = await supabase
+      .from('payments')
+      .insert([{ ...payment, created_by: user?.id }])
+      .select(`
+        *,
+        contract:contracts(contract_number, description),
+        project:projects(name)
+      `)
+      .single();
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  async update(id, payment) {
+    const { data, error } = await supabase
+      .from('payments')
+      .update(payment)
+      .eq('id', id)
+      .select(`
+        *,
+        contract:contracts(contract_number, description),
+        project:projects(name)
+      `)
+      .single();
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  async delete(id) {
+    const { error } = await supabase
+      .from('payments')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return { success: true };
+  },
+
+  async getByContract(contractId) {
+    const { data, error } = await supabase
+      .from('payments')
+      .select(`
+        *,
+        contract:contracts(contract_number, description),
+        project:projects(name)
+      `)
+      .eq('contract_id', contractId)
+      .order('payment_date', { ascending: false });
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  async getByProject(projectId) {
+    const { data, error } = await supabase
+      .from('payments')
+      .select(`
+        *,
+        contract:contracts(contract_number, description),
+        project:projects(name)
+      `)
+      .eq('project_id', projectId)
+      .order('payment_date', { ascending: false });
+    
+    if (error) throw error;
+    return { success: true, data };
+  }
+};
+
+// ================ USERS API ================
+export const usersApi = {
+  async getAll() {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  async updateProfile(id, profile) {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .update(profile)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return { success: true, data };
+  }
+};
+
+// ================ UTILITY FUNCTIONS ================
+export const formatCurrency = (amount) => {
+  return new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP'
+  }).format(amount);
+};
+
+export const formatDate = (date) => {
+  return new Date(date).toLocaleDateString('es-ES');
+};

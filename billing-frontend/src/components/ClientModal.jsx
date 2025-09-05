@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
-import { clientsApi } from '../services/api';
-import { X, Save, Building, User, Mail, Phone, MapPin, FileText, Globe, AlertCircle } from 'lucide-react';
+import { clientsApi } from '../services/supabaseApi';
+import { X, Save, Building, Mail, Phone, MapPin, AlertCircle, User, FileText, Globe } from 'lucide-react';
 
 const ClientModal = ({ isOpen, onClose, client, isEditing, onClientSaved }) => {
   const [formData, setFormData] = useState({
     name: '',
-    company: '',
     email: '',
     phone: '',
     address: '',
@@ -21,8 +20,7 @@ const ClientModal = ({ isOpen, onClose, client, isEditing, onClientSaved }) => {
     if (isOpen) {
       if (isEditing && client) {
         setFormData({
-          name: client.name || '',
-          company: client.company || '',
+          name: client.company || client.name || '',
           email: client.email || '',
           phone: client.phone || '',
           address: client.address || '',
@@ -41,7 +39,6 @@ const ClientModal = ({ isOpen, onClose, client, isEditing, onClientSaved }) => {
   const resetForm = () => {
     setFormData({
       name: '',
-      company: '',
       email: '',
       phone: '',
       address: '',
@@ -66,18 +63,19 @@ const ClientModal = ({ isOpen, onClose, client, isEditing, onClientSaved }) => {
     setError(null);
 
     try {
-      let response;
-      if (isEditing) {
-        response = await clientsApi.update(client.id, formData);
-      } else {
-        response = await clientsApi.create(formData);
-      }
+      // Prepare data with both name and company for compatibility
+      const submitData = {
+        ...formData,
+        company: formData.name // Use the same value for both fields
+      };
 
-      if (response.data.success) {
-        onClientSaved();
+      if (isEditing) {
+        await clientsApi.update(client.id, submitData);
       } else {
-        setError(response.data.message || 'Error al guardar el cliente');
+        await clientsApi.create(submitData);
       }
+      
+      onClientSaved();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -108,8 +106,8 @@ const ClientModal = ({ isOpen, onClose, client, isEditing, onClientSaved }) => {
           {error && (
             <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
               <div className="flex items-center">
-                <AlertCircle className="w-4 h-4 text-red-500 mr-2" />
-                <p className="text-red-700 text-sm">{error}</p>
+                <AlertCircle className="w-5 h-5 text-red-600 mr-2" />
+                <span className="text-red-800 text-sm">{error}</span>
               </div>
             </div>
           )}
@@ -117,10 +115,10 @@ const ClientModal = ({ isOpen, onClose, client, isEditing, onClientSaved }) => {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Basic Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
+              <div className="md:col-span-2">
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                  <User className="w-4 h-4 inline mr-1" />
-                  Nombre/Razón Social *
+                  <Building className="w-4 h-4 inline mr-1" />
+                  Empresa/Cliente *
                 </label>
                 <input
                   type="text"
@@ -130,23 +128,7 @@ const ClientModal = ({ isOpen, onClose, client, isEditing, onClientSaved }) => {
                   onChange={handleInputChange}
                   required
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  placeholder="Nombre del cliente o empresa"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-2">
-                  <Building className="w-4 h-4 inline mr-1" />
-                  Empresa
-                </label>
-                <input
-                  type="text"
-                  id="company"
-                  name="company"
-                  value={formData.company}
-                  onChange={handleInputChange}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  placeholder="Nombre de la empresa"
+                  placeholder="Nombre de la empresa o cliente"
                 />
               </div>
             </div>
@@ -258,7 +240,8 @@ const ClientModal = ({ isOpen, onClose, client, isEditing, onClientSaved }) => {
             {/* Notes */}
             <div>
               <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
-                Notas Adicionales
+                <FileText className="w-4 h-4 inline mr-1" />
+                Notas
               </label>
               <textarea
                 id="notes"
@@ -267,30 +250,29 @@ const ClientModal = ({ isOpen, onClose, client, isEditing, onClientSaved }) => {
                 onChange={handleInputChange}
                 rows={3}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                placeholder="Información adicional sobre el cliente..."
+                placeholder="Información adicional o notas sobre el cliente"
               />
             </div>
 
-            {/* Form Actions */}
-            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+            {/* Actions */}
+            <div className="flex items-center justify-end space-x-4 pt-4 border-t border-gray-200">
               <button
                 type="button"
                 onClick={onClose}
-                className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
               >
-                {loading ? (
+                {loading && (
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                ) : (
-                  <Save className="w-4 h-4 mr-2" />
                 )}
-                {loading ? 'GUARDANDO...' : (isEditing ? 'ACTUALIZAR' : 'CREAR CLIENTE')}
+                <Save className="w-4 h-4 mr-2" />
+                {loading ? 'Guardando...' : (isEditing ? 'Actualizar' : 'Crear Cliente')}
               </button>
             </div>
           </form>

@@ -89,10 +89,11 @@ const Layout = () => {
           <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
             {/* Logo/Brand */}
             <div className="flex items-center">
-              <DollarSign className="w-8 h-8 text-white" />
-              <div className="ml-2">
-                <h1 className="text-lg font-bold text-white">Aplyca</h1>
-              </div>
+              <img 
+                src="/Logo_Aplyca_Violet.svg" 
+                alt="Aplyca" 
+                className="h-10 w-auto filter brightness-0 invert"
+              />
             </div>
 
             {/* Desktop Navigation */}

@@ -14,5 +14,31 @@
     "billed_amount": 31450000,
     "remaining_amount": 0,
     "last_payment_date": "2025-09-04"
+  },
+  {
+    "id": 2,
+    "client_id": 2,
+    "contract_number": "ass",
+    "description": "asas",
+    "total_hours": 1121,
+    "hourly_rate": 221212,
+    "start_date": "2025-09-05",
+    "end_date": "2025-09-17",
+    "status": "active",
+    "created_at": "2025-09-05T05:36:10.391Z",
+    "updated_at": "2025-09-05T05:36:10.391Z"
+  },
+  {
+    "id": 3,
+    "client_id": 1,
+    "contract_number": "1212121212",
+    "description": "12121",
+    "total_hours": 12212,
+    "hourly_rate": 12121212,
+    "start_date": "2025-09-05",
+    "end_date": "2025-09-04",
+    "status": "active",
+    "created_at": "2025-09-05T05:45:43.983Z",
+    "updated_at": "2025-09-05T05:45:43.983Z"
   }
 ]

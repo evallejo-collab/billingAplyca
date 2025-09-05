@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { DollarSign, User, Lock, AlertCircle } from 'lucide-react';
+import { DollarSign, Mail, Lock, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const LoginPage = () => {
   const [formData, setFormData] = useState({
-    username: '',
+    email: '',
     password: ''
   });
   const [loading, setLoading] = useState(false);
@@ -24,8 +24,8 @@ const LoginPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.username || !formData.password) {
-      setError('Por favor ingresa usuario y contraseña');
+    if (!formData.email || !formData.password) {
+      setError('Por favor ingresa email y contraseña');
       return;
     }
 
@@ -33,7 +33,7 @@ const LoginPage = () => {
     setError('');
 
     try {
-      await login(formData.username, formData.password);
+      await login(formData.email, formData.password);
     } catch (err) {
       setError(err.message || 'Error al iniciar sesión');
     } finally {
@@ -59,22 +59,22 @@ const LoginPage = () => {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                Usuario
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                Email
               </label>
               <div className="mt-1 relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-gray-400" />
+                  <Mail className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
-                  id="username"
-                  name="username"
-                  type="text"
-                  autoComplete="username"
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
                   required
                   className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-violet-500 focus:border-violet-500 sm:text-sm"
-                  placeholder="Ingresa tu usuario"
-                  value={formData.username}
+                  placeholder="Ingresa tu email"
+                  value={formData.email}
                   onChange={handleInputChange}
                 />
               </div>
@@ -121,9 +121,8 @@ const LoginPage = () => {
           </div>
 
           <div className="text-center text-xs text-gray-500 mt-6">
-            <p>Usuarios de prueba:</p>
-            <p><strong>admin</strong> / admin123 (Administrador)</p>
-            <p><strong>user</strong> / user123 (Usuario)</p>
+            <p>Crea una cuenta en Supabase Authentication</p>
+            <p>para acceder al sistema</p>
           </div>
         </form>
       </div>

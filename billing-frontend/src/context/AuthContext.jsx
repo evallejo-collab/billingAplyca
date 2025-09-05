@@ -1,99 +1,86 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import { supabase } from '../config/supabase';
 
 const AuthContext = createContext();
-
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? '/api' 
-  : 'http://localhost:3001/api';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [sessionId, setSessionId] = useState(localStorage.getItem('sessionId'));
+  const [session, setSession] = useState(null);
 
   useEffect(() => {
-    checkAuthStatus();
-  }, []);
-
-  const checkAuthStatus = async () => {
-    const storedSessionId = localStorage.getItem('sessionId');
-    const storedUser = localStorage.getItem('user');
-
-    if (storedSessionId && storedUser) {
+    // Verificar sesión inicial
+    const checkSession = async () => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/auth/me`, {
-          headers: {
-            'x-session-id': storedSessionId
-          }
-        });
-
-        if (response.data.success) {
-          setUser(response.data.user);
-          setSessionId(storedSessionId);
-        } else {
-          clearAuthData();
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error checking session:', error);
+        }
+        
+        setSession(session);
+        
+        if (session?.user) {
+          setUser({
+            id: session.user.id,
+            email: session.user.email,
+            full_name: session.user.user_metadata?.full_name || 'Usuario',
+            username: session.user.email?.split('@')[0] || 'user',
+            role: 'admin'
+          });
         }
       } catch (error) {
-        console.error('Auth check failed:', error);
-        clearAuthData();
+        console.error('Error in checkSession:', error);
+      } finally {
+        setLoading(false);
       }
-    } else {
-      clearAuthData();
-    }
-    
-    setLoading(false);
-  };
+    };
 
-  const login = async (username, password) => {
+    checkSession();
+
+    // Escuchar cambios de auth
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', event);
+      
+      setSession(session);
+      
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          email: session.user.email,
+          full_name: session.user.user_metadata?.full_name || 'Usuario',
+          username: session.user.email?.split('@')[0] || 'user',
+          role: 'admin'
+        });
+      } else {
+        setUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const login = async (email, password) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/auth/login`, {
-        username,
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
         password
       });
 
-      if (response.data.success) {
-        const { user: userData, sessionId: newSessionId } = response.data;
-        
-        setUser(userData);
-        setSessionId(newSessionId);
-        
-        localStorage.setItem('sessionId', newSessionId);
-        localStorage.setItem('user', JSON.stringify(userData));
-        
-        return userData;
-      } else {
-        throw new Error(response.data.message || 'Error al iniciar sesión');
-      }
+      if (error) throw error;
+      
+      return data.user;
     } catch (error) {
-      if (error.response?.data?.message) {
-        throw new Error(error.response.data.message);
-      }
-      throw new Error('Error de conexión con el servidor');
+      throw new Error(error.message || 'Error al iniciar sesión');
     }
   };
 
   const logout = async () => {
     try {
-      if (sessionId) {
-        await axios.post(`${API_BASE_URL}/auth/logout`, {}, {
-          headers: {
-            'x-session-id': sessionId
-          }
-        });
-      }
+      await supabase.auth.signOut();
     } catch (error) {
-      console.error('Logout request failed:', error);
-    } finally {
-      clearAuthData();
+      console.error('Logout error:', error);
     }
-  };
-
-  const clearAuthData = () => {
-    setUser(null);
-    setSessionId(null);
-    localStorage.removeItem('sessionId');
-    localStorage.removeItem('user');
   };
 
   const isAdmin = () => {
@@ -101,18 +88,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   const isAuthenticated = () => {
-    return !!user && !!sessionId;
+    return !!user && !!session;
   };
 
   const value = {
     user,
-    sessionId,
+    session,
     loading,
     login,
     logout,
     isAdmin,
-    isAuthenticated,
-    checkAuthStatus
+    isAuthenticated
   };
 
   return (

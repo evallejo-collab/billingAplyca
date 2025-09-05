@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { contractsApi, clientsApi } from '../services/api';
+import { contractsApi, clientsApi } from '../services/supabaseApi';
 import { Plus, Search, Filter, Eye, Edit, MoreVertical, Trash2, AlertCircle, Clock, DollarSign, FileText, Calendar } from 'lucide-react';
 import ContractModal from './ContractModal';
 
@@ -30,12 +30,7 @@ const Contracts = () => {
       setLoading(true);
       setError(null);
       const response = await contractsApi.getAll();
-      
-      if (response.data.success) {
-        setContracts(response.data.contracts);
-      } else {
-        setError(response.data.message || 'Error al cargar contratos');
-      }
+      setContracts(response.data);
     } catch (err) {
       setError(err.message);
       console.error('Error loading contracts:', err);
@@ -47,9 +42,7 @@ const Contracts = () => {
   const loadClients = async () => {
     try {
       const response = await clientsApi.getAll();
-      if (response.data.success) {
-        setClients(response.data.clients);
-      }
+      setClients(response.data);
     } catch (err) {
       console.error('Error loading clients:', err);
     }
@@ -119,31 +112,13 @@ const Contracts = () => {
   const handleDeleteContract = async (contract) => {
     try {
       // First try normal deletion
-      const response = await contractsApi.delete(contract.id);
-      
-      if (response.data.success) {
-        alert('Contrato eliminado exitosamente');
-        loadContracts();
-      } else if (response.data.requiresConfirmation) {
-        // Show confirmation dialog for forced deletion
-        const confirmMessage = response.data.message + '\n\n' +
-          (response.data.relatedData?.timeEntries ? '• Tiene entradas de tiempo asociadas\n' : '') +
-          (response.data.relatedData?.projects ? '• Tiene proyectos asociados\n' : '') +
-          '\n¿Desea continuar con la eliminación forzada?';
-        
-        if (window.confirm(confirmMessage)) {
-          // Force delete
-          const forceResponse = await contractsApi.delete(contract.id, true);
-          if (forceResponse.data.success) {
-            alert('Contrato y datos relacionados eliminados exitosamente');
-            loadContracts();
-          } else {
-            alert('Error al eliminar: ' + forceResponse.data.message);
-          }
-        }
-      } else {
-        alert('Error al eliminar: ' + response.data.message);
+      if (!window.confirm('¿Estás seguro de que deseas eliminar este contrato?')) {
+        return;
       }
+      
+      await contractsApi.delete(contract.id);
+      alert('Contrato eliminado exitosamente');
+      loadContracts();
     } catch (error) {
       alert('Error al eliminar contrato: ' + error.message);
     }
@@ -248,7 +223,7 @@ const Contracts = () => {
               >
                 <option value="all">Todos los clientes</option>
                 {clients.map(client => (
-                  <option key={client.id} value={client.id}>{client.name}</option>
+                  <option key={client.id} value={client.id}>{client.name || client.company}</option>
                 ))}
               </select>
             </div>
@@ -288,8 +263,8 @@ const Contracts = () => {
                 {/* Header */}
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{contract.contract_number}</h3>
-                    <p className="text-sm text-gray-500">{contract.client_name}</p>
+                    <h3 className="text-lg font-semibold text-gray-900">{contract.client_name}</h3>
+                    <p className="text-sm text-gray-500">{contract.contract_number}</p>
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(contract.status)}`}>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { projectsApi, clientsApi } from '../services/api';
+import { projectsApi, clientsApi } from '../services/supabaseApi';
 import { X, Save, Folder, User, Building, FileText, Clock, DollarSign, Calendar, AlertCircle } from 'lucide-react';
 
 const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, clients, contracts }) => {
@@ -170,11 +170,7 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
         response = await projectsApi.create(submitData);
       }
 
-      if (response.data.success) {
-        onProjectSaved();
-      } else {
-        setError(response.data.message || 'Error al guardar el proyecto');
-      }
+      onProjectSaved();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -483,7 +479,7 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
                       <option value="">Seleccionar cliente...</option>
                       {clients.map(client => (
                         <option key={client.id} value={client.id}>
-                          {client.name}
+                          {client.name || client.company}
                         </option>
                       ))}
                     </select>
@@ -537,7 +533,7 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
                       <option value="">Crear nuevo cliente para este proyecto</option>
                       {availableClients.map(client => (
                         <option key={client.id} value={client.id}>
-                          {client.name} - {client.email}
+                          {client.name || client.company} - {client.email}
                         </option>
                       ))}
                     </select>

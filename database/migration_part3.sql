@@ -1,0 +1,7 @@
+-- PART 3: Fix clients table - add missing fields
+ALTER TABLE public.clients
+ADD COLUMN IF NOT EXISTS company VARCHAR(255),
+ADD COLUMN IF NOT EXISTS tax_id VARCHAR(50),
+ADD COLUMN IF NOT EXISTS contact_person VARCHAR(255),
+ADD COLUMN IF NOT EXISTS website VARCHAR(255),
+ADD COLUMN IF NOT EXISTS notes TEXT;

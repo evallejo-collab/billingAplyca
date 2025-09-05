@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { reportsApi, contractsApi } from '../services/api';
+import { contractsApi } from '../services/supabaseApi';
 import { FileText, Clock, DollarSign, Users, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 
 const Dashboard = () => {
@@ -17,19 +17,23 @@ const Dashboard = () => {
       setLoading(true);
       setError(null);
       
-      // Load overview stats and active contracts in parallel
-      const [statsResponse, contractsResponse] = await Promise.all([
-        reportsApi.getOverview(),
-        contractsApi.getAll('active')
-      ]);
-
-      if (statsResponse.data.success) {
-        setStats(statsResponse.data.stats);
-      }
-
-      if (contractsResponse.data.success) {
-        setActiveContracts(contractsResponse.data.contracts);
-      }
+      // Load all contracts to calculate stats
+      const contractsResponse = await contractsApi.getAll();
+      const allContracts = contractsResponse.data || [];
+      
+      // Filter active contracts
+      const activeContracts = allContracts.filter(contract => contract.status === 'active');
+      setActiveContracts(activeContracts);
+      
+      // Calculate stats from all contracts
+      const stats = {
+        total_contracts: allContracts.length,
+        active_contracts: activeContracts.length,
+        total_used_hours: allContracts.reduce((sum, contract) => sum + (parseFloat(contract.used_hours) || 0), 0),
+        total_billed_amount: allContracts.reduce((sum, contract) => sum + (parseFloat(contract.billed_amount) || 0), 0)
+      };
+      
+      setStats(stats);
     } catch (err) {
       setError(err.message);
       console.error('Error loading dashboard:', err);

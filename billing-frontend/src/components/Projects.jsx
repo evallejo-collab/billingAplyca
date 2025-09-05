@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { projectsApi, clientsApi, contractsApi } from '../services/api';
-import { formatCOP } from '../utils/currency';
+import { projectsApi, clientsApi, contractsApi } from '../services/supabaseApi';
 import { 
   Plus, 
   Search, 
@@ -48,21 +47,15 @@ const Projects = () => {
       
       // Load all projects
       const projectsResponse = await projectsApi.getAll();
-      if (projectsResponse.data.success) {
-        setProjects(projectsResponse.data.projects);
-      }
+      setProjects(projectsResponse.data);
 
       // Load clients for dropdowns
       const clientsResponse = await clientsApi.getAll();
-      if (clientsResponse.data.success) {
-        setClients(clientsResponse.data.clients);
-      }
+      setClients(clientsResponse.data);
 
       // Load contracts for dropdowns
       const contractsResponse = await contractsApi.getAll();
-      if (contractsResponse.data.success) {
-        setContracts(contractsResponse.data.contracts);
-      }
+      setContracts(contractsResponse.data);
 
     } catch (err) {
       setError(err.message);
@@ -101,13 +94,13 @@ const Projects = () => {
 
     try {
       const response = await projectsApi.delete(projectId);
-      if (response.data.success) {
+      if (response.success) {
         loadData();
       } else {
-        alert(response.data.message);
+        alert('Error al eliminar el proyecto');
       }
     } catch (err) {
-      alert(err.message);
+      alert(err.message || 'Error al eliminar el proyecto');
     }
   };
 

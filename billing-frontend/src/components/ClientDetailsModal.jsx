@@ -89,10 +89,7 @@ const ClientDetailsModal = ({ isOpen, onClose, client }) => {
           <div className="flex items-center">
             <Building className="w-6 h-6 mr-3 text-blue-600" />
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">{client.name}</h2>
-              {client.company && (
-                <p className="text-sm text-gray-600">{client.company}</p>
-              )}
+              <h2 className="text-xl font-semibold text-gray-900">{client.name || client.company}</h2>
             </div>
           </div>
           <button 

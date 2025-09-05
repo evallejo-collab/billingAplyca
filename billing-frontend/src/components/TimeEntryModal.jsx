@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { contractsApi, projectsApi, categoriesApi, timeEntriesApi } from '../services/api';
+import { contractsApi, projectsApi, timeEntriesApi } from '../services/supabaseApi';
 import { formatCOP } from '../utils/currency';
 import { X, Save, Clock, Calendar, FileText, User, AlertCircle, Tag, Folder, Building } from 'lucide-react';
 
@@ -19,7 +19,6 @@ const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, se
   const [error, setError] = useState(null);
   const [selectedContract, setSelectedContract] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
-  const [categories, setCategories] = useState([]);
   const [contractProjects, setContractProjects] = useState([]);
   const [independentProjects, setIndependentProjects] = useState([]);
 
@@ -36,16 +35,14 @@ const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, se
           entry_date: selectedEntry.entry_date || new Date().toISOString().split('T')[0],
           created_by: selectedEntry.created_by || '',
           notes: selectedEntry.notes || '',
-          category_id: selectedEntry.category_id ? selectedEntry.category_id.toString() : '1',
         });
       } else {
         resetForm();
       }
       setError(null);
-      loadCategories();
       loadIndependentProjects();
     }
-  }, [isOpen, isEditing, selectedEntry]);
+  }, [isOpen, isEditing, selectedEntry, activeContracts]);
 
   useEffect(() => {
     if (formData.project_type === 'contract' && formData.contract_id) {
@@ -74,30 +71,17 @@ const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, se
       entry_date: new Date().toISOString().split('T')[0],
       created_by: '',
       notes: '',
-      category_id: '1',
     });
     setSelectedContract(null);
     setSelectedProject(null);
     setContractProjects([]);
   };
 
-  const loadCategories = async () => {
-    try {
-      const response = await categoriesApi.getAll();
-      if (response.data.success) {
-        setCategories(response.data.categories);
-      }
-    } catch (error) {
-      console.error('Error loading categories:', error);
-    }
-  };
 
   const loadProjectsForContract = async (contractId) => {
     try {
-      const response = await projectsApi.getByContract(contractId, true);
-      if (response.data.success) {
-        setContractProjects(response.data.projects);
-      }
+      const response = await projectsApi.getByContract(contractId);
+      setContractProjects(response.data || []);
     } catch (error) {
       console.error('Error loading projects:', error);
       setContractProjects([]);
@@ -106,10 +90,9 @@ const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, se
 
   const loadIndependentProjects = async () => {
     try {
-      const response = await projectsApi.getIndependent('active');
-      if (response.data.success) {
-        setIndependentProjects(response.data.projects);
-      }
+      const response = await projectsApi.getIndependent();
+      const activeProjects = (response.data || []).filter(project => project.status === 'active');
+      setIndependentProjects(activeProjects);
     } catch (error) {
       console.error('Error loading independent projects:', error);
       setIndependentProjects([]);
@@ -134,10 +117,13 @@ const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, se
         description: formData.description,
         hours_used: parseFloat(formData.hours_used),
         entry_date: formData.entry_date,
-        created_by: formData.created_by || null,
         notes: formData.notes || null,
-        category_id: parseInt(formData.category_id),
       };
+      
+      // Only set created_by for new entries, not updates
+      if (!isEditing) {
+        submitData.created_by = formData.created_by || null;
+      }
 
       // Add contract or project specific data
       if (formData.project_type === 'contract') {
@@ -148,20 +134,15 @@ const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, se
         submitData.project_id = parseInt(formData.project_id);
       }
 
-      let response;
       if (isEditing && selectedEntry) {
         // Update existing entry
-        response = await timeEntriesApi.update(selectedEntry.id, submitData);
+        await timeEntriesApi.update(selectedEntry.id, submitData);
       } else {
         // Create new entry
-        response = await contractsApi.addTimeEntry(submitData);
+        await timeEntriesApi.create(submitData);
       }
       
-      if (response.data.success) {
-        onTimeEntrySaved();
-      } else {
-        setError(response.data.message || (isEditing ? 'Error al actualizar las horas' : 'Error al registrar las horas'));
-      }
+      onTimeEntrySaved();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -284,7 +265,7 @@ const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, se
                   <option value="">Seleccionar contrato...</option>
                   {activeContracts.map(contract => (
                     <option key={contract.id} value={contract.id}>
-                      {contract.contract_number} - {contract.client_name} ({formatHours(contract.remaining_hours)} restantes)
+                      {contract.client_name} - {contract.contract_number} ({formatHours(contract.remaining_hours)} restantes)
                     </option>
                   ))}
                 </select>
@@ -344,10 +325,14 @@ const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, se
             {selectedContract && formData.project_type === 'contract' && (
               <div className="bg-blue-50 rounded-lg p-4">
                 <h3 className="text-sm font-medium text-gray-900 mb-2">Información del Contrato</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <span className="text-gray-500">Cliente:</span>
                     <p className="font-medium">{selectedContract.client_name}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Contrato:</span>
+                    <p className="font-medium text-gray-600">{selectedContract.contract_number}</p>
                   </div>
                   <div>
                     <span className="text-gray-500">Horas Restantes:</span>

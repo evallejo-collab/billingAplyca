@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { contractsApi, clientsApi, projectsApi, paymentsApi } from '../services/api';
+import { contractsApi, clientsApi, projectsApi, paymentsApi } from '../services/supabaseApi';
 import { 
   Receipt, 
   DollarSign, 
@@ -67,9 +67,9 @@ const Billing = () => {
         clientsApi.getAll()
       ]);
 
-      const contracts = contractsResponse.data.success ? contractsResponse.data.contracts : [];
-      const projects = projectsResponse.data.success ? projectsResponse.data.projects : [];
-      const clients = clientsResponse.data.success ? clientsResponse.data.clients : [];
+      const contracts = contractsResponse.data || [];
+      const projects = projectsResponse.data || [];
+      const clients = clientsResponse.data || [];
       
       console.log('Raw contracts data:', contracts);
       console.log('Raw projects data:', projects);
@@ -92,8 +92,8 @@ const Billing = () => {
           contractId: contract.id,
           name: contract.contract_number,
           description: contract.description,
-          client: client ? client.name : 'Cliente desconocido',
-          clientCompany: client ? client.company : null,
+          client: client ? (client.name || client.company) : 'Cliente desconocido',
+          clientCompany: client ? (client.company || client.name) : null,
           totalValue: totalContractValue,
           paidAmount: paidAmount,
           pendingAmount: pendingAmount,
@@ -218,13 +218,12 @@ const Billing = () => {
           }
           
           console.log('Payments response:', response);
-          if (response.data.success) {
-            console.log('Found payments:', response.data.payments);
-            setRowPayments(prev => ({
-              ...prev,
-              [itemKey]: response.data.payments
-            }));
-          }
+          const payments = response.data || [];
+          console.log('Found payments:', payments);
+          setRowPayments(prev => ({
+            ...prev,
+            [itemKey]: payments
+          }));
         } catch (error) {
           console.error('Error loading payments:', error);
         }
@@ -246,12 +245,10 @@ const Billing = () => {
         response = await paymentsApi.getByProject(item.projectId);
       }
 
-      if (response.data.success) {
-        setRowPayments(prev => ({
-          ...prev,
-          [itemId]: response.data.payments || []
-        }));
-      }
+      setRowPayments(prev => ({
+        ...prev,
+        [itemId]: response.data || []
+      }));
     } catch (error) {
       console.error('Error loading payments:', error);
     }
@@ -267,7 +264,8 @@ const Billing = () => {
       const response = await paymentsApi.delete(paymentId);
       console.log('Delete response:', response.data);
       
-      if (response.data.success) {
+      // Supabase delete always succeeds if no error is thrown
+      {
         // Remove payment from local state immediately 
         // itemId could be 'contract-1' or 'project-1' format
         setRowPayments(prev => ({
@@ -586,12 +584,11 @@ const Billing = () => {
                                     : 'bg-gray-50 text-gray-700 border border-gray-200'
                                 }`}>
                                   {payment.payment_type === 'fixed' && 'Fijo'}
-                                  {payment.payment_type === 'percentage' && `${payment.percentage}%`}
+                                  {payment.payment_type === 'percentage' && 'Porcentaje'}
                                   {payment.payment_type === 'recurring_support' && `Soporte ${payment.billing_month || ''}`}
                                   {payment.payment_type === 'project_scope' && 'Alcance Fijo'}
                                   {payment.payment_type === 'support_evolutive' && 'Soporte y Evolutivos'}
-                                  {payment.payment_type === 'advance_payment' && 'Anticipo'}
-                                  {!['fixed', 'percentage', 'recurring_support', 'project_scope', 'support_evolutive', 'advance_payment'].includes(payment.payment_type) && 'Otros'}
+                                  {!['fixed', 'percentage', 'recurring_support', 'project_scope', 'support_evolutive'].includes(payment.payment_type) && 'Otros'}
                                 </span>
                               </td>
                               <td className="px-6 py-4">
@@ -683,23 +680,39 @@ const PaymentModal = ({ isOpen, onClose, item, onPaymentSaved }) => {
   const [error, setError] = useState(null);
   const [availableProjects, setAvailableProjects] = useState([]);
 
-  // Load available independent projects when modal opens
+  // Load available projects for scope payments when modal opens
   useEffect(() => {
     const loadProjects = async () => {
       try {
-        const response = await projectsApi.getIndependent();
-        if (response.data.success) {
-          setAvailableProjects(response.data.projects || []);
-        }
+        const response = await projectsApi.getAll();
+        let projects = response.data || [];
+          
+          // Filter projects based on context:
+          // 1. If this is a contract payment, show only projects for that contract's client
+          // 2. If this is an independent project payment, show only independent projects
+          if (item.type === 'contract') {
+            // For contracts, filter projects that belong to the same client
+            projects = projects.filter(p => 
+              !p.is_independent && // Only contract-based projects
+              p.contract_id === item.contractId // Same contract
+            );
+          } else {
+            // For independent projects, show only other independent projects
+            projects = projects.filter(p => p.is_independent);
+          }
+          
+          setAvailableProjects(projects);
+          console.log('Loaded projects for payment modal:', projects);
       } catch (error) {
         console.error('Error loading projects:', error);
+        setAvailableProjects([]);
       }
     };
 
     if (isOpen) {
       loadProjects();
     }
-  }, [isOpen]);
+  }, [isOpen, item]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -735,7 +748,12 @@ const PaymentModal = ({ isOpen, onClose, item, onPaymentSaved }) => {
           }
           
           if (formData.projectPaymentType === 'percentage') {
-            paymentAmount = (selectedProject.total_amount * parseFloat(formData.percentage)) / 100;
+            const projectTotalAmount = parseFloat(selectedProject.total_amount) || 0;
+            if (projectTotalAmount <= 0) {
+              setError('El proyecto seleccionado no tiene un valor total configurado. Por favor, usa el tipo "Monto Fijo" o configura el valor del proyecto.');
+              return;
+            }
+            paymentAmount = (projectTotalAmount * parseFloat(formData.percentage)) / 100;
             description = `Proyecto de alcance fijo - ${selectedProject.name} (${formData.percentage}%)${description ? ` - ${description}` : ''}`;
           } else {
             paymentAmount = parseFloat(formData.amount);
@@ -745,10 +763,6 @@ const PaymentModal = ({ isOpen, onClose, item, onPaymentSaved }) => {
         case 'support_evolutive':
           paymentAmount = parseFloat(formData.amount);
           description = `Soporte y evolutivos${description ? ` - ${description}` : ''}`;
-          break;
-        case 'advance_payment':
-          paymentAmount = parseFloat(formData.amount);
-          description = `Anticipo${description ? ` - ${description}` : ''}`;
           break;
         default: // 'fixed'
           paymentAmount = parseFloat(formData.amount);
@@ -767,7 +781,6 @@ const PaymentModal = ({ isOpen, onClose, item, onPaymentSaved }) => {
         description: description,
         payment_date: formData.paymentDate,
         payment_type: formData.paymentType,
-        percentage: formData.paymentType === 'percentage' ? parseFloat(formData.percentage) : null,
         billing_month: formData.paymentType === 'recurring_support' ? formData.billingMonth : null
       };
 
@@ -783,11 +796,7 @@ const PaymentModal = ({ isOpen, onClose, item, onPaymentSaved }) => {
       }
       console.log('Payment API response:', response);
 
-      if (response.data.success) {
-        onPaymentSaved();
-      } else {
-        setError(response.data.message);
-      }
+      onPaymentSaved();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -842,7 +851,6 @@ const PaymentModal = ({ isOpen, onClose, item, onPaymentSaved }) => {
                 <option value="recurring_support">Soporte Fijo Mensual</option>
                 <option value="project_scope">Proyecto de Alcance Fijo</option>
                 <option value="support_evolutive">Soporte y Evolutivos</option>
-                <option value="advance_payment">Anticipo</option>
               </select>
             </div>
 
@@ -893,12 +901,26 @@ const PaymentModal = ({ isOpen, onClose, item, onPaymentSaved }) => {
                     required
                   >
                     <option value="">Selecciona un proyecto...</option>
-                    {availableProjects.map(project => (
-                      <option key={project.id} value={project.id}>
-                        {project.name} - {project.client_name} 
-                        ({new Intl.NumberFormat('es-CO', {style: 'currency', currency: 'COP'}).format(project.total_amount || 0)})
-                      </option>
-                    ))}
+                    {availableProjects.map(project => {
+                      try {
+                        const totalAmount = parseFloat(project.total_amount) || 0;
+                        const paidAmount = parseFloat(project.paid_amount) || 0;
+                        const remainingAmount = Math.max(0, totalAmount - paidAmount);
+                        return (
+                          <option key={project.id} value={project.id}>
+                            {project.name || 'Sin nombre'} - {project.client_name || 'Sin cliente'} 
+                            (Restante: {new Intl.NumberFormat('es-CO', {style: 'currency', currency: 'COP'}).format(remainingAmount)})
+                          </option>
+                        );
+                      } catch (error) {
+                        console.error('Error rendering project option:', project, error);
+                        return (
+                          <option key={project.id} value={project.id}>
+                            {project.name || 'Proyecto sin nombre'}
+                          </option>
+                        );
+                      }
+                    })}
                   </select>
                 </div>
                 
@@ -986,28 +1008,6 @@ const PaymentModal = ({ isOpen, onClose, item, onPaymentSaved }) => {
               </div>
             )}
 
-            {/* Advance Payment - Simple Amount */}
-            {formData.paymentType === 'advance_payment' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Monto del Anticipo
-                </label>
-                <input
-                  type="number"
-                  value={formData.amount}
-                  onChange={(e) => setFormData({...formData, amount: e.target.value})}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  placeholder="0"
-                  step="1000"
-                  min="0"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Pago adelantado antes de la ejecución del trabajo
-                </p>
-              </div>
-            )}
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Fecha del Pago
@@ -1060,23 +1060,31 @@ const PaymentModal = ({ isOpen, onClose, item, onPaymentSaved }) => {
 // Edit Payment Modal Component
 const EditPaymentModal = ({ isOpen, onClose, payment, item, onPaymentSaved }) => {
   const [formData, setFormData] = useState({
-    amount: payment?.payment_type === 'fixed' ? payment.amount?.toString() || '' : '',
-    paymentType: payment?.payment_type || 'fixed',
-    percentage: payment?.payment_type === 'percentage' ? payment.percentage?.toString() || '' : '',
-    description: payment?.description || '',
-    paymentDate: payment?.payment_date || new Date().toISOString().split('T')[0]
+    amount: '',
+    paymentType: 'fixed',
+    percentage: '',
+    description: '',
+    paymentDate: new Date().toISOString().split('T')[0],
+    billingMonth: new Date().toISOString().slice(0, 7)
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     if (payment) {
+      // Map old payment types to new ones
+      let paymentType = payment.payment_type || 'recurring_support';
+      if (['fixed', 'percentage'].includes(payment.payment_type)) {
+        paymentType = 'recurring_support'; // Default to recurring support for old fixed/percentage payments
+      }
+      
       setFormData({
-        amount: payment.payment_type === 'fixed' ? payment.amount?.toString() || '' : '',
-        paymentType: payment.payment_type || 'fixed',
-        percentage: payment.payment_type === 'percentage' ? payment.percentage?.toString() || '' : '',
+        amount: payment.amount?.toString() || '',
+        paymentType: paymentType,
+        percentage: '',
         description: payment.description || '',
-        paymentDate: payment.payment_date || new Date().toISOString().split('T')[0]
+        paymentDate: payment.payment_date || new Date().toISOString().split('T')[0],
+        billingMonth: payment.billing_month || new Date().toISOString().slice(0, 7)
       });
     }
   }, [payment]);
@@ -1087,9 +1095,33 @@ const EditPaymentModal = ({ isOpen, onClose, payment, item, onPaymentSaved }) =>
     setError(null);
 
     try {
-      const paymentAmount = formData.paymentType === 'percentage' 
-        ? (item.totalValue * parseFloat(formData.percentage)) / 100
-        : parseFloat(formData.amount);
+      let paymentAmount;
+      let description = formData.description;
+      
+      // Calculate amount based on payment type
+      switch (formData.paymentType) {
+        case 'recurring_support':
+          paymentAmount = parseFloat(formData.amount);
+          if (!description.includes('Soporte fijo')) {
+            description = `Soporte fijo - ${formData.billingMonth}${description ? ` - ${description}` : ''}`;
+          }
+          break;
+        case 'project_scope':
+          paymentAmount = parseFloat(formData.amount);
+          if (!description.includes('Proyecto de alcance fijo')) {
+            description = `Proyecto de alcance fijo${description ? ` - ${description}` : ''}`;
+          }
+          break;
+        case 'support_evolutive':
+          paymentAmount = parseFloat(formData.amount);
+          if (!description.includes('Soporte y evolutivos')) {
+            description = `Soporte y evolutivos${description ? ` - ${description}` : ''}`;
+          }
+          break;
+        default:
+          paymentAmount = parseFloat(formData.amount);
+          break;
+      }
 
       if (!paymentAmount || paymentAmount <= 0) {
         setError('El monto del pago debe ser mayor a 0');
@@ -1098,30 +1130,22 @@ const EditPaymentModal = ({ isOpen, onClose, payment, item, onPaymentSaved }) =>
 
       const paymentData = {
         amount: paymentAmount,
-        description: formData.description,
+        description: description,
         payment_date: formData.paymentDate,
         payment_type: formData.paymentType,
-        percentage: formData.paymentType === 'percentage' ? parseFloat(formData.percentage) : null
+        billing_month: formData.paymentType === 'recurring_support' ? formData.billingMonth : null
       };
 
       const response = await paymentsApi.update(payment.id, paymentData);
 
-      if (response.data.success) {
-        onPaymentSaved();
-        onClose();
-      } else {
-        setError(response.data.message);
-      }
+      onPaymentSaved();
+      onClose();
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
   };
-
-  const calculatedAmount = formData.paymentType === 'percentage' && formData.percentage
-    ? (item.totalValue * parseFloat(formData.percentage)) / 100
-    : 0;
 
   if (!isOpen) return null;
 
@@ -1160,19 +1184,50 @@ const EditPaymentModal = ({ isOpen, onClose, payment, item, onPaymentSaved }) =>
               </label>
               <select
                 value={formData.paymentType}
-                onChange={(e) => setFormData({...formData, paymentType: e.target.value, amount: '', percentage: ''})}
+                onChange={(e) => setFormData({...formData, paymentType: e.target.value})}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               >
-                <option value="fixed">Monto Fijo</option>
-                <option value="percentage">Porcentaje</option>
                 <option value="recurring_support">Soporte Fijo Mensual</option>
                 <option value="project_scope">Proyecto de Alcance Fijo</option>
                 <option value="support_evolutive">Soporte y Evolutivos</option>
-                <option value="advance_payment">Anticipo</option>
               </select>
             </div>
 
-            {formData.paymentType === 'fixed' ? (
+            {/* Recurring Support - Monthly Amount + Month Selector */}
+            {formData.paymentType === 'recurring_support' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Mes de Facturación
+                  </label>
+                  <input
+                    type="month"
+                    value={formData.billingMonth}
+                    onChange={(e) => setFormData({...formData, billingMonth: e.target.value})}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Monto del Pago
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.amount}
+                    onChange={(e) => setFormData({...formData, amount: e.target.value})}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    placeholder="0"
+                    step="1000"
+                    min="0"
+                    required
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Fixed Amount Payment Types */}
+            {['project_scope', 'support_evolutive'].includes(formData.paymentType) && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Monto del Pago
@@ -1187,28 +1242,6 @@ const EditPaymentModal = ({ isOpen, onClose, payment, item, onPaymentSaved }) =>
                   min="0"
                   required
                 />
-              </div>
-            ) : (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Porcentaje del Total
-                </label>
-                <input
-                  type="number"
-                  value={formData.percentage}
-                  onChange={(e) => setFormData({...formData, percentage: e.target.value})}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  placeholder="0"
-                  step="0.1"
-                  min="0"
-                  max="100"
-                  required
-                />
-                {calculatedAmount > 0 && (
-                  <p className="text-sm text-gray-600 mt-1">
-                    Equivale a: {new Intl.NumberFormat('es-CO', {style: 'currency', currency: 'COP'}).format(calculatedAmount)}
-                  </p>
-                )}
               </div>
             )}
 

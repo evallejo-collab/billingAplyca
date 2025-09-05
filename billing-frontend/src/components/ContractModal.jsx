@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { contractsApi, clientsApi } from '../services/api';
+import { contractsApi, clientsApi } from '../services/supabaseApi';
 import { X, Save, FileText, User, Calendar, DollarSign, Clock, Upload, Download, Trash2, File, Eye, AlertCircle, CheckCircle } from 'lucide-react';
 
 // Temporary document storage utility
@@ -159,9 +159,7 @@ const ContractModal = ({ isOpen, onClose, contract, isEditing, onContractSaved }
     setLoadingClients(true);
     try {
       const response = await clientsApi.getAll();
-      if (response.data.success) {
-        setClients(response.data.clients);
-      }
+      setClients(response.data);
     } catch (err) {
       console.error('Error loading clients:', err);
     } finally {
@@ -224,8 +222,7 @@ const ContractModal = ({ isOpen, onClose, contract, isEditing, onContractSaved }
         response = await contractsApi.create(submitData);
       }
       
-      if (response.data.success) {
-        const contractId = isEditing ? contract.id : response.data.contract?.id;
+      const contractId = isEditing ? contract.id : response.data?.id;
         
         // If creating a new contract and there are temporary documents, store them
         if (!isEditing && documents.some(doc => doc.isTemporary) && contractId) {
@@ -269,10 +266,6 @@ const ContractModal = ({ isOpen, onClose, contract, isEditing, onContractSaved }
         
         onContractSaved();
         onClose();
-      } else {
-        console.log('API response error:', response.data);
-        setError(response.data.message || 'Error al guardar el contrato');
-      }
     } catch (err) {
       console.error('Contract submission error:', err);
       console.log('Error details:', {
@@ -582,8 +575,8 @@ const ContractModal = ({ isOpen, onClose, contract, isEditing, onContractSaved }
               {/* Contract Header - Clean and Professional */}
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900">{contract.contract_number}</h3>
-                  <p className="text-sm text-gray-600 mt-1">{contract.client_name}</p>
+                  <h3 className="text-xl font-semibold text-gray-900">{contract.client_name}</h3>
+                  <p className="text-sm text-gray-600 mt-1">{contract.contract_number}</p>
                 </div>
                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
                   ${contract.status === 'active' ? 'bg-green-50 text-green-800 border border-green-200' : 
@@ -598,11 +591,11 @@ const ContractModal = ({ isOpen, onClose, contract, isEditing, onContractSaved }
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-white border border-gray-200 rounded-lg p-3 text-center">
                   <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Total Horas</p>
-                  <p className="text-xl font-semibold text-gray-900">{contract.total_hours}h</p>
+                  <p className="text-sm font-semibold text-gray-900 break-all leading-tight">{contract.total_hours}h</p>
                 </div>
                 <div className="bg-white border border-gray-200 rounded-lg p-3 text-center">
                   <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Utilizadas</p>
-                  <p className="text-xl font-semibold text-gray-900">{contract.used_hours || 0}h</p>
+                  <p className="text-sm font-semibold text-gray-900 break-all leading-tight">{contract.used_hours || 0}h</p>
                 </div>
                 <div className="bg-white border border-gray-200 rounded-lg p-3 text-center">
                   <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Tarifa/Hora</p>
@@ -629,7 +622,16 @@ const ContractModal = ({ isOpen, onClose, contract, isEditing, onContractSaved }
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
-                        className="bg-gray-600 h-2 rounded-full transition-all duration-300"
+                        className={`h-2 rounded-full transition-all duration-300 ${
+                          (() => {
+                            const percentage = ((contract.used_hours || 0) / contract.total_hours) * 100;
+                            if (percentage >= 90) return 'bg-red-500'; // Rojo: casi agotado
+                            if (percentage >= 75) return 'bg-orange-500'; // Naranja: alerta
+                            if (percentage >= 50) return 'bg-yellow-500'; // Amarillo: mitad
+                            if (percentage >= 25) return 'bg-blue-500'; // Azul: progreso normal
+                            return 'bg-green-500'; // Verde: inicio
+                          })()
+                        }`}
                         style={{ width: `${Math.min(((contract.used_hours || 0) / contract.total_hours) * 100, 100)}%` }}
                       />
                     </div>
@@ -646,7 +648,17 @@ const ContractModal = ({ isOpen, onClose, contract, isEditing, onContractSaved }
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div
-                          className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                          className={`h-2 rounded-full transition-all duration-300 ${
+                            (() => {
+                              const totalValue = (contract.total_hours || 0) * (contract.hourly_rate || 0);
+                              const percentage = totalValue > 0 ? ((contract.billed_amount || 0) / totalValue) * 100 : 0;
+                              if (percentage >= 100) return 'bg-green-600'; // Verde oscuro: completado
+                              if (percentage >= 75) return 'bg-green-500'; // Verde: muy avanzado
+                              if (percentage >= 50) return 'bg-blue-500'; // Azul: mitad facturado
+                              if (percentage >= 25) return 'bg-yellow-500'; // Amarillo: progreso inicial
+                              return 'bg-gray-500'; // Gris: poco avance
+                            })()
+                          }`}
                           style={{ width: `${Math.min(((contract.billed_amount || 0) / ((contract.total_hours || 0) * (contract.hourly_rate || 0))) * 100, 100)}%` }}
                         />
                       </div>
@@ -835,7 +847,7 @@ const ContractModal = ({ isOpen, onClose, contract, isEditing, onContractSaved }
                       <option value="">Seleccionar cliente</option>
                       {clients.map(client => (
                         <option key={client.id} value={client.id}>
-                          {client.name} - {client.company || client.email}
+                          {client.name || client.company} - {client.company || client.email}
                         </option>
                       ))}
                     </select>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { contractsApi, timeEntriesApi } from '../services/api';
+import { contractsApi, timeEntriesApi } from '../services/supabaseApi';
 import { Plus, Clock, Calendar, Search, Filter, AlertCircle, FileText, Trash2, Edit2, ChevronDown, ChevronRight } from 'lucide-react';
 import TimeEntryModal from './TimeEntryModal';
 
@@ -35,16 +35,14 @@ const TimeEntries = () => {
       // Load time entries and active contracts in parallel
       const [entriesResponse, contractsResponse] = await Promise.all([
         timeEntriesApi.getAll(),
-        contractsApi.getAll('active')
+        contractsApi.getAll()
       ]);
 
-      if (entriesResponse.data.success) {
-        setTimeEntries(entriesResponse.data.time_entries || []);
-      }
-
-      if (contractsResponse.data.success) {
-        setActiveContracts(contractsResponse.data.contracts);
-      }
+      setTimeEntries(entriesResponse.data || []);
+      
+      // Filter only active contracts
+      const activeOnly = (contractsResponse.data || []).filter(contract => contract.status === 'active');
+      setActiveContracts(activeOnly);
     } catch (err) {
       setError(err.message);
       console.error('Error loading data:', err);
@@ -83,8 +81,12 @@ const TimeEntries = () => {
     const grouped = filtered.reduce((groups, entry) => {
       const key = entry.contract_number || entry.project_name || 'Sin asignar';
       if (!groups[key]) {
+        // For contracts: show client name as title, contract number as subtitle
+        // For projects: show project name as title, client name as subtitle
+        const isContract = entry.contract_number;
         groups[key] = {
-          name: key,
+          name: isContract ? entry.client_name : entry.project_name || 'Sin asignar',
+          subtitle: isContract ? `Número de contrato: ${entry.contract_number}` : entry.client_name,
           client: entry.client_name,
           entries: [],
           totalHours: 0
@@ -136,12 +138,8 @@ const TimeEntries = () => {
     }
 
     try {
-      const response = await timeEntriesApi.delete(entryId);
-      if (response.data.success) {
-        loadData(); // Reload the data after deletion
-      } else {
-        alert('Error al eliminar la entrada: ' + response.data.message);
-      }
+      await timeEntriesApi.delete(entryId);
+      loadData(); // Reload the data after deletion
     } catch (error) {
       alert('Error al eliminar la entrada: ' + error.message);
     }
@@ -247,7 +245,7 @@ const TimeEntries = () => {
                 <option value="all">Todos los contratos</option>
                 {activeContracts.map(contract => (
                   <option key={contract.id} value={contract.id}>
-                    {contract.contract_number} - {contract.client_name}
+                    {contract.client_name} - {contract.contract_number}
                   </option>
                 ))}
               </select>
@@ -343,7 +341,9 @@ const TimeEntries = () => {
                     )}
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">{group.name}</h3>
-                      <p className="text-sm text-gray-500">{group.client}</p>
+                      {group.subtitle && (
+                        <p className="text-sm text-gray-500">{group.subtitle}</p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center space-x-6 text-sm">

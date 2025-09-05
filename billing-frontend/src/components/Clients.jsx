@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { clientsApi } from '../services/api';
-import { formatCOP } from '../utils/currency';
+import { clientsApi } from '../services/supabaseApi';
 import { 
   Plus, 
   Search, 
@@ -37,11 +36,7 @@ const Clients = () => {
     try {
       setLoading(true);
       const response = await clientsApi.getAll();
-      if (response.data.success) {
-        setClients(response.data.clients);
-      } else {
-        setError(response.data.message);
-      }
+      setClients(response.data);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -57,12 +52,13 @@ const Clients = () => {
 
     try {
       setLoading(true);
-      const response = await clientsApi.search(searchTerm);
-      if (response.data.success) {
-        setClients(response.data.clients);
-      } else {
-        setError(response.data.message);
-      }
+      const response = await clientsApi.getAll();
+      const filteredClients = response.data.filter(client =>
+        client.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        client.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        client.email.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setClients(filteredClients);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -93,12 +89,8 @@ const Clients = () => {
     }
 
     try {
-      const response = await clientsApi.delete(clientId);
-      if (response.data.success) {
-        loadClients();
-      } else {
-        alert(response.data.message);
-      }
+      await clientsApi.delete(clientId);
+      loadClients();
     } catch (err) {
       alert(err.message);
     }
@@ -204,14 +196,9 @@ const Clients = () => {
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                   <h3 className="text-base font-semibold text-gray-900 mb-1">
-                    {client.name}
+                    <Building className="w-4 h-4 inline mr-1" />
+                    {client.name || client.company}
                   </h3>
-                  {client.company && (
-                    <div className="flex items-center text-sm text-gray-600 mb-1">
-                      <Building className="w-4 h-4 mr-1" />
-                      {client.company}
-                    </div>
-                  )}
                 </div>
                 <div className="flex space-x-1">
                   <button

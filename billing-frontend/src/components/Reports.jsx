@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { reportsApi, contractsApi, clientsApi, projectsApi } from '../services/api';
+import { contractsApi, clientsApi, projectsApi, timeEntriesApi, paymentsApi } from '../services/supabaseApi';
 import { BarChart3, Calendar, Download, Filter, TrendingUp, Users, DollarSign, Clock, FileText, ChevronDown, ChevronRight, Folder } from 'lucide-react';
 
 const Reports = () => {
@@ -58,10 +58,34 @@ const Reports = () => {
       setLoading(true);
       setError(null);
       
-      const response = await reportsApi.getOverview();
-      if (response.data.success) {
-        setOverviewData(response.data.stats);
-      }
+      // Load data from multiple APIs and calculate stats
+      const [contractsResponse, clientsResponse, projectsResponse, paymentsResponse] = await Promise.all([
+        contractsApi.getAll(),
+        clientsApi.getAll(),
+        projectsApi.getAll(),
+        paymentsApi.getAll()
+      ]);
+      
+      const contracts = contractsResponse.data || [];
+      const clients = clientsResponse.data || [];
+      const projects = projectsResponse.data || [];
+      const payments = paymentsResponse.data || [];
+      
+      // Calculate overview stats
+      const activeContracts = contracts.filter(c => c.status === 'active');
+      const activeProjects = projects.filter(p => p.status === 'active');
+      const totalRevenue = payments.reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0);
+      const totalHoursUsed = contracts.reduce((sum, contract) => sum + (parseFloat(contract.used_hours) || 0), 0);
+      
+      setOverviewData({
+        total_contracts: contracts.length,
+        active_contracts: activeContracts.length,
+        total_clients: clients.length,
+        active_projects: activeProjects.length,
+        total_revenue: totalRevenue,
+        total_hours: totalHoursUsed
+      });
+      
     } catch (err) {
       setError(err.message);
     } finally {
@@ -74,10 +98,78 @@ const Reports = () => {
       setLoading(true);
       setError(null);
       
-      const response = await reportsApi.getMonthly(monthlyFilters.year, monthlyFilters.month);
-      if (response.data.success) {
-        setMonthlyData(response.data.data);
-      }
+      // Get time entries and payments for the selected month/year
+      const [timeEntriesResponse, paymentsResponse] = await Promise.all([
+        timeEntriesApi.getAll(),
+        paymentsApi.getAll()
+      ]);
+      
+      const allTimeEntries = timeEntriesResponse.data || [];
+      const allPayments = paymentsResponse.data || [];
+      
+      // Filter time entries by month and year
+      const filteredEntries = allTimeEntries.filter(entry => {
+        const entryDate = new Date(entry.entry_date);
+        return entryDate.getFullYear() === monthlyFilters.year &&
+               entryDate.getMonth() + 1 === monthlyFilters.month;
+      });
+      
+      // Filter payments by month and year
+      const filteredPayments = allPayments.filter(payment => {
+        const paymentDate = new Date(payment.payment_date);
+        return paymentDate.getFullYear() === monthlyFilters.year &&
+               paymentDate.getMonth() + 1 === monthlyFilters.month;
+      });
+      
+      // Group by client and contract
+      const clientMap = {};
+      
+      filteredEntries.forEach(entry => {
+        const clientName = entry.client_name || 'Sin cliente';
+        const contractNumber = entry.contract_number || 'Sin contrato';
+        
+        if (!clientMap[clientName]) {
+          clientMap[clientName] = {
+            client_id: clientName,
+            client_name: clientName,
+            company: '',
+            contracts: {}
+          };
+        }
+        
+        if (!clientMap[clientName].contracts[contractNumber]) {
+          clientMap[clientName].contracts[contractNumber] = {
+            contract_id: contractNumber,
+            contract_number: contractNumber,
+            hours: 0,
+            amount: 0
+          };
+        }
+        
+        clientMap[clientName].contracts[contractNumber].hours += parseFloat(entry.hours_used) || 0;
+      });
+      
+      // Add payment amounts to contracts
+      filteredPayments.forEach(payment => {
+        const contractNumber = payment.contract?.contract_number || 'Sin contrato';
+        
+        // Try to find the client that has this contract
+        for (const client of Object.values(clientMap)) {
+          if (client.contracts[contractNumber]) {
+            client.contracts[contractNumber].amount += parseFloat(payment.amount) || 0;
+            break;
+          }
+        }
+      });
+      
+      // Convert to array format expected by the UI
+      const monthlyDataArray = Object.values(clientMap).map(client => ({
+        ...client,
+        contracts: Object.values(client.contracts)
+      }));
+      
+      setMonthlyData(monthlyDataArray);
+      
     } catch (err) {
       setError(err.message);
     } finally {
@@ -90,10 +182,14 @@ const Reports = () => {
       setLoading(true);
       setError(null);
       
-      const response = await reportsApi.getActiveContracts();
-      if (response.data.success) {
-        setActiveContractsData(response.data.data);
-      }
+      const contractsResponse = await contractsApi.getAll();
+      const allContracts = contractsResponse.data || [];
+      
+      // Filter only active contracts
+      const activeContracts = allContracts.filter(contract => contract.status === 'active');
+      
+      setActiveContractsData(activeContracts);
+      
     } catch (err) {
       setError(err.message);
     } finally {
@@ -106,14 +202,14 @@ const Reports = () => {
       setLoading(true);
       setError(null);
       
-      const response = await projectsApi.getAll();
-      if (response.data.success) {
-        // Filter only active projects
-        const activeProjects = response.data.projects.filter(project => 
-          project.status === 'active'
-        );
-        setActiveProjectsData(activeProjects);
-      }
+      const projectsResponse = await projectsApi.getAll();
+      const allProjects = projectsResponse.data || [];
+      
+      // Filter only active projects
+      const activeProjects = allProjects.filter(project => project.status === 'active');
+      
+      setActiveProjectsData(activeProjects);
+      
     } catch (err) {
       setError(err.message);
     } finally {
@@ -126,14 +222,27 @@ const Reports = () => {
       setLoading(true);
       setError(null);
       
-      const response = await reportsApi.getTimeEntries(
-        timeEntriesFilters.start_date,
-        timeEntriesFilters.end_date
-      );
-      if (response.data.success) {
-        setTimeEntriesData(response.data.data);
-        groupTimeEntries(response.data.data);
+      const timeEntriesResponse = await timeEntriesApi.getAll();
+      const allTimeEntries = timeEntriesResponse.data || [];
+      
+      // Filter by date range
+      const filteredEntries = allTimeEntries.filter(entry => {
+        const entryDate = entry.entry_date;
+        return entryDate >= timeEntriesFilters.start_date && 
+               entryDate <= timeEntriesFilters.end_date;
+      });
+      
+      // Filter by client if specified
+      let finalEntries = filteredEntries;
+      if (timeEntriesFilters.client_filter !== 'all') {
+        finalEntries = filteredEntries.filter(entry => 
+          entry.client_name?.includes(timeEntriesFilters.client_filter)
+        );
       }
+      
+      setTimeEntriesData(finalEntries);
+      groupTimeEntries(finalEntries);
+      
     } catch (err) {
       setError(err.message);
     } finally {
@@ -143,10 +252,9 @@ const Reports = () => {
 
   const loadAvailableClients = async () => {
     try {
-      const response = await clientsApi.getAll();
-      if (response.data.success) {
-        setAvailableClients(response.data.clients);
-      }
+      const clientsResponse = await clientsApi.getAll();
+      const clients = clientsResponse.data || [];
+      setAvailableClients(clients);
     } catch (err) {
       console.error('Error loading clients:', err);
     }
@@ -673,8 +781,8 @@ const Reports = () => {
               >
                 <option value="all">Todos los clientes</option>
                 {availableClients.map(client => (
-                  <option key={client.id} value={client.name}>
-                    {client.name}
+                  <option key={client.id} value={client.name || client.company}>
+                    {client.name || client.company}
                   </option>
                 ))}
               </select>
