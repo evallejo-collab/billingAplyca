@@ -1,52 +1,57 @@
-# Sistema de Facturación por Horas (billingAplyca)
+# Sistema de Facturación - billingAplyca
 
-Sistema completo de facturación que permite gestionar contratos con asignación global de horas y seguimiento del consumo de las mismas.
+Sistema integral de facturación y gestión de proyectos desarrollado con React y Supabase. Permite gestionar clientes, contratos, proyectos, registro de horas, pagos y reportes de manera eficiente.
 
-## Características Principales
+## 🚀 Características Principales
 
-- ✅ **Gestión de Contratos**: Crear contratos con horas globales asignadas
-- ✅ **Seguimiento de Horas**: Registrar y descontar horas del contrato principal
-- ✅ **Validación de Disponibilidad**: No permite exceder las horas contratadas
-- ✅ **Reportes Detallados**: Informes de facturación y uso de horas
-- ✅ **Dashboard Interactivo**: Panel de control con estadísticas en tiempo real
-- ✅ **API REST**: Endpoints para integración con otros sistemas
-- ✅ **Frontend React**: Interfaz moderna con React y Tailwind CSS
+- ✅ **Gestión de Clientes**: CRUD completo con campo unificado empresa/cliente
+- ✅ **Gestión de Contratos**: Con barras de progreso coloridas y cálculo automático de horas
+- ✅ **Gestión de Proyectos**: Independientes o vinculados a contratos
+- ✅ **Registro de Horas**: Con validación de disponibilidad y cálculo de montos
+- ✅ **Gestión de Pagos**: Múltiples tipos de pago con historial completo
+- ✅ **Reportes y Analytics**: Resumen general, reportes mensuales, contratos activos
+- ✅ **UI/UX Profesional**: Responsive design con Tailwind CSS
+- ✅ **Backend Supabase**: PostgreSQL con autenticación y real-time
 
 ## Estructura del Proyecto
 
 ```
 billing_system/
-├── api/                    # Endpoints de la API REST
-├── billing-frontend/       # Aplicación React
-├── config/                 # Configuración de la base de datos
-├── controllers/            # Controladores PHP
-├── database/               # Base de datos SQLite y scripts
-├── models/                 # Modelos de datos PHP
-├── reports/                # Generador de reportes
-└── web/                    # Dashboard HTML básico
+├── billing-frontend/       # Aplicación React + Vite
+├── scripts/               # Scripts de automatización
+└── docs/                  # Documentación del proyecto
 ```
 
 ## Tecnologías Utilizadas
 
-### Backend
-- **PHP 7.4+**: Lenguaje principal del backend
-- **SQLite**: Base de datos ligera y portable
-- **RESTful API**: Arquitectura de servicios web
-
 ### Frontend
 - **React 18**: Biblioteca de JavaScript para UI
-- **Vite**: Build tool y servidor de desarrollo
+- **Vite**: Build tool y servidor de desarrollo moderno
 - **Tailwind CSS**: Framework de CSS utility-first
-- **React Router**: Navegación del lado del cliente
+- **React Router DOM**: Navegación del lado del cliente
+- **Lucide React**: Iconografía moderna
+
+### Backend
+- **Supabase**: Backend-as-a-Service completo
+- **PostgreSQL**: Base de datos relacional robusta
+- **Row Level Security (RLS)**: Seguridad a nivel de fila
+- **Real-time subscriptions**: Actualizaciones en tiempo real
+- **Autenticación integrada**: Sistema de auth completo
+
+### Herramientas de Desarrollo
+- **ESLint**: Linting de código JavaScript
+- **PostCSS**: Procesamiento de CSS
+- **Autoprefixer**: Auto-prefijos CSS
+- **Git**: Control de versiones
 
 ## Instalación y Configuración
 
 ### Prerrequisitos
-- PHP 7.4 o superior
-- Node.js 16 o superior
-- Servidor web (Apache/Nginx) o PHP built-in server
+- Node.js 18 o superior
+- npm o yarn
+- Cuenta en Supabase
 
-### Backend Setup
+### Setup del Proyecto
 
 1. **Clonar el repositorio**
 ```bash
@@ -54,130 +59,120 @@ git clone https://github.com/evallejo-collab/billingAplyca.git
 cd billingAplyca
 ```
 
-2. **Configurar la base de datos**
-```bash
-php database/create_db.php
-```
+2. **Configurar Supabase**
+   - Crear proyecto en [supabase.com](https://supabase.com)
+   - Obtener URL del proyecto y clave anónima
+   - Configurar las tablas usando los scripts SQL proporcionados
 
-3. **Iniciar el servidor PHP** (opcional, para desarrollo)
-```bash
-php -S localhost:8000
-```
-
-### Frontend Setup
-
-1. **Navegar al directorio frontend**
+3. **Configurar Variables de Entorno**
 ```bash
 cd billing-frontend
+cp .env.example .env
 ```
 
-2. **Instalar dependencias**
+Editar el archivo `.env` con tus credenciales de Supabase:
+```env
+VITE_SUPABASE_URL=tu_url_de_supabase
+VITE_SUPABASE_ANON_KEY=tu_clave_anonima_de_supabase
+```
+
+4. **Instalar dependencias**
 ```bash
 npm install
 ```
 
-3. **Iniciar el servidor de desarrollo**
+5. **Iniciar el servidor de desarrollo**
 ```bash
 npm run dev
 ```
 
-4. **Para desarrollo con API mock**
-```bash
-npm run dev:full
-```
-
-El frontend estará disponible en `http://localhost:3000`
+La aplicación estará disponible en `http://localhost:5173`
 
 ## Uso del Sistema
 
-### 1. Crear un Contrato
-```php
-POST /api/contracts.php
-{
-    "client_id": 1,
-    "description": "Desarrollo de aplicación web",
-    "total_hours": 100,
-    "hourly_rate": 50.00,
-    "start_date": "2024-01-01"
-}
-```
+### Funcionalidades Principales
 
-### 2. Registrar Horas de Trabajo
-```php
-POST /api/contracts.php
-{
-    "action": "add_time_entry",
-    "contract_id": 1,
-    "description": "Desarrollo de módulo de autenticación",
-    "hours_used": 8.5,
-    "entry_date": "2024-01-15",
-    "created_by": "Juan Pérez"
-}
-```
+1. **Gestión de Clientes**
+   - Crear, editar y eliminar clientes
+   - Vista unificada empresa/cliente
 
-### 3. Consultar Estado del Contrato
-```php
-GET /api/contracts.php?id=1
-```
+2. **Gestión de Contratos**
+   - Contratos por horas con seguimiento de progreso
+   - Barras de progreso con colores dinámicos
+   - Cálculo automático de horas utilizadas
 
-## API Endpoints
+3. **Proyectos de Alcance Fijo**
+   - Proyectos independientes o vinculados a contratos
+   - Gestión de montos fijos
 
-### Contratos
-- `GET /api/contracts.php` - Listar todos los contratos
-- `GET /api/contracts.php?id={id}` - Obtener contrato específico
-- `GET /api/contracts.php?status=active` - Filtrar por estado
-- `POST /api/contracts.php` - Crear nuevo contrato
-- `PUT /api/contracts.php?id={id}` - Actualizar estado del contrato
+4. **Registro de Horas**
+   - Validación de disponibilidad
+   - Histórico completo por contrato/proyecto
 
-### Proyectos
-- `GET /api/projects.php` - Listar proyectos
-- `POST /api/projects.php` - Crear proyecto
-- `PUT /api/projects.php` - Actualizar proyecto
+5. **Sistema de Pagos**
+   - Múltiples tipos: anticipo, mensual, soporte recurrente
+   - Historial detallado de pagos
 
-### Clientes
-- `GET /api/clients.php` - Listar clientes
-- `POST /api/clients.php` - Crear cliente
-- `PUT /api/clients.php` - Actualizar cliente
+6. **Reportes Avanzados**
+   - Resumen general del negocio
+   - Reportes mensuales
+   - Estadísticas por cliente
 
-### Entradas de Tiempo
-- `GET /api/time_entries.php` - Listar entradas
-- `POST /api/time_entries.php` - Registrar tiempo
-- `PUT /api/time_entries.php` - Actualizar entrada
+## Arquitectura de Datos
 
-### Reportes
-- `GET /api/reports.php` - Generar reportes de facturación
+### Supabase Database Schema
 
-## Modelos de Datos
+El sistema utiliza PostgreSQL a través de Supabase con las siguientes tablas:
 
-### Contratos
-- **ID**: Identificador único
-- **client_id**: ID del cliente
-- **contract_number**: Número de contrato (auto-generado)
-- **description**: Descripción del trabajo
-- **total_hours**: Horas totales contratadas
-- **hourly_rate**: Tarifa por hora
-- **used_hours**: Horas utilizadas (calculado)
-- **remaining_hours**: Horas restantes (calculado)
-- **status**: Estado (active, completed, cancelled)
+#### Tabla: `clients`
+- Información de clientes y empresas
+- Campos principales: name, company, email, phone
 
-### Entradas de Tiempo
-- **ID**: Identificador único
-- **contract_id**: Referencia al contrato
-- **description**: Descripción del trabajo realizado
-- **hours_used**: Horas utilizadas
-- **entry_date**: Fecha del trabajo
-- **created_by**: Quien registró las horas
-- **amount**: Monto facturado (calculado)
+#### Tabla: `contracts`
+- Contratos por horas
+- Relación con clientes
+- Seguimiento de horas: total_hours, used_hours
+- Estados: active, completed, cancelled
 
-## Base de Datos
+#### Tabla: `projects`
+- Proyectos de alcance fijo
+- Pueden estar vinculados a contratos
+- Montos fijos con seguimiento de pagos
 
-El sistema utiliza SQLite con las siguientes tablas principales:
+#### Tabla: `time_entries`
+- Registro de horas trabajadas
+- Relación con contratos y proyectos
+- Cálculo automático de montos
 
-- `contracts`: Contratos con horas totales
-- `projects`: Proyectos asociados a contratos
-- `clients`: Información de clientes
-- `time_entries`: Registros de tiempo trabajado
-- `hour_categories`: Tipos y tarifas de horas
+#### Tabla: `payments`
+- Historial de pagos
+- Tipos: anticipo, mensual, soporte recurrente
+- Relación con contratos y proyectos
+
+## Características Técnicas
+
+### Seguridad
+- **Row Level Security (RLS)**: Políticas de seguridad a nivel de base de datos
+- **Autenticación**: Sistema completo con Supabase Auth
+- **Validaciones**: Frontend y backend con validación de datos
+
+### Performance
+- **Vite**: Build tool ultra-rápido
+- **Lazy Loading**: Carga perezosa de componentes
+- **Optimización de Bundle**: Tree shaking automático
+- **Caching**: Cache inteligente de Supabase
+
+### UI/UX
+- **Responsive Design**: Adaptable a todos los dispositivos
+- **Tailwind CSS**: Diseño consistente y moderno
+- **Componentes Reutilizables**: Arquitectura modular
+- **Feedback Visual**: Estados de carga y notificaciones
+
+### DevOps
+- **Vercel Ready**: Configurado para deployment en Vercel
+- **Environment Variables**: Configuración por entornos
+- **Hot Reload**: Desarrollo con recarga automática
+- **Build Optimization**: Builds optimizados para producción
 
 ## Reportes Disponibles
 
@@ -195,16 +190,26 @@ El sistema utiliza SQLite con las siguientes tablas principales:
 - ✅ Las fechas de trabajo no pueden ser futuras
 - ✅ Los números de contrato son únicos y auto-generados
 
-## Dashboard Web
+## Scripts Disponibles
 
-El sistema incluye una interfaz web responsive con:
+### Desarrollo
+```bash
+npm run dev          # Servidor de desarrollo
+npm run build        # Build de producción
+npm run preview      # Preview del build
+npm run lint         # Linting del código
+```
 
-- **Panel Principal**: Estadísticas generales y contratos activos
-- **Gestión de Contratos**: Crear y listar contratos
-- **Registro de Horas**: Formulario para registrar tiempo trabajado
-- **Reportes**: Generación de informes diversos
+### Deployment
+Ver [DEPLOYMENT.md](billing-frontend/DEPLOYMENT.md) para instrucciones completas de deployment en Vercel.
 
-Acceder a: `http://localhost:3000` (React) o `http://tu-servidor/web/dashboard.html` (HTML)
+## Variables de Entorno
+
+```env
+# Supabase Configuration
+VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
+VITE_SUPABASE_ANON_KEY=tu-clave-anonima
+```
 
 ## Contribuir
 
