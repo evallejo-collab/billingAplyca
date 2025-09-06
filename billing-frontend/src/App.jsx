@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import { Analytics } from "@vercel/analytics/react";
 import { AuthProvider } from './context/AuthContext';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
@@ -34,6 +35,7 @@ function App() {
         </Routes>
       </Router>
       <SpeedInsights />
+      <Analytics />
     </AuthProvider>
   );
 }
