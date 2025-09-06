@@ -57,10 +57,11 @@ const TimeEntries = () => {
     // Filter by search term
     if (searchTerm) {
       filtered = filtered.filter(entry =>
-        entry.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        entry.contract_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        entry.client_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        entry.created_by?.toLowerCase().includes(searchTerm.toLowerCase())
+        (entry.description && entry.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (entry.task_category && entry.task_category.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (entry.contract_number && entry.contract_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (entry.client_name && entry.client_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (entry.created_by && entry.created_by.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
@@ -132,8 +133,9 @@ const TimeEntries = () => {
     setIsEditing(false);
   };
 
-  const handleDeleteTimeEntry = async (entryId, description) => {
-    if (!window.confirm(`¿Estás seguro de que deseas eliminar la entrada: "${description}"?`)) {
+  const handleDeleteTimeEntry = async (entryId, taskCategory, description) => {
+    const displayText = taskCategory || description || 'entrada sin descripción';
+    if (!window.confirm(`¿Estás seguro de que deseas eliminar la entrada: "${displayText}"?`)) {
       return;
     }
 
@@ -372,7 +374,7 @@ const TimeEntries = () => {
                         Fecha
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Descripción
+                        Tipo de Tarea
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Horas
@@ -395,14 +397,30 @@ const TimeEntries = () => {
                           </div>
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-900">
-                          <div className="max-w-xs truncate" title={entry.description}>
-                            {entry.description}
+                          <div className="max-w-xs">
+                            {entry.task_category ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                {entry.task_category === 'soporte_aplicativo' && 'Soporte Aplicativo'}
+                                {entry.task_category === 'desarrollo_frontend' && 'Desarrollo Frontend'}
+                                {entry.task_category === 'desarrollo_backend' && 'Desarrollo Backend'}
+                                {entry.task_category === 'analisis_requerimientos' && 'Análisis de Requerimientos'}
+                                {entry.task_category === 'testing_qa' && 'Testing y QA'}
+                                {entry.task_category === 'devops_infraestructura' && 'DevOps e Infraestructura'}
+                                {entry.task_category === 'documentacion' && 'Documentación'}
+                                {entry.task_category === 'reunion_cliente' && 'Reunión con Cliente'}
+                                {entry.task_category === 'capacitacion' && 'Capacitación'}
+                                {entry.task_category === 'mantenimiento' && 'Mantenimiento'}
+                                {entry.task_category === 'arquitectura_diseno' && 'Arquitectura y Diseño'}
+                                {entry.task_category === 'integraciones' && 'Integraciones'}
+                                {entry.task_category === 'optimizacion' && 'Optimización'}
+                                {entry.task_category === 'configuracion' && 'Configuración'}
+                                {entry.task_category === 'otro' && 'Otro'}
+                                {!['soporte_aplicativo', 'desarrollo_frontend', 'desarrollo_backend', 'analisis_requerimientos', 'testing_qa', 'devops_infraestructura', 'documentacion', 'reunion_cliente', 'capacitacion', 'mantenimiento', 'arquitectura_diseno', 'integraciones', 'optimizacion', 'configuracion', 'otro'].includes(entry.task_category) && entry.task_category}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400 italic">Sin categoría</span>
+                            )}
                           </div>
-                          {entry.notes && (
-                            <div className="text-xs text-gray-500 mt-1 max-w-xs truncate" title={entry.notes}>
-                              Nota: {entry.notes}
-                            </div>
-                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           <div className="flex items-center">
@@ -423,7 +441,7 @@ const TimeEntries = () => {
                               <Edit2 className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => handleDeleteTimeEntry(entry.id, entry.description)}
+                              onClick={() => handleDeleteTimeEntry(entry.id, entry.task_category, entry.description)}
                               className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors"
                               title="Eliminar entrada"
                             >

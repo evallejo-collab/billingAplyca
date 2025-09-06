@@ -9,6 +9,7 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
     estimated_hours: '',
     start_date: '',
     end_date: '',
+    delivery_date: '',
     status: 'active',
     project_type: 'contract', // 'contract' or 'independent'
     contract_id: '',
@@ -21,6 +22,11 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
     hourly_rate: '',
     total_amount: '',
     is_paid: false,
+    // Purchase order and payment terms
+    purchase_order_number: '',
+    payment_terms: '',
+    advance_percentage: 30, // Default 30% advance
+    notes: '',
   });
   const [availableClients, setAvailableClients] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -46,6 +52,7 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
           hourly_rate: project.hourly_rate || '',
           total_amount: project.total_amount || '',
           is_paid: project.is_paid || false,
+          notes: project.notes || '',
         });
       } else {
         resetForm();
@@ -73,6 +80,7 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
       hourly_rate: '',
       total_amount: '',
       is_paid: false,
+      notes: '',
     });
   };
 
@@ -146,6 +154,7 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
         start_date: formData.start_date || null,
         end_date: formData.end_date || null,
         status: formData.status,
+        notes: formData.notes || null,
       };
 
       if (formData.project_type === 'contract') {
@@ -358,14 +367,21 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
                   <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium capitalize
                     ${project.status === 'active' ? 'bg-green-100 text-green-800' : 
                       project.status === 'completed' ? 'bg-blue-100 text-blue-800' : 
+                      project.status === 'ready_to_invoice' ? 'bg-orange-100 text-orange-800' :
+                      project.status === 'invoiced' ? 'bg-purple-100 text-purple-800' :
                       project.status === 'on_hold' ? 'bg-yellow-100 text-yellow-800' :
                       'bg-red-100 text-red-800'}`}>
                     {project.status === 'on_hold' ? 'En Pausa' : 
                      project.status === 'active' ? 'Activo' :
-                     project.status === 'completed' ? 'Completado' : 'Cancelado'}
+                     project.status === 'completed' ? 'Completado - Listo para facturar' :
+                     project.status === 'ready_to_invoice' ? 'Finalizado - Pendiente por facturar' :
+                     project.status === 'invoiced' ? 'Facturado' : 'Estado Desconocido'}
                   </span>
                 </div>
-                
+              </div>
+              
+              {/* Dates Section */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {project.start_date && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -375,14 +391,69 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
                     <p className="text-gray-900">{new Date(project.start_date).toLocaleDateString('es-CO')}</p>
                   </div>
                 )}
+                
+                {project.end_date && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Fecha de Finalización
+                    </label>
+                    <p className="text-gray-900">{new Date(project.end_date).toLocaleDateString('es-CO')}</p>
+                  </div>
+                )}
+                
+                {project.delivery_date && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Fecha de Entrega
+                    </label>
+                    <p className="text-lg font-semibold text-blue-600">{new Date(project.delivery_date).toLocaleDateString('es-CO')}</p>
+                  </div>
+                )}
               </div>
               
-              {project.end_date && (
+              {/* Purchase Order Information for Independent Projects */}
+              {project.is_independent && (project.purchase_order_number || project.payment_terms) && (
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h3 className="text-sm font-medium text-gray-900 mb-3">Información de Orden de Compra</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {project.purchase_order_number && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <FileText className="w-4 h-4 inline mr-1" />
+                          Número de Orden de Compra
+                        </label>
+                        <p className="text-lg font-semibold text-blue-600">{project.purchase_order_number}</p>
+                      </div>
+                    )}
+                    
+                    {project.advance_percentage && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Porcentaje de Anticipo
+                        </label>
+                        <p className="text-lg font-semibold text-gray-900">{project.advance_percentage}%</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {project.payment_terms && (
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Términos de Pago
+                      </label>
+                      <p className="text-gray-900">{project.payment_terms}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Notes */}
+              {project.notes && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Fecha de Finalización
+                    Notas Adicionales
                   </label>
-                  <p className="text-gray-900">{new Date(project.end_date).toLocaleDateString('es-CO')}</p>
+                  <p className="text-gray-900">{project.notes}</p>
                 </div>
               )}
             </div>
@@ -399,8 +470,8 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
                 onChange={handleProjectTypeChange}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               >
-                <option value="contract">Proyecto de Contrato - Vinculado a un contrato existente</option>
-                <option value="independent">Proyecto Independiente - Con cliente y facturación propia</option>
+                <option value="contract">Proyecto vinculado a un contrato existente</option>
+                <option value="independent">Proyecto vinculado a un cliente pero con facturación propia</option>
               </select>
             </div>
 
@@ -436,8 +507,9 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
                 >
                   <option value="active">Activo</option>
                   <option value="on_hold">En Pausa</option>
-                  <option value="completed">Completado</option>
-                  <option value="cancelled">Cancelado</option>
+                  <option value="completed">Completado - Listo para facturar</option>
+                  <option value="ready_to_invoice">Finalizado - Pendiente por facturar</option>
+                  <option value="invoiced">Facturado</option>
                 </select>
               </div>
             </div>
@@ -590,6 +662,64 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
                       />
                     </div>
                   </div>
+
+                  {/* Purchase Order and Payment Terms Section */}
+                  <div className="border-t border-gray-200 pt-4 mt-4">
+                    <h4 className="font-medium text-gray-900 mb-4">Información de Orden de Compra y Pagos</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="purchase_order_number" className="block text-sm font-medium text-gray-700 mb-2">
+                          <FileText className="w-4 h-4 inline mr-1" />
+                          Número de Orden de Compra
+                        </label>
+                        <input
+                          type="text"
+                          id="purchase_order_number"
+                          name="purchase_order_number"
+                          value={formData.purchase_order_number}
+                          onChange={handleInputChange}
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                          placeholder="OC-2024-001"
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="advance_percentage" className="block text-sm font-medium text-gray-700 mb-2">
+                          <DollarSign className="w-4 h-4 inline mr-1" />
+                          Porcentaje de Anticipo (%)
+                        </label>
+                        <input
+                          type="number"
+                          id="advance_percentage"
+                          name="advance_percentage"
+                          value={formData.advance_percentage}
+                          onChange={handleInputChange}
+                          min="0"
+                          max="100"
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                          placeholder="30"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Porcentaje del anticipo inicial (típicamente 30-50%)
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <label htmlFor="payment_terms" className="block text-sm font-medium text-gray-700 mb-2">
+                        Términos de Pago
+                      </label>
+                      <textarea
+                        id="payment_terms"
+                        name="payment_terms"
+                        value={formData.payment_terms}
+                        onChange={handleInputChange}
+                        rows={2}
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        placeholder="30% anticipo, 40% al 50% de avance, 30% contra entrega"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -660,7 +790,7 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
             </div>
 
             {/* Dates */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <label htmlFor="start_date" className="block text-sm font-medium text-gray-700 mb-2">
                   <Calendar className="w-4 h-4 inline mr-1" />
@@ -690,6 +820,40 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 />
               </div>
+
+              <div>
+                <label htmlFor="delivery_date" className="block text-sm font-medium text-gray-700 mb-2">
+                  Fecha de Entrega
+                </label>
+                <input
+                  type="date"
+                  id="delivery_date"
+                  name="delivery_date"
+                  value={formData.delivery_date}
+                  onChange={handleInputChange}
+                  min={formData.start_date}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Fecha comprometida de entrega al cliente
+                </p>
+              </div>
+            </div>
+
+            {/* Notes Section */}
+            <div>
+              <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
+                Notas Adicionales
+              </label>
+              <textarea
+                id="notes"
+                name="notes"
+                value={formData.notes}
+                onChange={handleInputChange}
+                rows={3}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                placeholder="Notas adicionales sobre el proyecto, requerimientos especiales, etc."
+              />
             </div>
 
             {/* Payment Status (for independent projects) */}

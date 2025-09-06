@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { clientsApi } from '../services/api';
+import { clientsApi } from '../services/supabaseApi';
 import { formatCOP } from '../utils/currency';
 import { 
   X, 

@@ -452,13 +452,17 @@ export const timeEntriesApi = {
   },
 
   async update(id, timeEntry) {
+    // Don't overwrite created_by with user ID, keep it as the full name if provided
+    const updateData = { ...timeEntry };
+    
     const { data, error } = await supabase
       .from('time_entries')
-      .update(timeEntry)
+      .update(updateData)
       .eq('id', id)
       .select(`
         *,
-        contract:contracts(contract_number, description)
+        contract:contracts(contract_number, description),
+        project:projects(name, client:clients(name, company))
       `)
       .single();
     
@@ -585,10 +589,46 @@ export const paymentsApi = {
 // ================ USERS API ================
 export const usersApi = {
   async getAll() {
+    console.log('usersApi.getAll() called');
+    
+    try {
+      // Get current authenticated user (this is all we can get from frontend)
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        console.error('Error getting current user:', userError);
+        return { success: true, data: [] };
+      }
+      
+      if (user) {
+        console.log('Returning current authenticated user from Auth');
+        const currentUser = {
+          id: user.id,
+          email: user.email,
+          full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
+          username: user.email?.split('@')[0],
+          role: user.user_metadata?.role || 'user',
+          created_at: user.created_at,
+          last_sign_in_at: user.last_sign_in_at
+        };
+        return { success: true, data: [currentUser] };
+      }
+      
+      return { success: true, data: [] };
+    } catch (err) {
+      console.error('Error in usersApi.getAll():', err);
+      return { success: true, data: [] };
+    }
+  },
+
+  async create(userData) {
+    // This function is for creating user profiles manually
+    // The actual user creation happens in the UserModal component
     const { data, error } = await supabase
       .from('user_profiles')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .insert([userData])
+      .select()
+      .single();
     
     if (error) throw error;
     return { success: true, data };
@@ -604,6 +644,16 @@ export const usersApi = {
     
     if (error) throw error;
     return { success: true, data };
+  },
+
+  async delete(id) {
+    const { error } = await supabase
+      .from('user_profiles')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return { success: true };
   }
 };
 

@@ -37,6 +37,7 @@ const getPaymentStatusText = (status) => {
   }
 };
 
+
 const Billing = () => {
   const [billingItems, setBillingItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -464,9 +465,8 @@ const Billing = () => {
                         {getPaymentStatusText(item.paymentStatus).toUpperCase()}
                       </span>
                     </div>
-                    <h3 className="text-base font-semibold text-gray-900 mb-1">{item.name}</h3>
-                    <p className="text-sm text-gray-700 mb-2">{item.client}</p>
-                    <p className="text-xs text-gray-500 leading-relaxed">{item.description}</p>
+                    <h3 className="text-base font-semibold text-gray-900 mb-1">{item.client}</h3>
+                    <p className="text-sm text-gray-700 mb-2">{item.name}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 ml-6">
@@ -748,9 +748,14 @@ const PaymentModal = ({ isOpen, onClose, item, onPaymentSaved }) => {
           }
           
           if (formData.projectPaymentType === 'percentage') {
-            const projectTotalAmount = parseFloat(selectedProject.total_amount) || 0;
+            // Usar la misma lógica para calcular el total
+            let projectTotalAmount = parseFloat(selectedProject.total_amount) || 0;
+            if (projectTotalAmount === 0 && selectedProject.hourly_rate && selectedProject.estimated_hours) {
+              projectTotalAmount = parseFloat(selectedProject.hourly_rate) * parseFloat(selectedProject.estimated_hours);
+            }
+            
             if (projectTotalAmount <= 0) {
-              setError('El proyecto seleccionado no tiene un valor total configurado. Por favor, usa el tipo "Monto Fijo" o configura el valor del proyecto.');
+              setError('El proyecto seleccionado no tiene un valor total configurado ni tarifa por hora/horas estimadas. Por favor, usa el tipo "Monto Fijo" o configura el valor del proyecto.');
               return;
             }
             paymentAmount = (projectTotalAmount * parseFloat(formData.percentage)) / 100;
@@ -903,9 +908,15 @@ const PaymentModal = ({ isOpen, onClose, item, onPaymentSaved }) => {
                     <option value="">Selecciona un proyecto...</option>
                     {availableProjects.map(project => {
                       try {
-                        const totalAmount = parseFloat(project.total_amount) || 0;
+                        // Calcular total usando total_amount o hourly_rate * estimated_hours
+                        let totalAmount = parseFloat(project.total_amount) || 0;
+                        if (totalAmount === 0 && project.hourly_rate && project.estimated_hours) {
+                          totalAmount = parseFloat(project.hourly_rate) * parseFloat(project.estimated_hours);
+                        }
+                        
                         const paidAmount = parseFloat(project.paid_amount) || 0;
                         const remainingAmount = Math.max(0, totalAmount - paidAmount);
+                        
                         return (
                           <option key={project.id} value={project.id}>
                             {project.name || 'Sin nombre'} - {project.client_name || 'Sin cliente'} 
@@ -975,13 +986,21 @@ const PaymentModal = ({ isOpen, onClose, item, onPaymentSaved }) => {
                           max="100"
                           required
                         />
-                        {formData.percentage && availableProjects.find(p => p.id === parseInt(formData.selectedProjectId)) && parseFloat(formData.percentage) > 0 && (
-                          <p className="text-sm text-gray-600 mt-1">
-                            Equivale a: {new Intl.NumberFormat('es-CO', {style: 'currency', currency: 'COP'}).format(
-                              (availableProjects.find(p => p.id === parseInt(formData.selectedProjectId)).total_amount * parseFloat(formData.percentage)) / 100
-                            )}
-                          </p>
-                        )}
+                        {formData.percentage && availableProjects.find(p => p.id === parseInt(formData.selectedProjectId)) && parseFloat(formData.percentage) > 0 && (() => {
+                          const selectedProject = availableProjects.find(p => p.id === parseInt(formData.selectedProjectId));
+                          // Usar la misma lógica para calcular el total
+                          let totalAmount = parseFloat(selectedProject.total_amount) || 0;
+                          if (totalAmount === 0 && selectedProject.hourly_rate && selectedProject.estimated_hours) {
+                            totalAmount = parseFloat(selectedProject.hourly_rate) * parseFloat(selectedProject.estimated_hours);
+                          }
+                          const equivalentAmount = (totalAmount * parseFloat(formData.percentage)) / 100;
+                          
+                          return (
+                            <p className="text-sm text-gray-600 mt-1">
+                              Equivale a: {new Intl.NumberFormat('es-CO', {style: 'currency', currency: 'COP'}).format(equivalentAmount)}
+                            </p>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>

@@ -278,9 +278,6 @@ const Contracts = () => {
                   </div>
                 </div>
 
-                {/* Description */}
-                <p className="text-sm text-gray-600 mb-4 line-clamp-2">{contract.description}</p>
-
                 {/* Progress */}
                 <div className="space-y-3 mb-4">
                   <div className="flex justify-between items-center text-sm">

@@ -8,16 +8,14 @@ import Projects from './components/Projects';
 import TimeEntries from './components/TimeEntries';
 import Billing from './components/Billing';
 import Reports from './components/Reports';
-import UsersPage from './components/UsersPage';
+import Users from './components/Users';
 import ProtectedRoute from './components/ProtectedRoute';
-import Debug from './components/Debug';
 
 function App() {
   return (
     <AuthProvider>
       <Router>
         <Routes>
-          <Route path="debug" element={<Debug />} />
           <Route path="/" element={
             <ProtectedRoute>
               <Layout />
@@ -30,11 +28,7 @@ function App() {
             <Route path="time-entries" element={<TimeEntries />} />
             <Route path="billing" element={<Billing />} />
             <Route path="reports" element={<Reports />} />
-            <Route path="users" element={
-              <ProtectedRoute requireAdmin={true}>
-                <UsersPage />
-              </ProtectedRoute>
-            } />
+            <Route path="users" element={<Users />} />
           </Route>
         </Routes>
       </Router>

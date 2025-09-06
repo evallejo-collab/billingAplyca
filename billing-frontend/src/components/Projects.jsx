@@ -118,16 +118,17 @@ const Projects = () => {
   const getStatusBadge = (status) => {
     const statusConfig = {
       active: { label: 'ACTIVO', className: 'bg-green-50 text-green-800 border border-green-200', icon: CheckCircle },
-      completed: { label: 'COMPLETADO', className: 'bg-blue-50 text-blue-800 border border-blue-200', icon: CheckCircle },
+      completed: { label: 'LISTO FACTURAR', className: 'bg-blue-50 text-blue-800 border border-blue-200', icon: CheckCircle },
+      ready_to_invoice: { label: 'PEND. FACTURAR', className: 'bg-orange-50 text-orange-800 border border-orange-200', icon: DollarSign },
+      invoiced: { label: 'FACTURADO', className: 'bg-purple-50 text-purple-800 border border-purple-200', icon: CheckCircle },
       on_hold: { label: 'EN PAUSA', className: 'bg-yellow-50 text-yellow-800 border border-yellow-200', icon: Pause },
-      cancelled: { label: 'CANCELADO', className: 'bg-red-50 text-red-800 border border-red-200', icon: XCircle },
     };
 
     const config = statusConfig[status] || { label: status?.toUpperCase() || 'DESCONOCIDO', className: 'bg-gray-50 text-gray-800 border border-gray-200', icon: Target };
     const Icon = config.icon;
 
     return (
-      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${config.className}`}>
+      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap ${config.className}`}>
         <Icon className="w-3 h-3 mr-1" />
         {config.label}
       </span>
@@ -249,9 +250,10 @@ const Projects = () => {
             >
               <option value="">Todos los estados</option>
               <option value="active">Activo</option>
-              <option value="completed">Completado</option>
+              <option value="completed">Completado - Listo para facturar</option>
+              <option value="ready_to_invoice">Finalizado - Pendiente por facturar</option>
+              <option value="invoiced">Facturado</option>
               <option value="on_hold">En Pausa</option>
-              <option value="cancelled">Cancelado</option>
             </select>
           </div>
 
@@ -282,7 +284,7 @@ const Projects = () => {
       )}
 
       {/* Projects Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {filteredProjects.map((project) => {
           const projectType = getProjectType(project);
           const TypeIcon = projectType.icon;
@@ -296,7 +298,7 @@ const Projects = () => {
                     <h3 className="text-lg font-semibold text-gray-900 truncate mb-1">
                       {project.name}
                     </h3>
-                    <div className="flex items-center space-x-2 mb-2">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${projectType.className}`}>
                         <TypeIcon className="w-3 h-3 mr-1" />
                         {projectType.label}

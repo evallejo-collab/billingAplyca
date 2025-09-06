@@ -3,6 +3,7 @@ import { contractsApi, clientsApi } from '../services/supabaseApi';
 import GoogleDrivePreview from './GoogleDrivePreview';
 import { X, Save, FileText, User, Calendar, DollarSign, Clock } from 'lucide-react';
 
+
 const ContractModal = ({ isOpen, onClose, contract, isEditing, onContractSaved }) => {
   const [formData, setFormData] = useState({
     client_id: '',
@@ -92,6 +93,12 @@ const ContractModal = ({ isOpen, onClose, contract, isEditing, onContractSaved }
       }
 
       console.log('Submitting contract data:', submitData);
+      console.log('Form validation:', {
+        client_id: !!submitData.client_id,
+        description: !!submitData.description,
+        total_hours: submitData.total_hours > 0,
+        start_date: !!submitData.start_date
+      });
 
       let response;
       if (isEditing && contract) {
@@ -101,10 +108,51 @@ const ContractModal = ({ isOpen, onClose, contract, isEditing, onContractSaved }
         console.log('Creating new contract');
         response = await contractsApi.create(submitData);
       }
-
-      console.log('Contract saved successfully:', response.data);
-      onContractSaved();
-      onClose();
+      
+      const contractId = isEditing ? contract.id : response.data?.id;
+        
+        // If creating a new contract and there are temporary documents, store them
+        if (!isEditing && documents.some(doc => doc.isTemporary) && contractId) {
+          try {
+            console.log('Storing temporary documents for new contract:', contractId);
+            console.log('Documents to store:', documents.filter(doc => doc.isTemporary));
+            const temporaryDocs = documents.filter(doc => doc.isTemporary);
+            for (const doc of temporaryDocs) {
+              if (doc.file) {
+                const storedDoc = await TempDocumentStorage.store(contractId, doc);
+                console.log('Stored document:', doc.name, 'Result:', storedDoc);
+              } else {
+                console.log('Document has no file object:', doc);
+              }
+            }
+            console.log('All documents stored successfully in localStorage');
+            // Verify storage
+            const key = `contract_docs_${contractId}`;
+            const verification = localStorage.getItem(key);
+            console.log('Verification - localStorage content:', verification);
+          } catch (uploadError) {
+            console.error('Error storing documents:', uploadError);
+            // Don't fail the contract creation if document storage fails
+          }
+        }
+        
+        // If editing and there are new temporary documents, store them
+        if (isEditing && documents.some(doc => doc.isTemporary) && contractId) {
+          try {
+            const temporaryDocs = documents.filter(doc => doc.isTemporary);
+            for (const doc of temporaryDocs) {
+              if (doc.file) {
+                await TempDocumentStorage.store(contractId, doc);
+                console.log('Stored new document for existing contract:', doc.name);
+              }
+            }
+          } catch (uploadError) {
+            console.error('Error storing new documents:', uploadError);
+          }
+        }
+        
+        onContractSaved();
+        onClose();
     } catch (err) {
       console.error('Contract submission error:', err);
       console.log('Error details:', {
@@ -138,6 +186,248 @@ const ContractModal = ({ isOpen, onClose, contract, isEditing, onContractSaved }
     const hours = parseFloat(formData.total_hours) || 0;
     const rate = parseFloat(formData.hourly_rate) || 0;
     return hours * rate;
+  };
+
+  // Document management functions
+  const loadDocuments = async (contractId) => {
+    try {
+      console.log('Loading documents for contract:', contractId);
+      
+      // Try to load from temporary storage first
+      const tempDocs = await TempDocumentStorage.retrieve(contractId);
+      console.log('Loaded temporary documents:', tempDocs);
+      
+      // TODO: Also load from API when available
+      // const apiResponse = await contractsApi.getDocuments(contractId);
+      // const apiDocs = apiResponse.data.success ? apiResponse.data.documents : [];
+      
+      // Combine temporary and API documents
+      const allDocs = [...tempDocs]; // Later: [...tempDocs, ...apiDocs]
+      setDocuments(allDocs);
+    } catch (error) {
+      console.error('Error loading documents:', error);
+      setDocuments([]);
+    }
+  };
+
+  const handleFileUpload = async (files) => {
+    if (!files || files.length === 0) {
+      console.log('No files provided');
+      return;
+    }
+    
+    console.log('Processing files:', files);
+    setUploadingDocument(true);
+    setError(null);
+    
+    try {
+      const validFiles = [];
+      const errors = [];
+
+      for (const file of files) {
+        console.log('Validating file:', file.name, file.type, file.size);
+        
+        // Validate file size (max 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+          errors.push(`El archivo "${file.name}" excede el tamaño máximo de 10MB`);
+          continue;
+        }
+
+        // Validate file type - more permissive validation
+        const allowedTypes = [
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'image/jpeg',
+          'image/jpg', 
+          'image/png',
+          'image/gif',
+          'text/plain'
+        ];
+        
+        // Also check by file extension as fallback
+        const fileExtension = file.name.toLowerCase().split('.').pop();
+        const allowedExtensions = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'gif', 'txt'];
+        
+        if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
+          errors.push(`El archivo "${file.name}" no es de un tipo permitido`);
+          continue;
+        }
+
+        validFiles.push(file);
+      }
+
+      console.log('Valid files:', validFiles.length);
+      
+      // Show errors if any but still process valid files
+      if (errors.length > 0) {
+        console.log('Validation errors:', errors);
+        setError(errors.join('. '));
+        setTimeout(() => setError(null), 5000);
+      }
+
+      // Process valid files immediately
+      if (validFiles.length > 0) {
+        const newDocuments = validFiles.map(file => {
+          const newDoc = {
+            id: `temp_${Date.now()}_${Math.random()}`,
+            name: file.name,
+            size: file.size,
+            type: file.type || `application/${file.name.split('.').pop()}`,
+            uploaded_at: new Date().toISOString(),
+            uploaded_by: 'Usuario Actual',
+            file: file,
+            isTemporary: true // Always start as temporary, will be updated after storage
+          };
+          console.log('Created document:', newDoc);
+          return newDoc;
+        });
+
+        setDocuments(prev => {
+          const updated = [...prev, ...newDocuments];
+          console.log('Updated documents state:', updated);
+          return updated;
+        });
+
+        // For existing contracts, store immediately in localStorage
+        if (contract?.id) {
+          console.log('Storing document immediately for existing contract:', contract.id);
+          console.log('New documents to store:', newDocuments);
+          try {
+            for (const doc of newDocuments) {
+              console.log('Processing document for storage:', doc.name, 'isTemporary:', doc.isTemporary, 'hasFile:', !!doc.file);
+              if (doc.file && doc.isTemporary) {
+                console.log('About to call TempDocumentStorage.store for:', doc.name);
+                const storedDoc = await TempDocumentStorage.store(contract.id, doc);
+                console.log('Immediately stored document:', doc.name, 'Result:', storedDoc);
+                // Update the document state to mark as stored
+                setDocuments(prev => prev.map(d => 
+                  d.id === doc.id ? { ...d, isTemporary: false, fileContent: storedDoc.fileContent } : d
+                ));
+              } else {
+                console.log('Skipping document (no file or not temporary):', doc.name);
+              }
+            }
+          } catch (error) {
+            console.error('Error storing document immediately:', error);
+            setError('Error al guardar el documento: ' + error.message);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error processing files:', error);
+      setError('Error al procesar el documento: ' + error.message);
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setUploadingDocument(false);
+    }
+  };
+
+  const handleDeleteDocument = async (documentId) => {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar este documento?')) {
+      return;
+    }
+
+    try {
+      const docToDelete = documents.find(doc => doc.id === documentId);
+      
+      // If document exists in temporary storage, delete it
+      if (contract?.id && docToDelete) {
+        await TempDocumentStorage.delete(contract.id, documentId);
+        console.log('Deleted document from temporary storage:', docToDelete.name);
+      }
+      
+      // If it's a permanent document, delete from server
+      if (docToDelete && !docToDelete.isTemporary && !docToDelete.fileContent) {
+        // TODO: Implement API call to delete document
+        // await contractsApi.deleteDocument(documentId);
+      }
+      
+      // Remove from local state
+      setDocuments(prev => prev.filter(doc => doc.id !== documentId));
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      setError('Error al eliminar el documento: ' + error.message);
+    }
+  };
+
+  const handleDownloadDocument = async (document) => {
+    try {
+      // If document has a file object (temporary or reconstructed from storage)
+      if (document.file) {
+        const url = URL.createObjectURL(document.file);
+        const a = window.document.createElement('a');
+        a.href = url;
+        a.download = document.name;
+        window.document.body.appendChild(a);
+        a.click();
+        window.document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        console.log('Downloaded document:', document.name);
+        return;
+      }
+      
+      // If document has base64 content but no file object
+      if (document.fileContent) {
+        const a = window.document.createElement('a');
+        a.href = document.fileContent;
+        a.download = document.name;
+        window.document.body.appendChild(a);
+        a.click();
+        window.document.body.removeChild(a);
+        console.log('Downloaded document from base64:', document.name);
+        return;
+      }
+      
+      // For permanent documents from server
+      if (!document.isTemporary && !document.fileContent) {
+        // TODO: Implement actual download from server
+        // const response = await contractsApi.downloadDocument(document.id);
+        alert(`La descarga desde el servidor aún no está implementada para: ${document.name}`);
+      }
+    } catch (error) {
+      console.error('Error downloading document:', error);
+      setError('Error al descargar el documento: ' + error.message);
+    }
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const getFileIcon = (mimeType) => {
+    if (mimeType.includes('pdf')) return <File className="w-5 h-5 text-red-500" />;
+    if (mimeType.includes('word')) return <File className="w-5 h-5 text-blue-500" />;
+    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return <File className="w-5 h-5 text-green-500" />;
+    if (mimeType.includes('image')) return <File className="w-5 h-5 text-purple-500" />;
+    return <File className="w-5 h-5 text-gray-500" />;
+  };
+
+  // Drag and drop handlers
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileUpload(Array.from(e.dataTransfer.files));
+    }
   };
 
   if (!isOpen) return null;
@@ -331,7 +621,7 @@ const ContractModal = ({ isOpen, onClose, contract, isEditing, onContractSaved }
                       <option value="">Seleccionar cliente</option>
                       {clients.map(client => (
                         <option key={client.id} value={client.id}>
-                          {client.name || client.company}
+                          {client.name || client.company} - {client.company || client.email}
                         </option>
                       ))}
                     </select>
@@ -341,7 +631,7 @@ const ContractModal = ({ isOpen, onClose, contract, isEditing, onContractSaved }
                 <div>
                   <label htmlFor="contract_number" className="block text-sm font-medium text-gray-700 mb-2">
                     <FileText className="w-4 h-4 inline mr-1" />
-                    Número de Contrato *
+                    Número de Contrato
                   </label>
                   <input
                     type="text"
@@ -349,9 +639,8 @@ const ContractModal = ({ isOpen, onClose, contract, isEditing, onContractSaved }
                     name="contract_number"
                     value={formData.contract_number}
                     onChange={handleInputChange}
-                    required
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    placeholder="Ejemplo: CT-2024-001"
+                    placeholder="Se generará automáticamente"
                   />
                 </div>
               </div>
@@ -366,9 +655,9 @@ const ContractModal = ({ isOpen, onClose, contract, isEditing, onContractSaved }
                   value={formData.description}
                   onChange={handleInputChange}
                   required
-                  rows="3"
+                  rows={3}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  placeholder="Describe el proyecto o servicio..."
+                  placeholder="Describe el trabajo a realizar..."
                 />
               </div>
 
@@ -376,7 +665,7 @@ const ContractModal = ({ isOpen, onClose, contract, isEditing, onContractSaved }
                 <div>
                   <label htmlFor="total_hours" className="block text-sm font-medium text-gray-700 mb-2">
                     <Clock className="w-4 h-4 inline mr-1" />
-                    Horas Totales *
+                    Total de Horas *
                   </label>
                   <input
                     type="number"

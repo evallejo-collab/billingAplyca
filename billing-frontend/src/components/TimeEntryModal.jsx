@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { contractsApi, projectsApi, timeEntriesApi } from '../services/supabaseApi';
 import { formatCOP } from '../utils/currency';
+import { useAuth } from '../context/AuthContext';
 import { X, Save, Clock, Calendar, FileText, User, AlertCircle, Tag, Folder, Building } from 'lucide-react';
 
 const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, selectedEntry, isEditing }) => {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     project_type: 'contract', // 'contract' or 'independent'
     contract_id: '',
     project_id: '',
+    task_category: '',
     description: '',
     hours_used: '',
     entry_date: new Date().toISOString().split('T')[0],
@@ -26,16 +29,27 @@ const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, se
     if (isOpen) {
       if (isEditing && selectedEntry) {
         // Populate form with selected entry data
-        setFormData({
-          project_type: selectedEntry.project_id ? 'independent' : 'contract',
+        console.log('Loading editing data for entry:', selectedEntry);
+        const newFormData = {
+          // If it has both contract_id and project_id, it's a contract project
+          // If it only has project_id (no contract_id), it's independent
+          project_type: selectedEntry.contract_id ? 'contract' : 'independent',
           contract_id: selectedEntry.contract_id ? selectedEntry.contract_id.toString() : '',
           project_id: selectedEntry.project_id ? selectedEntry.project_id.toString() : '',
+          task_category: selectedEntry.task_category || '',
           description: selectedEntry.description || '',
           hours_used: selectedEntry.hours_used ? selectedEntry.hours_used.toString() : '',
           entry_date: selectedEntry.entry_date || new Date().toISOString().split('T')[0],
-          created_by: selectedEntry.created_by || '',
+          created_by: selectedEntry.created_by || user?.full_name || '',
           notes: selectedEntry.notes || '',
-        });
+        };
+        console.log('Setting form data:', newFormData);
+        setFormData(newFormData);
+        
+        // If it's a contract entry, load the projects for that contract
+        if (selectedEntry.contract_id) {
+          loadProjectsForContract(selectedEntry.contract_id.toString());
+        }
       } else {
         resetForm();
       }
@@ -45,16 +59,20 @@ const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, se
   }, [isOpen, isEditing, selectedEntry, activeContracts]);
 
   useEffect(() => {
+    console.log('Form data changed:', formData);
     if (formData.project_type === 'contract' && formData.contract_id) {
       const contract = activeContracts.find(c => c.id === parseInt(formData.contract_id));
+      console.log('Found contract:', contract);
       setSelectedContract(contract);
       loadProjectsForContract(formData.contract_id);
       setSelectedProject(null);
     } else if (formData.project_type === 'independent' && formData.project_id) {
       const project = independentProjects.find(p => p.id === parseInt(formData.project_id));
+      console.log('Found independent project:', project);
       setSelectedProject(project);
       setSelectedContract(null);
     } else {
+      console.log('Clearing selected contract/project');
       setSelectedContract(null);
       setSelectedProject(null);
       setContractProjects([]);
@@ -66,10 +84,11 @@ const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, se
       project_type: 'contract',
       contract_id: '',
       project_id: '',
+      task_category: '',
       description: '',
       hours_used: '',
       entry_date: new Date().toISOString().split('T')[0],
-      created_by: '',
+      created_by: user?.full_name || '',
       notes: '',
     });
     setSelectedContract(null);
@@ -114,16 +133,19 @@ const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, se
 
     try {
       const submitData = {
-        description: formData.description,
-        hours_used: parseFloat(formData.hours_used),
+        task_category: formData.task_category || null,
+        description: formData.description || null,
+        hours_used: parseInt(formData.hours_used),
         entry_date: formData.entry_date,
         notes: formData.notes || null,
       };
       
-      // Only set created_by for new entries, not updates
+      // Always include created_by as user ID (not name)
       if (!isEditing) {
-        submitData.created_by = formData.created_by || null;
+        // For new entries, use the authenticated user's ID
+        submitData.created_by = user?.id || null;
       }
+      // For updates, don't include created_by to avoid changing the original creator
 
       // Add contract or project specific data
       if (formData.project_type === 'contract') {
@@ -136,10 +158,14 @@ const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, se
 
       if (isEditing && selectedEntry) {
         // Update existing entry
-        await timeEntriesApi.update(selectedEntry.id, submitData);
+        console.log('Updating entry with data:', submitData);
+        const response = await timeEntriesApi.update(selectedEntry.id, submitData);
+        console.log('Update response:', response);
       } else {
         // Create new entry
-        await timeEntriesApi.create(submitData);
+        console.log('Creating entry with data:', submitData);
+        const response = await timeEntriesApi.create(submitData);
+        console.log('Create response:', response);
       }
       
       onTimeEntrySaved();
@@ -159,9 +185,9 @@ const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, se
     if (!formData.hours_used) return 0;
     
     if (formData.project_type === 'contract' && selectedContract) {
-      return parseFloat(formData.hours_used) * parseFloat(selectedContract.hourly_rate);
+      return parseInt(formData.hours_used) * parseFloat(selectedContract.hourly_rate);
     } else if (formData.project_type === 'independent' && selectedProject) {
-      return parseFloat(formData.hours_used) * parseFloat(selectedProject.hourly_rate);
+      return parseInt(formData.hours_used) * parseFloat(selectedProject.hourly_rate);
     }
     
     return 0;
@@ -179,13 +205,17 @@ const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, se
   const isValidHours = () => {
     if (!formData.hours_used) return true;
     
-    const requestedHours = parseFloat(formData.hours_used);
+    const requestedHours = parseInt(formData.hours_used);
     
     if (formData.project_type === 'contract' && selectedContract) {
       const availableHours = parseFloat(selectedContract.remaining_hours);
+      // Skip validation if contract has 0 estimated hours
+      if (parseFloat(selectedContract.estimated_hours) === 0) return true;
       return requestedHours <= availableHours;
     } else if (formData.project_type === 'independent' && selectedProject) {
       const availableHours = parseFloat(selectedProject.remaining_hours);
+      // Skip validation if project has 0 estimated hours
+      if (parseFloat(selectedProject.estimated_hours) === 0) return true;
       return requestedHours <= availableHours;
     }
     
@@ -371,20 +401,52 @@ const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, se
               </div>
             )}
 
+            {/* Task Category */}
+            <div>
+              <label htmlFor="task_category" className="block text-sm font-medium text-gray-700 mb-2">
+                <Tag className="w-4 h-4 inline mr-1" />
+                Categoría de Tarea *
+              </label>
+              <select
+                id="task_category"
+                name="task_category"
+                value={formData.task_category}
+                onChange={handleInputChange}
+                required
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="">Seleccionar categoría...</option>
+                <option value="soporte_aplicativo">Soporte Aplicativo</option>
+                <option value="desarrollo_frontend">Desarrollo Frontend</option>
+                <option value="desarrollo_backend">Desarrollo Backend</option>
+                <option value="analisis_requerimientos">Análisis de Requerimientos</option>
+                <option value="testing_qa">Testing y QA</option>
+                <option value="devops_infraestructura">DevOps e Infraestructura</option>
+                <option value="documentacion">Documentación</option>
+                <option value="reunion_cliente">Reunión con Cliente</option>
+                <option value="capacitacion">Capacitación</option>
+                <option value="mantenimiento">Mantenimiento</option>
+                <option value="arquitectura_diseno">Arquitectura y Diseño</option>
+                <option value="integraciones">Integraciones</option>
+                <option value="optimizacion">Optimización</option>
+                <option value="configuracion">Configuración</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+
             {/* Description */}
             <div>
               <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-                Descripción del Trabajo *
+                Descripción del Trabajo
               </label>
               <textarea
                 id="description"
                 name="description"
                 value={formData.description}
                 onChange={handleInputChange}
-                required
                 rows={3}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                placeholder="Describe el trabajo realizado..."
+                placeholder="Describe el trabajo realizado o pega la URL del ticket (ej: https://app.clickup.com/t/abc123)..."
               />
             </div>
 
@@ -402,15 +464,15 @@ const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, se
                   value={formData.hours_used}
                   onChange={handleInputChange}
                   required
-                  step="0.25"
-                  min="0"
+                  step="1"
+                  min="1"
                   max={(selectedContract && formData.project_type === 'contract') ? selectedContract.remaining_hours : (selectedProject && formData.project_type === 'independent') ? selectedProject.estimated_hours : undefined}
                   className={`w-full rounded-md border px-3 py-2 text-sm focus:ring-1 ${
                     isValidHours() 
                       ? 'border-gray-300 focus:border-blue-500 focus:ring-blue-500' 
                       : 'border-red-300 focus:border-red-500 focus:ring-red-500'
                   }`}
-                  placeholder="Ejemplo: 8.5"
+                  placeholder="Ejemplo: 8"
                 />
                 {!isValidHours() && (
                   <p className="mt-1 text-sm text-red-600">
@@ -450,44 +512,13 @@ const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, se
                 name="created_by"
                 value={formData.created_by}
                 onChange={handleInputChange}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                placeholder="Nombre del empleado o usuario"
+                disabled
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-gray-100 text-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                placeholder="Usuario autenticado"
               />
             </div>
 
-            {/* Notes */}
-            <div>
-              <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
-                Notas Adicionales
-              </label>
-              <textarea
-                id="notes"
-                name="notes"
-                value={formData.notes}
-                onChange={handleInputChange}
-                rows={2}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                placeholder="Notas adicionales sobre el trabajo realizado..."
-              />
-            </div>
 
-            {/* Amount calculation */}
-            {(selectedContract || selectedProject) && formData.hours_used && (
-              <div className="bg-green-50 rounded-lg p-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-gray-700">Monto a Facturar:</span>
-                  <span className="text-xl font-bold text-green-600">{formatCOP(calculateAmount())}</span>
-                </div>
-                <div className="flex justify-between items-center mt-1 text-sm text-gray-600">
-                  <span>{formData.hours_used}h × {formatCOP(getHourlyRate())}/h</span>
-                </div>
-                {formData.project_type === 'independent' && (
-                  <div className="mt-2 text-xs text-gray-500">
-                    💡 Este monto se añadirá como pago al proyecto independiente
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Form Actions */}
             <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
