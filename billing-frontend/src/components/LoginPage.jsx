@@ -46,12 +46,11 @@ const LoginPage = () => {
       <div className="max-w-md w-full space-y-8">
         <div>
           <div className="text-center space-y-4">
-            <div className="flex items-center justify-center gap-3">
-              <h2 className="text-3xl font-extrabold text-gray-900">Aplyca</h2>
+            <div className="flex items-center justify-center">
               <img 
                 src="/Logo_Aplyca_Violet.svg" 
                 alt="Aplyca Logo" 
-                className="h-12 w-auto"
+                className="h-16 w-auto"
               />
             </div>
             <h3 className="text-2xl font-bold text-gray-800">Billing System</h3>
