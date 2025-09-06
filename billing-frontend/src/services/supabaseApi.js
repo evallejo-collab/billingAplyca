@@ -3,38 +3,76 @@ import { supabase } from '../config/supabase';
 // ================ CLIENTS API ================
 export const clientsApi = {
   async getAll() {
-    // First get all clients
-    const { data: clients, error: clientsError } = await supabase
-      .from('clients')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (clientsError) throw clientsError;
-    
-    // Then get counts for each client
-    const clientsWithCounts = await Promise.all(
-      clients.map(async (client) => {
-        // Get contracts count
-        const { count: contractsCount } = await supabase
-          .from('contracts')
-          .select('*', { count: 'exact', head: true })
-          .eq('client_id', client.id);
-        
-        // Get projects count  
-        const { count: projectsCount } = await supabase
-          .from('projects')
-          .select('*', { count: 'exact', head: true })
-          .eq('client_id', client.id);
-        
-        return {
-          ...client,
-          contracts_count: contractsCount || 0,
-          projects_count: projectsCount || 0
-        };
-      })
-    );
-    
-    return { success: true, data: clientsWithCounts };
+    try {
+      // First get all clients
+      const { data: clients, error: clientsError } = await supabase
+        .from('clients')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (clientsError) throw clientsError;
+      
+      // Then get counts for each client
+      const clientsWithCounts = await Promise.all(
+        clients.map(async (client) => {
+          try {
+            // Get contracts count - try direct query first
+            let contractsCount = 0;
+            try {
+              const { data: contracts, error: contractsError } = await supabase
+                .from('contracts')
+                .select('id')
+                .eq('client_id', client.id);
+              
+              if (!contractsError && contracts) {
+                contractsCount = contracts.length;
+                console.log(`Client ${client.name} has ${contractsCount} contracts`);
+              } else if (contractsError) {
+                console.warn(`Contracts error for client ${client.id}:`, contractsError);
+              }
+            } catch (err) {
+              console.warn(`Could not count contracts for client ${client.id}:`, err);
+            }
+            
+            // Get projects count - try direct query first
+            let projectsCount = 0;
+            try {
+              const { data: projects, error: projectsError } = await supabase
+                .from('projects')
+                .select('id')
+                .eq('client_id', client.id);
+              
+              if (!projectsError && projects) {
+                projectsCount = projects.length;
+                console.log(`Client ${client.name} has ${projectsCount} projects`);
+              } else if (projectsError) {
+                console.warn(`Projects error for client ${client.id}:`, projectsError);
+              }
+            } catch (err) {
+              console.warn(`Could not count projects for client ${client.id}:`, err);
+            }
+            
+            return {
+              ...client,
+              contracts_count: contractsCount,
+              projects_count: projectsCount
+            };
+          } catch (error) {
+            console.error(`Error getting counts for client ${client.id}:`, error);
+            return {
+              ...client,
+              contracts_count: 0,
+              projects_count: 0
+            };
+          }
+        })
+      );
+      
+      return { success: true, data: clientsWithCounts };
+    } catch (error) {
+      console.error('Error in getAll:', error);
+      throw error;
+    }
   },
 
   async getById(id) {
@@ -79,6 +117,96 @@ export const clientsApi = {
     
     if (error) throw error;
     return { success: true };
+  },
+
+  async getSummary(clientId) {
+    try {
+      // Get client basic info
+      const { data: client, error: clientError } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('id', clientId)
+        .single();
+      
+      if (clientError) {
+        console.error('Client error:', clientError);
+        return { data: { success: false, error: clientError.message } };
+      }
+
+      // Return basic client info with zero totals if tables don't exist
+      const clientSummary = {
+        ...client,
+        total_contract_value: 0,
+        total_project_value: 0,
+        total_contract_billed: 0,
+        total_project_billed: 0
+      };
+
+      return { data: { success: true, client: clientSummary } };
+    } catch (error) {
+      console.error('Error in getSummary:', error);
+      return { data: { success: false, error: error.message } };
+    }
+  },
+
+  async getContracts(clientId) {
+    try {
+      const { data: contracts, error } = await supabase
+        .from('contracts')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.warn('Contracts query error:', error);
+        return { data: { success: true, contracts: [] } };
+      }
+
+      // Add basic calculations for each contract
+      const contractsWithData = (contracts || []).map(contract => ({
+        ...contract,
+        used_hours: 0, // TODO: Calculate from time_entries
+        remaining_hours: contract.total_hours || 0,
+        total_amount: (contract.total_hours || 0) * (contract.hourly_rate || 0),
+        entries_count: 0
+      }));
+
+      console.log(`Found ${contractsWithData.length} contracts for client ${clientId}`);
+      return { data: { success: true, contracts: contractsWithData } };
+    } catch (error) {
+      console.error('Error in getContracts:', error);
+      return { data: { success: true, contracts: [] } };
+    }
+  },
+
+  async getProjects(clientId) {
+    try {
+      const { data: projects, error } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.warn('Projects query error:', error);
+        return { data: { success: true, projects: [] } };
+      }
+
+      // Add basic calculations for each project
+      const projectsWithData = (projects || []).map(project => ({
+        ...project,
+        used_hours: 0, // TODO: Calculate from time_entries
+        remaining_hours: project.estimated_hours || 0,
+        current_cost: 0, // TODO: Calculate from time_entries
+        entries_count: 0
+      }));
+
+      console.log(`Found ${projectsWithData.length} projects for client ${clientId}`);
+      return { data: { success: true, projects: projectsWithData } };
+    } catch (error) {
+      console.error('Error in getProjects:', error);
+      return { data: { success: true, projects: [] } };
+    }
   }
 };
 

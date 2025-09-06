@@ -53,7 +53,7 @@ const LoginPage = () => {
                 className="h-16 w-auto"
               />
             </div>
-            <h3 className="text-2xl font-bold text-gray-800">Billing System</h3>
+            <h3 className="text-2xl font-bold text-gray-800">Management System</h3>
           </div>
           <p className="mt-4 text-center text-sm text-gray-600">
             Inicia sesión para acceder al sistema

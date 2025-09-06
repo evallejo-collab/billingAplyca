@@ -206,38 +206,6 @@ const ClientDetailsModal = ({ isOpen, onClose, client }) => {
                     </div>
                   </div>
 
-                  {/* Financial Summary */}
-                  {clientDetails && (
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6">
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">Resumen Financiero</h3>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="text-center">
-                          <p className="text-2xl font-bold text-gray-900">
-                            {formatCOP(clientDetails.total_contract_value || 0)}
-                          </p>
-                          <p className="text-sm text-gray-600">Valor Contratos</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-2xl font-bold text-gray-900">
-                            {formatCOP(clientDetails.total_project_value || 0)}
-                          </p>
-                          <p className="text-sm text-gray-600">Valor Proyectos</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-2xl font-bold text-gray-900">
-                            {formatCOP(clientDetails.total_contract_billed || 0)}
-                          </p>
-                          <p className="text-sm text-gray-600">Facturado Contratos</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-2xl font-bold text-gray-900">
-                            {formatCOP(clientDetails.total_project_billed || 0)}
-                          </p>
-                          <p className="text-sm text-gray-600">Facturado Proyectos</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
 
                   {/* Notes */}
                   {client.notes && (
@@ -260,31 +228,34 @@ const ClientDetailsModal = ({ isOpen, onClose, client }) => {
                     </div>
                   ) : (
                     contracts.map((contract) => (
-                      <div key={contract.id} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-start justify-between mb-3">
+                      <div key={contract.id} className="border border-gray-200 rounded-lg p-6 bg-white hover:shadow-md transition-shadow">
+                        <div className="flex items-start justify-between mb-4">
                           <div>
-                            <h4 className="text-lg font-medium text-gray-900">{contract.contract_number}</h4>
-                            <p className="text-sm text-gray-600">{contract.description}</p>
+                            <h4 className="text-lg font-semibold text-gray-900 flex items-center">
+                              <FileText className="w-5 h-5 mr-2 text-gray-600" />
+                              {contract.contract_number}
+                            </h4>
+                            <p className="text-sm text-gray-600 mt-1">{contract.description}</p>
                           </div>
                           {getStatusBadge(contract.status)}
                         </div>
                         
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
-                          <div>
-                            <p className="text-xs text-gray-500">Horas Totales</p>
-                            <p className="text-sm font-medium">{contract.total_hours}h</p>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                          <div className="bg-gray-50 rounded-lg p-4 text-center border border-gray-200">
+                            <p className="text-xs text-gray-600 font-medium uppercase tracking-wide">Horas Totales</p>
+                            <p className="text-lg font-bold text-gray-900 mt-1">{contract.total_hours}h</p>
                           </div>
-                          <div>
-                            <p className="text-xs text-gray-500">Horas Usadas</p>
-                            <p className="text-sm font-medium">{contract.used_hours || 0}h</p>
+                          <div className="bg-gray-50 rounded-lg p-4 text-center border border-gray-200">
+                            <p className="text-xs text-gray-600 font-medium uppercase tracking-wide">Horas Usadas</p>
+                            <p className="text-lg font-bold text-gray-900 mt-1">{contract.used_hours || 0}h</p>
                           </div>
-                          <div>
-                            <p className="text-xs text-gray-500">Horas Restantes</p>
-                            <p className="text-sm font-medium">{contract.remaining_hours}h</p>
+                          <div className="bg-gray-50 rounded-lg p-4 text-center border border-gray-200">
+                            <p className="text-xs text-gray-600 font-medium uppercase tracking-wide">Horas Restantes</p>
+                            <p className="text-lg font-bold text-gray-900 mt-1">{contract.remaining_hours}h</p>
                           </div>
-                          <div>
-                            <p className="text-xs text-gray-500">Valor Total</p>
-                            <p className="text-sm font-medium">{formatCOP(contract.total_amount)}</p>
+                          <div className="bg-gray-50 rounded-lg p-4 text-center border border-gray-200">
+                            <p className="text-xs text-gray-600 font-medium uppercase tracking-wide">Valor Total</p>
+                            <p className="text-lg font-bold text-gray-900 mt-1">{formatCOP(contract.total_amount)}</p>
                           </div>
                         </div>
 
@@ -310,31 +281,34 @@ const ClientDetailsModal = ({ isOpen, onClose, client }) => {
                     </div>
                   ) : (
                     projects.map((project) => (
-                      <div key={project.id} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-start justify-between mb-3">
+                      <div key={project.id} className="border border-gray-200 rounded-lg p-6 bg-white hover:shadow-md transition-shadow">
+                        <div className="flex items-start justify-between mb-4">
                           <div>
-                            <h4 className="text-lg font-medium text-gray-900">{project.name}</h4>
-                            <p className="text-sm text-gray-600">{project.description}</p>
+                            <h4 className="text-lg font-semibold text-gray-900 flex items-center">
+                              <Folder className="w-5 h-5 mr-2 text-gray-600" />
+                              {project.name}
+                            </h4>
+                            <p className="text-sm text-gray-600 mt-1">{project.description}</p>
                           </div>
                           {getStatusBadge(project.status)}
                         </div>
                         
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
-                          <div>
-                            <p className="text-xs text-gray-500">Horas Estimadas</p>
-                            <p className="text-sm font-medium">{project.estimated_hours || 0}h</p>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                          <div className="bg-gray-50 rounded-lg p-4 text-center border border-gray-200">
+                            <p className="text-xs text-gray-600 font-medium uppercase tracking-wide">Horas Estimadas</p>
+                            <p className="text-lg font-bold text-gray-900 mt-1">{project.estimated_hours || 0}h</p>
                           </div>
-                          <div>
-                            <p className="text-xs text-gray-500">Horas Usadas</p>
-                            <p className="text-sm font-medium">{project.used_hours || 0}h</p>
+                          <div className="bg-gray-50 rounded-lg p-4 text-center border border-gray-200">
+                            <p className="text-xs text-gray-600 font-medium uppercase tracking-wide">Horas Usadas</p>
+                            <p className="text-lg font-bold text-gray-900 mt-1">{project.used_hours || 0}h</p>
                           </div>
-                          <div>
-                            <p className="text-xs text-gray-500">Horas Restantes</p>
-                            <p className="text-sm font-medium">{project.remaining_hours || 0}h</p>
+                          <div className="bg-gray-50 rounded-lg p-4 text-center border border-gray-200">
+                            <p className="text-xs text-gray-600 font-medium uppercase tracking-wide">Horas Restantes</p>
+                            <p className="text-lg font-bold text-gray-900 mt-1">{project.remaining_hours || 0}h</p>
                           </div>
-                          <div>
-                            <p className="text-xs text-gray-500">Costo Actual</p>
-                            <p className="text-sm font-medium">{formatCOP(project.current_cost || 0)}</p>
+                          <div className="bg-gray-50 rounded-lg p-4 text-center border border-gray-200">
+                            <p className="text-xs text-gray-600 font-medium uppercase tracking-wide">Costo Actual</p>
+                            <p className="text-lg font-bold text-gray-900 mt-1">{formatCOP(project.current_cost || 0)}</p>
                           </div>
                         </div>
 

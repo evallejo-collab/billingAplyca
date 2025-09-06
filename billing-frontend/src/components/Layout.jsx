@@ -17,6 +17,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import AIChat from './AIChat';
 
 const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -28,6 +29,9 @@ const Layout = () => {
     { name: 'Clientes', href: '/clients', icon: Users },
     { name: 'Contratos', href: '/contracts', icon: FileText },
     { name: 'Proyectos', href: '/projects', icon: Folder },
+  ];
+
+  const navigationEnd = [
     ...(isAdmin() ? [{ name: 'Usuarios', href: '/users', icon: Settings }] : []),
   ];
 
@@ -140,6 +144,27 @@ const Layout = () => {
                       }`} />
                     </button>
                   </div>
+                );
+              })}
+
+              {/* End Navigation Items */}
+              {navigationEnd.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.name}
+                    to={item.href}
+                    className={({ isActive }) =>
+                      `flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        isActive
+                          ? 'bg-white text-violet-700'
+                          : 'text-white hover:bg-white hover:bg-opacity-20'
+                      }`
+                    }
+                  >
+                    <Icon className="w-4 h-4 mr-2" />
+                    {item.name}
+                  </NavLink>
                 );
               })}
             </nav>
@@ -283,6 +308,28 @@ const Layout = () => {
                   </NavLink>
                 );
               })}
+
+              {/* End Navigation Items */}
+              {navigationEnd.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.name}
+                    to={item.href}
+                    className={({ isActive }) =>
+                      `flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                        isActive
+                          ? 'bg-violet-100 text-violet-700'
+                          : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                      }`
+                    }
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <Icon className="w-5 h-5 mr-3" />
+                    {item.name}
+                  </NavLink>
+                );
+              })}
               
               <div className="border-t pt-4 mt-4">
                 <div className="px-3 py-2 text-xs text-gray-500">
@@ -308,6 +355,9 @@ const Layout = () => {
           <Outlet />
         </div>
       </main>
+
+      {/* AI Chat Widget */}
+      <AIChat />
     </div>
   );
 };
