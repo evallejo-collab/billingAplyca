@@ -29,7 +29,7 @@
   ],
   "rewrites": [
     {
-      "source": "/((?!assets|favicon\.png|vite\.svg|Logo_Aplyca_Violet\.svg).*)",
+      "source": "/((?!assets|favicon\\.png|vite\\.svg|Logo_Aplyca_Violet\\.svg).*)",
       "destination": "/index.html"
     }
   ]
