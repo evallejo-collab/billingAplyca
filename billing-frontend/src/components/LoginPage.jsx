@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { DollarSign, Mail, Lock, AlertCircle } from 'lucide-react';
+import { Mail, Lock, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const LoginPage = () => {
@@ -45,13 +45,18 @@ const LoginPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-violet-50 to-white flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <div className="mx-auto h-16 w-16 bg-violet-600 rounded-full flex items-center justify-center">
-            <DollarSign className="h-8 w-8 text-white" />
+          <div className="text-center space-y-4">
+            <div className="flex items-center justify-center gap-3">
+              <h2 className="text-3xl font-extrabold text-gray-900">Aplyca</h2>
+              <img 
+                src="/Logo_Aplyca_Violet.svg" 
+                alt="Aplyca Logo" 
+                className="h-12 w-auto"
+              />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-800">Billing System</h3>
           </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Aplyca Billing System
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-4 text-center text-sm text-gray-600">
             Inicia sesión para acceder al sistema
           </p>
         </div>
