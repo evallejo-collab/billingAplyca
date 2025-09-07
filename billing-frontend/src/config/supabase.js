@@ -3,21 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-// Debug environment variables (temporarily)
-console.log('Environment Debug:', {
-  supabaseUrl: supabaseUrl ? `${supabaseUrl.substring(0, 20)}...` : 'MISSING',
-  supabaseAnonKey: supabaseAnonKey ? `${supabaseAnonKey.substring(0, 20)}...` : 'MISSING',
-  allEnvVars: Object.keys(import.meta.env).filter(key => key.startsWith('VITE_'))
-})
-
-// Test Supabase connection
-try {
-  console.log('Creating Supabase client...')
-  const testClient = createClient(supabaseUrl, supabaseAnonKey)
-  console.log('Supabase client created successfully:', testClient)
-} catch (error) {
-  console.error('Error creating Supabase client:', error)
-}
+// Environment variables validated during build
 
 // Validate environment variables
 if (!supabaseUrl) {

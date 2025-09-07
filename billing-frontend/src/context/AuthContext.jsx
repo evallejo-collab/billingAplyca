@@ -12,15 +12,10 @@ export const AuthProvider = ({ children }) => {
     // Verificar sesión inicial
     const checkSession = async () => {
       try {
-        console.log('AuthContext: Checking session...');
-        console.log('AuthContext: Supabase client:', supabase);
-        
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('Error checking session:', error);
-        } else {
-          console.log('Session check successful:', session ? 'Session found' : 'No session');
         }
         
         setSession(session);
