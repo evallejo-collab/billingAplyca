@@ -7,7 +7,9 @@ export default defineConfig({
   base: '/',
   define: {
     'process.env': process.env,
-    global: 'globalThis'
+    global: 'globalThis',
+    'globalThis.process': JSON.stringify({}),
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production')
   },
   resolve: {
     alias: {
