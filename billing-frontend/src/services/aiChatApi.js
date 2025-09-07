@@ -4,10 +4,16 @@ import { supabase } from '../config/supabase';
 const callOpenAI = async (messages) => {
   const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
   
+  console.log('callOpenAI called with:', {
+    messageCount: messages.length,
+    hasApiKey: !!apiKey
+  });
+  
   if (!apiKey) {
     throw new Error('OpenAI API key not configured');
   }
 
+  console.log('Making fetch request to OpenAI...');
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -22,11 +28,21 @@ const callOpenAI = async (messages) => {
     }),
   });
 
+  console.log('OpenAI fetch response:', {
+    ok: response.ok,
+    status: response.status,
+    statusText: response.statusText
+  });
+
   if (!response.ok) {
-    throw new Error(`OpenAI API error: ${response.statusText}`);
+    const errorText = await response.text();
+    console.error('OpenAI API error response:', errorText);
+    throw new Error(`OpenAI API error: ${response.statusText} - ${errorText}`);
   }
 
-  return await response.json();
+  const result = await response.json();
+  console.log('OpenAI parsed JSON:', result);
+  return result;
 };
 
 export const processAIQuery = async (message, userId) => {
@@ -96,10 +112,12 @@ Ejemplo de respuesta correcta:
     - Registrar tiempo → "Registro de Horas" → "Nueva Entrada"`;
 
     // Call OpenAI API directly
+    console.log('Calling OpenAI API...');
     const response = await callOpenAI([
       { role: "system", content: systemPrompt },
       { role: "user", content: message }
     ]);
+    console.log('OpenAI API response:', response);
 
     return {
       success: true,
