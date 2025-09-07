@@ -24,7 +24,6 @@ const callOpenAI = async (messages) => {
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('OpenAI API error:', response.status, errorText);
     throw new Error(`OpenAI API error: ${response.statusText}`);
   }
 
@@ -101,7 +100,6 @@ Ejemplo de respuesta correcta:
     };
 
   } catch (error) {
-    console.error('Error processing AI query:', error);
     return {
       success: false,
       error: 'Lo siento, ocurrió un error procesando tu consulta. Inténtalo de nuevo.'
@@ -144,13 +142,12 @@ const getRelevantData = async (message, userId) => {
               
             if (!error) timeEntries = data;
           } catch (e2) {
-            console.warn('Time entries table schema not compatible');
+            // Schema not compatible, skip time entries
           }
         }
         
         context.recent_time_entries = timeEntries || [];
       } catch (error) {
-        console.warn('Time entries fetch failed:', error);
         context.recent_time_entries = [];
       }
     }
@@ -164,10 +161,8 @@ const getRelevantData = async (message, userId) => {
           .limit(10)
           .order('created_at', { ascending: false });
         
-        if (error) console.warn('Error fetching contracts:', error);
         context.contracts = contracts || [];
       } catch (error) {
-        console.warn('Contracts fetch failed:', error);
         context.contracts = [];
       }
     }
@@ -181,10 +176,8 @@ const getRelevantData = async (message, userId) => {
           .limit(10)
           .order('created_at', { ascending: false });
         
-        if (error) console.warn('Error fetching clients:', error);
         context.clients = clients || [];
       } catch (error) {
-        console.warn('Clients fetch failed:', error);
         context.clients = [];
       }
     }
@@ -198,10 +191,8 @@ const getRelevantData = async (message, userId) => {
           .limit(10)
           .order('created_at', { ascending: false });
         
-        if (error) console.warn('Error fetching projects:', error);
         context.projects = projects || [];
       } catch (error) {
-        console.warn('Projects fetch failed:', error);
         context.projects = [];
       }
     }
@@ -211,7 +202,6 @@ const getRelevantData = async (message, userId) => {
     
     return context;
   } catch (error) {
-    console.error('Error fetching context data:', error);
     return context;
   }
 };
