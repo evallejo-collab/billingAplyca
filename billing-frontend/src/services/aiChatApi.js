@@ -116,18 +116,36 @@ const getRelevantData = async (message, userId) => {
     // Determine what data to fetch based on message content
     const messageTokens = message.toLowerCase();
     
-    // Get user's recent time entries
+    // Get user's recent time entries - skip if schema issues
     if (messageTokens.includes('tiempo') || messageTokens.includes('horas') || messageTokens.includes('registr')) {
       try {
-        const { data: timeEntries, error } = await supabase
-          .from('time_entries')
-          .select('*')
-          .eq('user_id', userId)
-          .limit(10)
-          .order('created_at', { ascending: false });
+        // Try different possible column names for user reference
+        let timeEntries = null;
         
-        if (error) {
-          console.warn('Error fetching time entries:', error);
+        // First try with 'created_by' (most likely)
+        try {
+          const { data, error } = await supabase
+            .from('time_entries')
+            .select('*')
+            .eq('created_by', userId)
+            .limit(10)
+            .order('created_at', { ascending: false });
+          
+          if (!error) timeEntries = data;
+        } catch (e) {
+          // Try with 'employee_id' if created_by doesn't work
+          try {
+            const { data, error } = await supabase
+              .from('time_entries')
+              .select('*')
+              .eq('employee_id', userId)
+              .limit(10)
+              .order('created_at', { ascending: false });
+              
+            if (!error) timeEntries = data;
+          } catch (e2) {
+            console.warn('Time entries table schema not compatible');
+          }
         }
         
         context.recent_time_entries = timeEntries || [];
