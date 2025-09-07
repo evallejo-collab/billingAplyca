@@ -31,11 +31,11 @@ export default defineConfig({
       }
     },
     commonjsOptions: {
-      include: [/openai/, /node_modules/]
+      include: [/node_modules/]
     }
   },
   optimizeDeps: {
-    include: ['openai']
+    exclude: []
   },
   server: {
     port: 3000,

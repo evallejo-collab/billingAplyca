@@ -31,8 +31,16 @@ const callOpenAI = async (messages) => {
 
 export const processAIQuery = async (message, userId) => {
   try {
+    // Debug environment variables in production
+    console.log('OpenAI Debug:', {
+      hasApiKey: !!import.meta.env.VITE_OPENAI_API_KEY,
+      keyPrefix: import.meta.env.VITE_OPENAI_API_KEY?.substring(0, 15) + '...',
+      env: import.meta.env.MODE
+    });
+
     // Check if OpenAI API key is available
     if (!import.meta.env.VITE_OPENAI_API_KEY) {
+      console.log('OpenAI API key not found');
       return {
         success: false,
         error: 'El servicio de IA no está disponible. Usando respuestas básicas.'
