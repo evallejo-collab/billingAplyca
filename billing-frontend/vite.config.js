@@ -6,17 +6,33 @@ export default defineConfig({
   plugins: [react()],
   base: '/',
   define: {
-    'process.env': process.env
+    'process.env': process.env,
+    global: 'globalThis'
+  },
+  resolve: {
+    alias: {
+      // Fix for OpenAI module issues
+      stream: 'stream-browserify',
+      path: 'path-browserify',
+      crypto: 'crypto-browserify'
+    }
   },
   build: {
     assetsDir: 'assets',
     rollupOptions: {
+      external: [],
       output: {
         assetFileNames: 'assets/[name]-[hash][extname]',
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js'
       }
+    },
+    commonjsOptions: {
+      include: [/openai/, /node_modules/]
     }
+  },
+  optimizeDeps: {
+    include: ['openai']
   },
   server: {
     port: 3000,

@@ -1,14 +1,15 @@
-import { OpenAI } from 'openai';
+// import { OpenAI } from 'openai'; // Temporarily disabled due to build issues
 import { supabase } from '../config/supabase';
 
 // Initialize OpenAI only if API key is available
 let openai = null;
-if (import.meta.env.VITE_OPENAI_API_KEY) {
-  openai = new OpenAI({
-    apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-    dangerouslyAllowBrowser: true // Only for demo - in production use server-side
-  });
-}
+// Temporarily disabled due to Vercel build issues
+// if (import.meta.env.VITE_OPENAI_API_KEY) {
+//   openai = new OpenAI({
+//     apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+//     dangerouslyAllowBrowser: true // Only for demo - in production use server-side
+//   });
+// }
 
 export const processAIQuery = async (message, userId) => {
   try {
