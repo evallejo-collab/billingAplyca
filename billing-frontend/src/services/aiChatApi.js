@@ -4,16 +4,10 @@ import { supabase } from '../config/supabase';
 const callOpenAI = async (messages) => {
   const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
   
-  console.log('callOpenAI called with:', {
-    messageCount: messages.length,
-    hasApiKey: !!apiKey
-  });
-  
   if (!apiKey) {
     throw new Error('OpenAI API key not configured');
   }
 
-  console.log('Making fetch request to OpenAI...');
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -28,35 +22,19 @@ const callOpenAI = async (messages) => {
     }),
   });
 
-  console.log('OpenAI fetch response:', {
-    ok: response.ok,
-    status: response.status,
-    statusText: response.statusText
-  });
-
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('OpenAI API error response:', errorText);
-    throw new Error(`OpenAI API error: ${response.statusText} - ${errorText}`);
+    console.error('OpenAI API error:', response.status, errorText);
+    throw new Error(`OpenAI API error: ${response.statusText}`);
   }
 
-  const result = await response.json();
-  console.log('OpenAI parsed JSON:', result);
-  return result;
+  return await response.json();
 };
 
 export const processAIQuery = async (message, userId) => {
   try {
-    // Debug environment variables in production
-    console.log('OpenAI Debug:', {
-      hasApiKey: !!import.meta.env.VITE_OPENAI_API_KEY,
-      keyPrefix: import.meta.env.VITE_OPENAI_API_KEY?.substring(0, 15) + '...',
-      env: import.meta.env.MODE
-    });
-
     // Check if OpenAI API key is available
     if (!import.meta.env.VITE_OPENAI_API_KEY) {
-      console.log('OpenAI API key not found');
       return {
         success: false,
         error: 'El servicio de IA no está disponible. Usando respuestas básicas.'
@@ -112,12 +90,10 @@ Ejemplo de respuesta correcta:
     - Registrar tiempo → "Registro de Horas" → "Nueva Entrada"`;
 
     // Call OpenAI API directly
-    console.log('Calling OpenAI API...');
     const response = await callOpenAI([
       { role: "system", content: systemPrompt },
       { role: "user", content: message }
     ]);
-    console.log('OpenAI API response:', response);
 
     return {
       success: true,
@@ -142,47 +118,74 @@ const getRelevantData = async (message, userId) => {
     
     // Get user's recent time entries
     if (messageTokens.includes('tiempo') || messageTokens.includes('horas') || messageTokens.includes('registr')) {
-      const { data: timeEntries } = await supabase
-        .from('time_entries')
-        .select('*')
-        .eq('user_id', userId)
-        .limit(10)
-        .order('created_at', { ascending: false });
-      
-      context.recent_time_entries = timeEntries || [];
+      try {
+        const { data: timeEntries, error } = await supabase
+          .from('time_entries')
+          .select('*')
+          .eq('user_id', userId)
+          .limit(10)
+          .order('created_at', { ascending: false });
+        
+        if (error) {
+          console.warn('Error fetching time entries:', error);
+        }
+        
+        context.recent_time_entries = timeEntries || [];
+      } catch (error) {
+        console.warn('Time entries fetch failed:', error);
+        context.recent_time_entries = [];
+      }
     }
 
     // Get contracts if mentioned
     if (messageTokens.includes('contrato') || messageTokens.includes('contract')) {
-      const { data: contracts } = await supabase
-        .from('contracts')
-        .select('*, client:clients(name)')
-        .limit(10)
-        .order('created_at', { ascending: false });
-      
-      context.contracts = contracts || [];
+      try {
+        const { data: contracts, error } = await supabase
+          .from('contracts')
+          .select('*, client:clients(name)')
+          .limit(10)
+          .order('created_at', { ascending: false });
+        
+        if (error) console.warn('Error fetching contracts:', error);
+        context.contracts = contracts || [];
+      } catch (error) {
+        console.warn('Contracts fetch failed:', error);
+        context.contracts = [];
+      }
     }
 
     // Get clients if mentioned
     if (messageTokens.includes('cliente') || messageTokens.includes('client')) {
-      const { data: clients } = await supabase
-        .from('clients')
-        .select('id, name, email, company')
-        .limit(10)
-        .order('created_at', { ascending: false });
-      
-      context.clients = clients || [];
+      try {
+        const { data: clients, error } = await supabase
+          .from('clients')
+          .select('id, name, email, company')
+          .limit(10)
+          .order('created_at', { ascending: false });
+        
+        if (error) console.warn('Error fetching clients:', error);
+        context.clients = clients || [];
+      } catch (error) {
+        console.warn('Clients fetch failed:', error);
+        context.clients = [];
+      }
     }
 
     // Get projects if mentioned
     if (messageTokens.includes('proyecto') || messageTokens.includes('project')) {
-      const { data: projects } = await supabase
-        .from('projects')
-        .select('*, client:clients(name)')
-        .limit(10)
-        .order('created_at', { ascending: false });
-      
-      context.projects = projects || [];
+      try {
+        const { data: projects, error } = await supabase
+          .from('projects')
+          .select('*, client:clients(name)')
+          .limit(10)
+          .order('created_at', { ascending: false });
+        
+        if (error) console.warn('Error fetching projects:', error);
+        context.projects = projects || [];
+      } catch (error) {
+        console.warn('Projects fetch failed:', error);
+        context.projects = [];
+      }
     }
 
     // Add current date for time-based queries
