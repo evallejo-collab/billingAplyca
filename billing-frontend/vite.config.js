@@ -9,7 +9,8 @@ export default defineConfig({
     'process.env': process.env,
     global: 'globalThis',
     'globalThis.process': JSON.stringify({}),
-    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production')
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+    '__WS_TOKEN__': JSON.stringify('dev-token')
   },
   resolve: {
     alias: {

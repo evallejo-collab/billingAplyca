@@ -1,20 +1,38 @@
-// import { OpenAI } from 'openai'; // Temporarily disabled due to build issues
 import { supabase } from '../config/supabase';
 
-// Initialize OpenAI only if API key is available
-let openai = null;
-// Temporarily disabled due to Vercel build issues
-// if (import.meta.env.VITE_OPENAI_API_KEY) {
-//   openai = new OpenAI({
-//     apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-//     dangerouslyAllowBrowser: true // Only for demo - in production use server-side
-//   });
-// }
+// Direct OpenAI API call using fetch (no SDK needed)
+const callOpenAI = async (messages) => {
+  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error('OpenAI API key not configured');
+  }
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: messages,
+      max_tokens: 500,
+      temperature: 0.7,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenAI API error: ${response.statusText}`);
+  }
+
+  return await response.json();
+};
 
 export const processAIQuery = async (message, userId) => {
   try {
-    // Check if OpenAI is available
-    if (!openai) {
+    // Check if OpenAI API key is available
+    if (!import.meta.env.VITE_OPENAI_API_KEY) {
       return {
         success: false,
         error: 'El servicio de IA no está disponible. Usando respuestas básicas.'
@@ -69,15 +87,11 @@ Ejemplo de respuesta correcta:
     - Crear proyecto → "Proyectos" → "Nuevo Proyecto"
     - Registrar tiempo → "Registro de Horas" → "Nueva Entrada"`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: message }
-      ],
-      max_tokens: 500,
-      temperature: 0.7
-    });
+    // Call OpenAI API directly
+    const response = await callOpenAI([
+      { role: "system", content: systemPrompt },
+      { role: "user", content: message }
+    ]);
 
     return {
       success: true,

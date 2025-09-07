@@ -129,8 +129,8 @@ const AIChat = () => {
       // Try AI processing first, fallback to simple responses
       let responseContent;
       
-      // Temporarily disable OpenAI due to build issues, use fallback only
-      if (false && import.meta.env.VITE_OPENAI_API_KEY) {
+      // OpenAI with dynamic import - should resolve Vercel build issues  
+      if (import.meta.env.VITE_OPENAI_API_KEY) {
         const aiResponse = await processAIQuery(inputMessage, user?.id);
         responseContent = aiResponse.success ? aiResponse.response : aiResponse.error;
       } else {
