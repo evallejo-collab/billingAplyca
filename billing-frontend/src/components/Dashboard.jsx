@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { contractsApi } from '../services/supabaseApi';
-import { AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, XCircle, FileText, TrendingUp, Clock, DollarSign } from 'lucide-react';
 
 const Dashboard = () => {
   const [activeContracts, setActiveContracts] = useState([]);
+  const [allContracts, setAllContracts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -23,6 +24,7 @@ const Dashboard = () => {
       // Filter active contracts
       const activeContracts = allContracts.filter(contract => contract.status === 'active');
       setActiveContracts(activeContracts);
+      setAllContracts(allContracts); // Store all contracts for metrics
     } catch (err) {
       setError(err.message);
       console.error('Error loading dashboard:', err);
@@ -116,6 +118,65 @@ const Dashboard = () => {
         </button>
       </div>
 
+
+      {/* Key Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="card">
+          <div className="card-body">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <FileText className="w-8 h-8 text-gray-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-xs text-gray-500 uppercase tracking-wide">TOTAL CONTRATOS</p>
+                <p className="text-xl font-semibold text-gray-900">{allContracts.length}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-body">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <TrendingUp className="w-8 h-8 text-gray-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-xs text-gray-500 uppercase tracking-wide">CONTRATOS ACTIVOS</p>
+                <p className="text-xl font-semibold text-green-700">{activeContracts.length}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-body">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Clock className="w-8 h-8 text-gray-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-xs text-gray-500 uppercase tracking-wide">HORAS UTILIZADAS</p>
+                <p className="text-xl font-semibold text-gray-900">{formatHours(activeContracts.reduce((sum, c) => sum + (parseFloat(c.used_hours) || 0), 0))}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-body">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <DollarSign className="w-8 h-8 text-gray-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-xs text-gray-500 uppercase tracking-wide">VALOR TOTAL</p>
+                <p className="text-xl font-semibold text-gray-900">{formatCurrency(allContracts.reduce((sum, c) => sum + (parseFloat(c.contract_value) || 0), 0))}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Active Contracts */}
       <div className="card">
