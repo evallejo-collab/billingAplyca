@@ -1,4 +1,4 @@
-# Sistema de Facturación - billingAplyca
+# Sistema de gestión - Aplyca
 
 Sistema integral de facturación y gestión de proyectos desarrollado con React y Supabase. Permite gestionar clientes, contratos, proyectos, registro de horas, pagos y reportes de manera eficiente.
 
