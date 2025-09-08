@@ -296,14 +296,14 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Horas Utilizadas
+                    Tiempo Utilizado
                   </label>
                   <p className="text-lg font-semibold text-orange-600">{project.used_hours || 0}h</p>
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Horas Restantes
+                    Tiempo Restante
                   </label>
                   <p className="text-lg font-semibold text-green-600">{project.remaining_hours || 0}h</p>
                 </div>

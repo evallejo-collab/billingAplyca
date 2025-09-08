@@ -86,7 +86,7 @@ Ejemplo de respuesta correcta:
     - Crear cliente → "Clientes" → "Nuevo Cliente"
     - Crear contrato → "Contratos" → "Nuevo Contrato"  
     - Crear proyecto → "Proyectos" → "Nuevo Proyecto"
-    - Registrar tiempo → "Registro de Horas" → "Nueva Entrada"`;
+    - Registrar tiempo → "Registro de Tiempo" → "Nueva Entrada"`;
 
     // Call OpenAI API directly
     const response = await callOpenAI([
@@ -225,7 +225,7 @@ export const getFallbackResponse = (message) => {
   }
   
   if (messageTokens.includes('tiempo') || messageTokens.includes('horas')) {
-    return "Para consultar tu tiempo registrado, ve a la sección 'Registro de Horas' en el menú principal. Ahí podrás ver todas tus entradas de tiempo organizadas por fecha y proyecto.";
+    return "Para consultar tu tiempo registrado, ve a la sección 'Registro de Tiempo' en el menú principal. Ahí podrás ver todas tus entradas de tiempo organizadas por fecha y proyecto.";
   }
   
   if (messageTokens.includes('contrato')) {

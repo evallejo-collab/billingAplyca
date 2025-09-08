@@ -239,7 +239,7 @@ const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, se
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">
-            {isEditing ? 'Editar Horas de Trabajo' : 'Registrar Horas de Trabajo'}
+            {isEditing ? 'Editar Tiempo de Trabajo' : 'Registrar Tiempo de Trabajo'}
           </h2>
           <button 
             onClick={onClose}
@@ -541,7 +541,7 @@ const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, se
                 )}
                 {loading 
                   ? (isEditing ? 'ACTUALIZANDO...' : 'REGISTRANDO...') 
-                  : (isEditing ? 'ACTUALIZAR HORAS' : 'REGISTRAR HORAS')
+                  : (isEditing ? 'ACTUALIZAR TIEMPO' : 'REGISTRAR TIEMPO')
                 }
               </button>
             </div>

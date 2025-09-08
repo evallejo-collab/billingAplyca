@@ -40,7 +40,7 @@ const Layout = () => {
       name: 'Trabajo y Facturación',
       icon: Receipt,
       items: [
-        { name: 'Registro de Horas', href: '/time-entries', icon: Clock, description: 'Control de tiempo trabajado' },
+        { name: 'Registro de Tiempo', href: '/time-entries', icon: Clock, description: 'Control de tiempo trabajado' },
         { name: 'Facturación', href: '/billing', icon: Receipt, description: 'Gestión de pagos y facturación' },
       ]
     },

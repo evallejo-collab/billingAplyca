@@ -378,7 +378,7 @@ const Projects = () => {
                   <div className="text-center p-2 bg-gray-50 rounded border border-gray-200">
                     <div className="flex items-center justify-center mb-1">
                       <Clock className="w-4 h-4 text-gray-600 mr-1" />
-                      <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">Usadas</span>
+                      <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">Utilizadas</span>
                     </div>
                     <p className="text-base font-semibold text-gray-900">{project.used_hours || 0}h</p>
                   </div>

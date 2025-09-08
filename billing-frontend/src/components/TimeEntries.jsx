@@ -184,15 +184,15 @@ const TimeEntries = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Registro de Horas</h1>
-          <p className="text-sm text-gray-600 mt-1">Gestión y seguimiento del tiempo trabajado en contratos</p>
+          <h1 className="text-2xl font-semibold text-gray-900">Registro de Tiempo</h1>
+          <p className="text-sm text-gray-600 mt-1">Gestión y seguimiento del tiempo trabajado en proyectos</p>
         </div>
         <button 
           onClick={handleAddTimeEntry}
           className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 transition-colors"
         >
           <Plus className="w-3 h-3 mr-1" />
-          REGISTRAR HORAS
+          REGISTRAR TIEMPO
         </button>
       </div>
 
@@ -329,7 +329,7 @@ const TimeEntries = () => {
                 className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 transition-colors"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                REGISTRAR HORAS
+                REGISTRAR TIEMPO
               </button>
             </div>
           </div>

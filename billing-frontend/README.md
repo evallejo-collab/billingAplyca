@@ -2,7 +2,7 @@
 
 ## 📋 Descripción
 
-Sistema integral de facturación y gestión de proyectos desarrollado con React y Supabase. Permite gestionar clientes, contratos, proyectos, registro de horas, pagos y reportes de manera eficiente.
+Sistema integral de facturación y gestión de proyectos desarrollado con React y Supabase. Permite gestionar clientes, contratos, proyectos, registro de tiempo, pagos y reportes de manera eficiente.
 
 ## 🚀 Tecnologías Utilizadas
 
@@ -111,7 +111,7 @@ npm run dev
 - ✅ Seguimiento de horas estimadas vs utilizadas
 - ✅ Cálculo de costos en tiempo real
 
-### ⏱️ Registro de Horas
+### ⏱️ Registro de Tiempo
 - ✅ Registro por contrato o proyecto independiente
 - ✅ Validación de horas disponibles
 - ✅ Cálculo automático de montos
