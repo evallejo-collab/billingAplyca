@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
 import { contractsApi, clientsApi, projectsApi, timeEntriesApi, paymentsApi } from '../services/supabaseApi';
-import { BarChart3, Calendar, Download, Filter, TrendingUp, Users, DollarSign, Clock, FileText, ChevronDown, ChevronRight, Folder } from 'lucide-react';
+import { Calendar, TrendingUp, DollarSign, Clock, FileText, ChevronDown, ChevronRight, Folder } from 'lucide-react';
 
 const Reports = () => {
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('monthly');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
   // Report data
-  const [overviewData, setOverviewData] = useState(null);
   const [monthlyData, setMonthlyData] = useState([]);
   const [activeContractsData, setActiveContractsData] = useState([]);
   const [activeProjectsData, setActiveProjectsData] = useState([]);
@@ -33,10 +32,7 @@ const Reports = () => {
   const [availableClients, setAvailableClients] = useState([]);
 
   useEffect(() => {
-    if (activeTab === 'overview') {
-      loadOverviewData();
-      loadActiveProjectsData(); // Load projects data for overview card
-    } else if (activeTab === 'monthly') {
+    if (activeTab === 'monthly') {
       loadMonthlyData();
     } else if (activeTab === 'active-contracts') {
       loadActiveContractsData();
@@ -53,45 +49,6 @@ const Reports = () => {
     }
   }, [activeTab]);
 
-  const loadOverviewData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Load data from multiple APIs and calculate stats
-      const [contractsResponse, clientsResponse, projectsResponse, paymentsResponse] = await Promise.all([
-        contractsApi.getAll(),
-        clientsApi.getAll(),
-        projectsApi.getAll(),
-        paymentsApi.getAll()
-      ]);
-      
-      const contracts = contractsResponse.data || [];
-      const clients = clientsResponse.data || [];
-      const projects = projectsResponse.data || [];
-      const payments = paymentsResponse.data || [];
-      
-      // Calculate overview stats
-      const activeContracts = contracts.filter(c => c.status === 'active');
-      const activeProjects = projects.filter(p => p.status === 'active');
-      const totalRevenue = payments.reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0);
-      const totalHoursUsed = contracts.reduce((sum, contract) => sum + (parseFloat(contract.used_hours) || 0), 0);
-      
-      setOverviewData({
-        total_contracts: contracts.length,
-        active_contracts: activeContracts.length,
-        total_clients: clients.length,
-        active_projects: activeProjects.length,
-        total_revenue: totalRevenue,
-        total_hours: totalHoursUsed
-      });
-      
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const loadMonthlyData = async () => {
     try {
@@ -328,139 +285,6 @@ const Reports = () => {
     return months[monthNumber - 1];
   };
 
-  const renderOverviewReport = () => (
-    <div className="space-y-6">
-      {overviewData && (
-        <>
-          {/* Key Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="card">
-              <div className="card-body">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <FileText className="w-8 h-8 text-gray-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-xs text-gray-500 uppercase tracking-wide">TOTAL CONTRATOS</p>
-                    <p className="text-xl font-semibold text-gray-900">{overviewData.total_contracts || 0}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="card">
-              <div className="card-body">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <TrendingUp className="w-8 h-8 text-gray-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-xs text-gray-500 uppercase tracking-wide">CONTRATOS ACTIVOS</p>
-                    <p className="text-xl font-semibold text-green-700">{overviewData.active_contracts || 0}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="card">
-              <div className="card-body">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <Clock className="w-8 h-8 text-gray-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-xs text-gray-500 uppercase tracking-wide">TOTAL HORAS</p>
-                    <p className="text-xl font-semibold text-gray-900">{formatHours(overviewData.total_used_hours)}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="card">
-              <div className="card-body">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <DollarSign className="w-8 h-8 text-gray-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-xs text-gray-500 uppercase tracking-wide">TOTAL FACTURADO</p>
-                    <p className="text-xl font-semibold text-gray-900">{formatCurrency(overviewData.total_billed_amount)}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Additional Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="card">
-              <div className="card-body">
-                <h3 className="text-xs text-gray-500 uppercase tracking-wide mb-2">CONTRATOS COMPLETADOS</h3>
-                <p className="text-2xl font-semibold text-gray-900">{overviewData.completed_contracts || 0}</p>
-              </div>
-            </div>
-
-            <div className="card">
-              <div className="card-body">
-                <h3 className="text-xs text-gray-500 uppercase tracking-wide mb-2">HORAS CONTRATADAS</h3>
-                <p className="text-2xl font-semibold text-gray-900">{formatHours(overviewData.total_contracted_hours)}</p>
-              </div>
-            </div>
-
-            <div className="card">
-              <div className="card-body">
-                <h3 className="text-xs text-gray-500 uppercase tracking-wide mb-2">VALOR TOTAL</h3>
-                <p className="text-2xl font-semibold text-gray-900">{formatCurrency(overviewData.total_contract_value)}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Active Projects Summary */}
-          <div className="card">
-            <div className="card-header">
-              <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Proyectos Activos</h3>
-            </div>
-            <div className="card-body">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                <div className="text-center">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <Folder className="w-8 h-8 text-gray-600" />
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-xs text-gray-500 uppercase tracking-wide">PROYECTOS ACTIVOS</p>
-                      <p className="text-xl font-semibold text-green-700">{activeProjectsData.length}</p>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">PRESUPUESTO TOTAL</p>
-                  <p className="text-base font-semibold text-gray-900">
-                    {formatCurrency(activeProjectsData.reduce((sum, p) => sum + (parseFloat(p.total_amount) || 0), 0))}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">COSTO UTILIZADO</p>
-                  <p className="text-base font-semibold text-gray-900">
-                    {formatCurrency(activeProjectsData.reduce((sum, p) => sum + (parseFloat(p.current_cost) || 0), 0))}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">CRÍTICOS</p>
-                  <p className="text-base font-semibold text-red-700">
-                    {activeProjectsData.filter(p => {
-                      const percentage = p.estimated_hours > 0 ? (parseFloat(p.used_hours || 0) / parseFloat(p.estimated_hours)) * 100 : 0;
-                      return percentage >= 90;
-                    }).length}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  );
 
   const renderMonthlyReport = () => (
     <div className="space-y-6">
@@ -940,7 +764,6 @@ const Reports = () => {
   );
 
   const tabs = [
-    { id: 'overview', name: 'Resumen General', icon: BarChart3 },
     { id: 'monthly', name: 'Reporte Mensual', icon: Calendar },
     { id: 'active-contracts', name: 'Contratos Activos', icon: TrendingUp },
     { id: 'active-projects', name: 'Proyectos Activos', icon: Folder },
@@ -995,7 +818,6 @@ const Reports = () => {
 
       {!loading && (
         <>
-          {activeTab === 'overview' && renderOverviewReport()}
           {activeTab === 'monthly' && renderMonthlyReport()}
           {activeTab === 'active-contracts' && renderActiveContractsReport()}
           {activeTab === 'active-projects' && renderActiveProjectsReport()}
