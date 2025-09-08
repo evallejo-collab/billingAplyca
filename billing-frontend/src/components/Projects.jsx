@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { projectsApi, clientsApi, contractsApi } from '../services/supabaseApi';
+import ConfirmModal from './ConfirmModal';
 import { 
   Plus, 
   Search, 
@@ -21,6 +22,7 @@ import {
   Target
 } from 'lucide-react';
 import ProjectModal from './ProjectModal';
+import ProjectWizard from './ProjectWizard';
 import ProjectDetailsModal from './ProjectDetailsModal';
 
 const Projects = () => {
@@ -33,9 +35,12 @@ const Projects = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState(''); // 'contract', 'independent', or ''
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -64,6 +69,7 @@ const Projects = () => {
     }
   };
 
+
   const handleSearch = () => {
     // Filter projects based on search term and filters
     // This could be enhanced to call API with filters
@@ -73,7 +79,7 @@ const Projects = () => {
   const handleCreateProject = () => {
     setSelectedProject(null);
     setIsEditing(false);
-    setIsModalOpen(true);
+    setIsWizardOpen(true);
   };
 
   const handleEditProject = (project) => {
@@ -87,15 +93,19 @@ const Projects = () => {
     setIsDetailsModalOpen(true);
   };
 
-  const handleDeleteProject = async (projectId) => {
-    if (!window.confirm('¿Estás seguro de que deseas eliminar este proyecto?')) {
-      return;
-    }
+  const handleDeleteProject = (project) => {
+    setProjectToDelete(project);
+    setShowDeleteConfirm(true);
+  };
 
+  const confirmDeleteProject = async () => {
+    if (!projectToDelete) return;
+    
     try {
-      const response = await projectsApi.delete(projectId);
+      const response = await projectsApi.delete(projectToDelete.id);
       if (response.success) {
         loadData();
+        setProjectToDelete(null);
       } else {
         alert('Error al eliminar el proyecto');
       }
@@ -110,9 +120,20 @@ const Projects = () => {
     setIsEditing(false);
   };
 
+  const handleWizardClose = () => {
+    setIsWizardOpen(false);
+    setSelectedProject(null);
+    setIsEditing(false);
+  };
+
   const handleProjectSaved = () => {
     loadData();
     handleModalClose();
+  };
+
+  const handleProjectSavedFromWizard = () => {
+    loadData();
+    handleWizardClose();
   };
 
   const getStatusBadge = (status) => {
@@ -322,7 +343,7 @@ const Projects = () => {
                       <Edit2 className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => handleDeleteProject(project.id)}
+                      onClick={() => handleDeleteProject(project)}
                       className="p-1 text-gray-400 hover:text-red-600 transition-colors"
                       title="Eliminar"
                     >
@@ -468,6 +489,7 @@ const Projects = () => {
                     })()}
                   </div>
                 )}
+
               </div>
             </div>
           );
@@ -510,10 +532,35 @@ const Projects = () => {
         contracts={contracts}
       />
 
+      <ProjectWizard
+        isOpen={isWizardOpen}
+        onClose={handleWizardClose}
+        project={selectedProject}
+        isEditing={isEditing}
+        onProjectSaved={handleProjectSavedFromWizard}
+        clients={clients}
+        contracts={contracts}
+      />
+
       <ProjectDetailsModal
         isOpen={isDetailsModalOpen}
         onClose={() => setIsDetailsModalOpen(false)}
         project={selectedProject}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        onClose={() => {
+          setShowDeleteConfirm(false);
+          setProjectToDelete(null);
+        }}
+        onConfirm={confirmDeleteProject}
+        type="danger"
+        title="Eliminar proyecto"
+        message={`¿Estás seguro de que deseas eliminar el proyecto "${projectToDelete?.name}"? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
       />
     </div>
   );

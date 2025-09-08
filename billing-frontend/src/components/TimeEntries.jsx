@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { contractsApi, timeEntriesApi } from '../services/supabaseApi';
 import { Plus, Clock, Calendar, Search, Filter, AlertCircle, FileText, Trash2, Edit2, ChevronDown, ChevronRight } from 'lucide-react';
 import TimeEntryModal from './TimeEntryModal';
+import TimeEntryWizard from './TimeEntryWizard';
+import ConfirmModal from './ConfirmModal';
 
 const TimeEntries = () => {
   const [timeEntries, setTimeEntries] = useState([]);
@@ -18,6 +20,9 @@ const TimeEntries = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState(new Set());
   const [groupedEntries, setGroupedEntries] = useState({});
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [entryToDelete, setEntryToDelete] = useState(null);
+  const [useWizard, setUseWizard] = useState(true); // Toggle between wizard and old modal
 
   useEffect(() => {
     loadData();
@@ -95,7 +100,7 @@ const TimeEntries = () => {
       }
       
       groups[key].entries.push(entry);
-      groups[key].totalHours += parseFloat(entry.hours_used) || 0;
+      groups[key].totalHours += parseInt(entry.hours_used) || 0;
       
       return groups;
     }, {});
@@ -133,15 +138,18 @@ const TimeEntries = () => {
     setIsEditing(false);
   };
 
-  const handleDeleteTimeEntry = async (entryId, taskCategory, description) => {
-    const displayText = taskCategory || description || 'entrada sin descripción';
-    if (!window.confirm(`¿Estás seguro de que deseas eliminar la entrada: "${displayText}"?`)) {
-      return;
-    }
+  const handleDeleteTimeEntry = (entry) => {
+    setEntryToDelete(entry);
+    setShowDeleteConfirm(true);
+  };
 
+  const confirmDeleteTimeEntry = async () => {
+    if (!entryToDelete) return;
+    
     try {
-      await timeEntriesApi.delete(entryId);
+      await timeEntriesApi.delete(entryToDelete.id);
       loadData(); // Reload the data after deletion
+      setEntryToDelete(null);
     } catch (error) {
       alert('Error al eliminar la entrada: ' + error.message);
     }
@@ -156,11 +164,11 @@ const TimeEntries = () => {
   };
 
   const formatHours = (hours) => {
-    return `${parseFloat(hours || 0).toFixed(2)}h`;
+    return `${parseInt(hours || 0)}h`;
   };
 
   const getTotalHours = () => {
-    return filteredEntries.reduce((total, entry) => total + parseFloat(entry.hours_used), 0);
+    return filteredEntries.reduce((total, entry) => total + parseInt(entry.hours_used || 0), 0);
   };
 
   if (loading) {
@@ -400,6 +408,10 @@ const TimeEntries = () => {
                           <div className="max-w-xs">
                             {entry.task_category ? (
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                {entry.task_category === 'soporte_general' && 'Soporte general'}
+                                {entry.task_category === 'desarrollo' && 'Desarrollo'}
+                                {entry.task_category === 'qa' && 'Q.A'}
+                                {entry.task_category === 'gestion' && 'Gestión'}
                                 {entry.task_category === 'soporte_aplicativo' && 'Soporte Aplicativo'}
                                 {entry.task_category === 'desarrollo_frontend' && 'Desarrollo Frontend'}
                                 {entry.task_category === 'desarrollo_backend' && 'Desarrollo Backend'}
@@ -415,7 +427,7 @@ const TimeEntries = () => {
                                 {entry.task_category === 'optimizacion' && 'Optimización'}
                                 {entry.task_category === 'configuracion' && 'Configuración'}
                                 {entry.task_category === 'otro' && 'Otro'}
-                                {!['soporte_aplicativo', 'desarrollo_frontend', 'desarrollo_backend', 'analisis_requerimientos', 'testing_qa', 'devops_infraestructura', 'documentacion', 'reunion_cliente', 'capacitacion', 'mantenimiento', 'arquitectura_diseno', 'integraciones', 'optimizacion', 'configuracion', 'otro'].includes(entry.task_category) && entry.task_category}
+                                {!['soporte_general', 'desarrollo', 'qa', 'gestion', 'soporte_aplicativo', 'desarrollo_frontend', 'desarrollo_backend', 'analisis_requerimientos', 'testing_qa', 'devops_infraestructura', 'documentacion', 'reunion_cliente', 'capacitacion', 'mantenimiento', 'arquitectura_diseno', 'integraciones', 'optimizacion', 'configuracion', 'otro'].includes(entry.task_category) && entry.task_category}
                               </span>
                             ) : (
                               <span className="text-gray-400 italic">Sin categoría</span>
@@ -441,7 +453,7 @@ const TimeEntries = () => {
                               <Edit2 className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => handleDeleteTimeEntry(entry.id, entry.task_category, entry.description)}
+                              onClick={() => handleDeleteTimeEntry(entry)}
                               className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors"
                               title="Eliminar entrada"
                             >
@@ -459,14 +471,39 @@ const TimeEntries = () => {
         ))}
       </div>
 
-      {/* Time Entry Modal */}
-      <TimeEntryModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        activeContracts={activeContracts}
-        onTimeEntrySaved={handleTimeEntrySaved}
-        selectedEntry={selectedEntry}
-        isEditing={isEditing}
+      {/* Time Entry Modal or Wizard */}
+      {useWizard ? (
+        <TimeEntryWizard
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onTimeEntrySaved={handleTimeEntrySaved}
+          selectedEntry={selectedEntry}
+          isEditing={isEditing}
+        />
+      ) : (
+        <TimeEntryModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          activeContracts={activeContracts}
+          onTimeEntrySaved={handleTimeEntrySaved}
+          selectedEntry={selectedEntry}
+          isEditing={isEditing}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        onClose={() => {
+          setShowDeleteConfirm(false);
+          setEntryToDelete(null);
+        }}
+        onConfirm={confirmDeleteTimeEntry}
+        type="danger"
+        title="Eliminar entrada de tiempo"
+        message={`¿Estás seguro de que deseas eliminar la entrada "${entryToDelete?.task_category || entryToDelete?.description || 'sin descripción'}"? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
       />
     </div>
   );

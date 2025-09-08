@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { contractsApi, clientsApi } from '../services/supabaseApi';
 import { Plus, Search, Filter, Eye, Edit, MoreVertical, Trash2, AlertCircle, Clock, DollarSign, FileText, Calendar } from 'lucide-react';
 import ContractModal from './ContractModal';
+import ConfirmModal from './ConfirmModal';
 
 const Contracts = () => {
   const [contracts, setContracts] = useState([]);
@@ -15,6 +16,8 @@ const Contracts = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedContract, setSelectedContract] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [contractToDelete, setContractToDelete] = useState(null);
 
   useEffect(() => {
     loadContracts();
@@ -109,16 +112,19 @@ const Contracts = () => {
     }
   };
 
-  const handleDeleteContract = async (contract) => {
+  const handleDeleteContract = (contract) => {
+    setContractToDelete(contract);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteContract = async () => {
+    if (!contractToDelete) return;
+    
     try {
-      // First try normal deletion
-      if (!window.confirm('¿Estás seguro de que deseas eliminar este contrato?')) {
-        return;
-      }
-      
-      await contractsApi.delete(contract.id);
+      await contractsApi.delete(contractToDelete.id);
       alert('Contrato eliminado exitosamente');
       loadContracts();
+      setContractToDelete(null);
     } catch (error) {
       alert('Error al eliminar contrato: ' + error.message);
     }
@@ -417,6 +423,21 @@ const Contracts = () => {
         contract={selectedContract}
         isEditing={isEditing}
         onContractSaved={handleContractSaved}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        onClose={() => {
+          setShowDeleteConfirm(false);
+          setContractToDelete(null);
+        }}
+        onConfirm={confirmDeleteContract}
+        type="danger"
+        title="Eliminar contrato"
+        message={`¿Estás seguro de que deseas eliminar el contrato "${contractToDelete?.contract_number}"? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
       />
     </div>
   );

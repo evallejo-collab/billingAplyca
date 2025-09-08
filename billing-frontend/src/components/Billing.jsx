@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { contractsApi, clientsApi, projectsApi, paymentsApi } from '../services/supabaseApi';
+import PaymentWizard from './PaymentWizard';
 import { 
   Receipt, 
   DollarSign, 
@@ -45,6 +46,7 @@ const Billing = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all'); // contracts or projects
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isPaymentWizardOpen, setIsPaymentWizardOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [rowPayments, setRowPayments] = useState({});
@@ -256,7 +258,7 @@ const Billing = () => {
   };
 
   const handleDeletePayment = async (paymentId, itemId) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar este pago?')) return;
+    if (!window.confirm('¿Estás seguro de que deseas eliminar este pago? Esta acción no se puede deshacer.')) return;
     
     try {
       setDeletingPayment(paymentId);
@@ -516,7 +518,7 @@ const Billing = () => {
                     onClick={(e) => {
                       e.stopPropagation();
                       setSelectedItem(item);
-                      setIsPaymentModalOpen(true);
+                      setIsPaymentWizardOpen(true);
                     }}
                     className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-gray-800 rounded hover:bg-gray-700 transition-colors"
                   >
@@ -535,99 +537,116 @@ const Billing = () => {
                     <p className="text-sm text-gray-500">No se han registrado pagos</p>
                   </div>
                 ) : (
-                  <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead className="bg-gray-50 border-b border-gray-200">
-                          <tr>
-                            <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                              Fecha
-                            </th>
-                            <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                              Monto
-                            </th>
-                            <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                              Tipo
-                            </th>
-                            <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                              Descripción
-                            </th>
-                            <th className="px-6 py-4 text-right text-sm font-semibold text-gray-900">
-                              Acciones
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                          {rowPayments[item.id].map((payment) => (
-                            <tr key={payment.id} className="hover:bg-gray-50 transition-colors">
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="flex items-center text-sm text-gray-900">
-                                  <Calendar className="w-4 h-4 text-gray-500 mr-2" />
-                                  <span className="font-medium">{formatDate(payment.payment_date)}</span>
+                  <div className="space-y-4">
+                    {(() => {
+                      // Group payments by type
+                      const groupedPayments = rowPayments[item.id].reduce((acc, payment) => {
+                        const type = payment.payment_type;
+                        if (!acc[type]) {
+                          acc[type] = [];
+                        }
+                        acc[type].push(payment);
+                        return acc;
+                      }, {});
+
+                      // Define payment type labels and colors
+                      const getPaymentTypeInfo = (type) => {
+                        switch (type) {
+                          case 'fixed':
+                            return { label: 'Pagos Fijos', color: 'bg-blue-50 border-blue-200 text-blue-800', icon: DollarSign };
+                          case 'percentage':
+                            return { label: 'Pagos por Porcentaje', color: 'bg-green-50 border-green-200 text-green-800', icon: DollarSign };
+                          case 'recurring_support':
+                            return { label: 'Soporte Recurrente', color: 'bg-purple-50 border-purple-200 text-purple-800', icon: Clock };
+                          case 'project_scope':
+                            return { label: 'Proyectos de Alcance Fijo', color: 'bg-orange-50 border-orange-200 text-orange-800', icon: Receipt };
+                          case 'support_evolutive':
+                            return { label: 'Soporte y Evolutivos', color: 'bg-indigo-50 border-indigo-200 text-indigo-800', icon: Clock };
+                          default:
+                            return { label: 'Otros Pagos', color: 'bg-gray-50 border-gray-200 text-gray-800', icon: DollarSign };
+                        }
+                      };
+
+                      return Object.entries(groupedPayments).map(([paymentType, payments]) => {
+                        const typeInfo = getPaymentTypeInfo(paymentType);
+                        const Icon = typeInfo.icon;
+                        const totalAmount = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+                        
+                        return (
+                          <div key={paymentType} className="bg-white rounded-lg shadow-sm border border-gray-200">
+                            {/* Group Header */}
+                            <div className={`px-4 py-3 border-b border-gray-200 ${typeInfo.color} rounded-t-lg`}>
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-2">
+                                  <Icon className="w-4 h-4" />
+                                  <h5 className="font-semibold text-sm">{typeInfo.label}</h5>
+                                  <span className="bg-white bg-opacity-80 px-2 py-0.5 rounded-full text-xs font-medium">
+                                    {payments.length} pago{payments.length !== 1 ? 's' : ''}
+                                  </span>
                                 </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className="text-sm font-semibold text-gray-900">
-                                  {formatCurrency(payment.amount, true)}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                                  payment.payment_type === 'fixed' 
-                                    ? 'bg-gray-50 text-gray-700 border border-gray-200'
-                                    : payment.payment_type === 'percentage'
-                                    ? 'bg-gray-50 text-gray-700 border border-gray-200'
-                                    : payment.payment_type === 'recurring_support'
-                                    ? 'bg-gray-50 text-gray-700 border border-gray-200'
-                                    : payment.payment_type === 'project_scope'
-                                    ? 'bg-gray-50 text-gray-700 border border-gray-200'
-                                    : 'bg-gray-50 text-gray-700 border border-gray-200'
-                                }`}>
-                                  {payment.payment_type === 'fixed' && 'Fijo'}
-                                  {payment.payment_type === 'percentage' && 'Porcentaje'}
-                                  {payment.payment_type === 'recurring_support' && `Soporte ${payment.billing_month || ''}`}
-                                  {payment.payment_type === 'project_scope' && 'Alcance Fijo'}
-                                  {payment.payment_type === 'support_evolutive' && 'Soporte y Evolutivos'}
-                                  {!['fixed', 'percentage', 'recurring_support', 'project_scope', 'support_evolutive'].includes(payment.payment_type) && 'Otros'}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4">
-                                <div className="text-sm text-gray-900 max-w-xs" title={payment.description}>
-                                  {payment.description || <span className="text-gray-400 italic">Sin descripción</span>}
+                                <div className="font-semibold text-sm">
+                                  {formatCurrency(totalAmount, true)}
                                 </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-right">
-                                <div className="flex items-center justify-end space-x-2">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedPayment(payment);
-                                      setSelectedItem(item);
-                                      setIsEditPaymentModalOpen(true);
-                                    }}
-                                    className="text-gray-600 hover:text-gray-900 p-2 rounded-md hover:bg-gray-50 transition-colors"
-                                    title="Editar pago"
-                                  >
-                                    <Edit className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeletePayment(payment.id, item.id);
-                                    }}
-                                    className="text-gray-600 hover:text-gray-900 p-2 rounded-md hover:bg-gray-50 transition-colors"
-                                    title="Eliminar pago"
-                                    disabled={deletingPayment === payment.id}
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
+                              </div>
+                            </div>
+
+                            {/* Payments List */}
+                            <div className="divide-y divide-gray-200">
+                              {payments.map((payment) => (
+                                <div key={payment.id} className="px-4 py-3 hover:bg-gray-50 transition-colors">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-4 flex-1">
+                                      <div className="flex items-center text-sm text-gray-600">
+                                        <Calendar className="w-4 h-4 mr-2" />
+                                        <span className="font-medium">{formatDate(payment.payment_date)}</span>
+                                      </div>
+                                      <div className="text-sm font-semibold text-gray-900">
+                                        {formatCurrency(payment.amount, true)}
+                                      </div>
+                                      {payment.payment_type === 'recurring_support' && payment.billing_month && (
+                                        <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                                          {payment.billing_month}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      {payment.description && (
+                                        <div className="text-sm text-gray-500 max-w-xs truncate" title={payment.description}>
+                                          {payment.description}
+                                        </div>
+                                      )}
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedPayment(payment);
+                                          setSelectedItem(item);
+                                          setIsEditPaymentModalOpen(true);
+                                        }}
+                                        className="text-gray-400 hover:text-gray-600 p-1.5 rounded-md hover:bg-gray-100 transition-colors"
+                                        title="Editar pago"
+                                      >
+                                        <Edit className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeletePayment(payment.id, item.id);
+                                        }}
+                                        className="text-gray-400 hover:text-red-600 p-1.5 rounded-md hover:bg-gray-100 transition-colors"
+                                        title="Eliminar pago"
+                                        disabled={deletingPayment === payment.id}
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </div>
                                 </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
                 )}
               </div>
@@ -636,7 +655,20 @@ const Billing = () => {
         </div>
       ))}
 
-      {/* Payment Modal */}
+      {/* Payment Wizard */}
+      {isPaymentWizardOpen && selectedItem && (
+        <PaymentWizard
+          isOpen={isPaymentWizardOpen}
+          onClose={() => {
+            setIsPaymentWizardOpen(false);
+            setSelectedItem(null);
+          }}
+          item={selectedItem}
+          onPaymentSaved={handlePaymentSaved}
+        />
+      )}
+
+      {/* Payment Modal - Keeping for backwards compatibility */}
       {isPaymentModalOpen && selectedItem && (
         <PaymentModal
           isOpen={isPaymentModalOpen}
@@ -679,13 +711,18 @@ const PaymentModal = ({ isOpen, onClose, item, onPaymentSaved }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [availableProjects, setAvailableProjects] = useState([]);
+  const [availableContracts, setAvailableContracts] = useState([]);
 
   // Load available projects for scope payments when modal opens
   useEffect(() => {
     const loadProjects = async () => {
       try {
-        const response = await projectsApi.getAll();
-        let projects = response.data || [];
+        const [projectsResponse, contractsResponse] = await Promise.all([
+          projectsApi.getAll(),
+          contractsApi.getAll()
+        ]);
+        let projects = projectsResponse.data || [];
+        setAvailableContracts(contractsResponse.data || []);
           
           // Filter projects based on context:
           // 1. If this is a contract payment, show only projects for that contract's client
@@ -748,17 +785,52 @@ const PaymentModal = ({ isOpen, onClose, item, onPaymentSaved }) => {
           }
           
           if (formData.projectPaymentType === 'percentage') {
+            // Debug: ver qué campos tiene el proyecto
+            console.log('Project data:', {
+              total_amount: selectedProject.total_amount,
+              hourly_rate: selectedProject.hourly_rate, 
+              estimated_hours: selectedProject.estimated_hours,
+              contract_id: selectedProject.contract_id,
+              is_independent: selectedProject.is_independent
+            });
+            
             // Usar la misma lógica para calcular el total
             let projectTotalAmount = parseFloat(selectedProject.total_amount) || 0;
-            if (projectTotalAmount === 0 && selectedProject.hourly_rate && selectedProject.estimated_hours) {
-              projectTotalAmount = parseFloat(selectedProject.hourly_rate) * parseFloat(selectedProject.estimated_hours);
+            let hourlyRate = parseFloat(selectedProject.hourly_rate) || 0;
+            
+            // Si el proyecto está vinculado a un contrato y no tiene tarifa propia, usar la del contrato
+            if (hourlyRate === 0 && selectedProject.contract_id && !selectedProject.is_independent) {
+              const linkedContract = availableContracts.find(c => c.id === selectedProject.contract_id);
+              if (linkedContract && linkedContract.hourly_rate) {
+                hourlyRate = parseFloat(linkedContract.hourly_rate);
+                console.log('Using contract hourly rate:', hourlyRate);
+              }
+            }
+            
+            if (projectTotalAmount === 0 && hourlyRate > 0 && selectedProject.estimated_hours) {
+              projectTotalAmount = hourlyRate * parseFloat(selectedProject.estimated_hours);
+              console.log('Calculated project total:', projectTotalAmount);
+              
+              // Verificar si el cálculo es demasiado grande (límite de PostgreSQL numeric es ~10^131)
+              if (projectTotalAmount > 999999999999) { // Limite más conservador
+                setError('El valor calculado del proyecto es demasiado grande. Por favor, verifica la tarifa del contrato y las horas estimadas.');
+                return;
+              }
             }
             
             if (projectTotalAmount <= 0) {
-              setError('El proyecto seleccionado no tiene un valor total configurado ni tarifa por hora/horas estimadas. Por favor, usa el tipo "Monto Fijo" o configura el valor del proyecto.');
+              setError('El proyecto seleccionado no tiene un valor total configurado ni tarifa/horas estimadas. Por favor, usa el tipo "Monto Fijo" o configura la tarifa y horas estimadas del proyecto.');
               return;
             }
             paymentAmount = (projectTotalAmount * parseFloat(formData.percentage)) / 100;
+            console.log('Final payment amount:', paymentAmount);
+            
+            // Validar que el monto final no sea demasiado grande
+            if (paymentAmount > 999999999999) {
+              setError('El monto del pago calculado es demasiado grande. Por favor, usa un porcentaje menor o el tipo "Monto Fijo".');
+              return;
+            }
+            
             description = `Proyecto de alcance fijo - ${selectedProject.name} (${formData.percentage}%)${description ? ` - ${description}` : ''}`;
           } else {
             paymentAmount = parseFloat(formData.amount);
@@ -780,14 +852,23 @@ const PaymentModal = ({ isOpen, onClose, item, onPaymentSaved }) => {
         setError('El monto del pago debe ser mayor a 0. Verifica que el valor total del proyecto/contrato no sea 0.');
         return;
       }
+      
+      // Additional validation for numeric overflow
+      if (paymentAmount > 999999999999 || !isFinite(paymentAmount)) {
+        setError(`El monto calculado (${paymentAmount}) es demasiado grande o inválido. Por favor verifica los valores del proyecto.`);
+        return;
+      }
 
       const paymentData = {
-        amount: paymentAmount,
+        amount: Math.round(paymentAmount * 100) / 100, // Round to 2 decimal places
         description: description,
         payment_date: formData.paymentDate,
         payment_type: formData.paymentType,
         billing_month: formData.paymentType === 'recurring_support' ? formData.billingMonth : null
       };
+      
+      // Final validation of payment data
+      console.log('Final payment data before API call:', paymentData);
 
       // Call API based on item type
       let response;
@@ -990,9 +1071,29 @@ const PaymentModal = ({ isOpen, onClose, item, onPaymentSaved }) => {
                           const selectedProject = availableProjects.find(p => p.id === parseInt(formData.selectedProjectId));
                           // Usar la misma lógica para calcular el total
                           let totalAmount = parseFloat(selectedProject.total_amount) || 0;
-                          if (totalAmount === 0 && selectedProject.hourly_rate && selectedProject.estimated_hours) {
-                            totalAmount = parseFloat(selectedProject.hourly_rate) * parseFloat(selectedProject.estimated_hours);
+                          let hourlyRate = parseFloat(selectedProject.hourly_rate) || 0;
+                          
+                          // Si el proyecto está vinculado a un contrato y no tiene tarifa propia, usar la del contrato
+                          if (hourlyRate === 0 && selectedProject.contract_id && !selectedProject.is_independent) {
+                            const linkedContract = availableContracts.find(c => c.id === selectedProject.contract_id);
+                            if (linkedContract && linkedContract.hourly_rate) {
+                              hourlyRate = parseFloat(linkedContract.hourly_rate);
+                            }
                           }
+                          
+                          if (totalAmount === 0 && hourlyRate > 0 && selectedProject.estimated_hours) {
+                            totalAmount = hourlyRate * parseFloat(selectedProject.estimated_hours);
+                          }
+                          
+                          // Validar que los números no sean demasiado grandes para mostrar
+                          if (totalAmount > 999999999999) {
+                            return (
+                              <p className="text-sm text-red-600 mt-1">
+                                Valor calculado demasiado grande. Verifica la tarifa y horas estimadas.
+                              </p>
+                            );
+                          }
+                          
                           const equivalentAmount = (totalAmount * parseFloat(formData.percentage)) / 100;
                           
                           return (

@@ -22,10 +22,8 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
     hourly_rate: '',
     total_amount: '',
     is_paid: false,
-    // Purchase order and payment terms
+    // Purchase order
     purchase_order_number: '',
-    payment_terms: '',
-    advance_percentage: 30, // Default 30% advance
     notes: '',
   });
   const [availableClients, setAvailableClients] = useState([]);
@@ -80,6 +78,7 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
       hourly_rate: '',
       total_amount: '',
       is_paid: false,
+      purchase_order_number: '',
       notes: '',
     });
   };
@@ -412,38 +411,16 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
               </div>
               
               {/* Purchase Order Information for Independent Projects */}
-              {project.is_independent && (project.purchase_order_number || project.payment_terms) && (
+              {project.is_independent && project.purchase_order_number && (
                 <div className="bg-blue-50 rounded-lg p-4">
                   <h3 className="text-sm font-medium text-gray-900 mb-3">Información de Orden de Compra</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {project.purchase_order_number && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          <FileText className="w-4 h-4 inline mr-1" />
-                          Número de Orden de Compra
-                        </label>
-                        <p className="text-lg font-semibold text-blue-600">{project.purchase_order_number}</p>
-                      </div>
-                    )}
-                    
-                    {project.advance_percentage && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Porcentaje de Anticipo
-                        </label>
-                        <p className="text-lg font-semibold text-gray-900">{project.advance_percentage}%</p>
-                      </div>
-                    )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <FileText className="w-4 h-4 inline mr-1" />
+                      Número de Orden de Compra
+                    </label>
+                    <p className="text-lg font-semibold text-blue-600">{project.purchase_order_number}</p>
                   </div>
-                  
-                  {project.payment_terms && (
-                    <div className="mt-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Términos de Pago
-                      </label>
-                      <p className="text-gray-900">{project.payment_terms}</p>
-                    </div>
-                  )}
                 </div>
               )}
               
@@ -663,60 +640,21 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
                     </div>
                   </div>
 
-                  {/* Purchase Order and Payment Terms Section */}
+                  {/* Purchase Order Section */}
                   <div className="border-t border-gray-200 pt-4 mt-4">
-                    <h4 className="font-medium text-gray-900 mb-4">Información de Orden de Compra y Pagos</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label htmlFor="purchase_order_number" className="block text-sm font-medium text-gray-700 mb-2">
-                          <FileText className="w-4 h-4 inline mr-1" />
-                          Número de Orden de Compra
-                        </label>
-                        <input
-                          type="text"
-                          id="purchase_order_number"
-                          name="purchase_order_number"
-                          value={formData.purchase_order_number}
-                          onChange={handleInputChange}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                          placeholder="OC-2024-001"
-                        />
-                      </div>
-
-                      <div>
-                        <label htmlFor="advance_percentage" className="block text-sm font-medium text-gray-700 mb-2">
-                          <DollarSign className="w-4 h-4 inline mr-1" />
-                          Porcentaje de Anticipo (%)
-                        </label>
-                        <input
-                          type="number"
-                          id="advance_percentage"
-                          name="advance_percentage"
-                          value={formData.advance_percentage}
-                          onChange={handleInputChange}
-                          min="0"
-                          max="100"
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                          placeholder="30"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                          Porcentaje del anticipo inicial (típicamente 30-50%)
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-4">
-                      <label htmlFor="payment_terms" className="block text-sm font-medium text-gray-700 mb-2">
-                        Términos de Pago
+                    <div>
+                      <label htmlFor="purchase_order_number" className="block text-sm font-medium text-gray-700 mb-2">
+                        <FileText className="w-4 h-4 inline mr-1" />
+                        Número de Orden de Compra
                       </label>
-                      <textarea
-                        id="payment_terms"
-                        name="payment_terms"
-                        value={formData.payment_terms}
+                      <input
+                        type="text"
+                        id="purchase_order_number"
+                        name="purchase_order_number"
+                        value={formData.purchase_order_number}
                         onChange={handleInputChange}
-                        rows={2}
                         className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                        placeholder="30% anticipo, 40% al 50% de avance, 30% contra entrega"
+                        placeholder="OC-2024-001"
                       />
                     </div>
                   </div>

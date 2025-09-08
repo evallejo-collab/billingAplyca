@@ -84,7 +84,7 @@ const Clients = () => {
   };
 
   const handleDeleteClient = async (clientId) => {
-    if (!window.confirm('¿Estás seguro de que deseas eliminar este cliente?')) {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar este cliente? Esta acción no se puede deshacer y puede afectar contratos y proyectos relacionados.')) {
       return;
     }
 

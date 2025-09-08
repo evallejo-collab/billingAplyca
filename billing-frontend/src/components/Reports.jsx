@@ -270,10 +270,14 @@ const Reports = () => {
     }
 
     const grouped = filteredEntries.reduce((groups, entry) => {
-      const key = entry.contract_number || entry.project_name || 'Sin asignar';
+      // Create unique key combining contract and project to avoid merging different contracts
+      const contractPart = entry.contract_number || 'Sin contrato';
+      const projectPart = entry.project_name || 'Sin proyecto';
+      const key = `${contractPart} - ${projectPart}`;
+      
       if (!groups[key]) {
         groups[key] = {
-          name: key,
+          name: entry.contract_number ? entry.contract_number : entry.project_name || 'Sin asignar',
           client: entry.client_name,
           entries: [],
           totalHours: 0,
