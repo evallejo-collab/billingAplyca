@@ -162,6 +162,8 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
         submitData.is_independent = false;
       } else {
         submitData.is_independent = true;
+        submitData.client_id = null; // Explicitly set to null for independent projects
+        submitData.contract_id = null; // Explicitly set to null for independent projects
         submitData.independent_client_id = formData.independent_client_id ? parseInt(formData.independent_client_id) : null;
         submitData.client_name = formData.client_name || null;
         submitData.client_email = formData.client_email || null;
