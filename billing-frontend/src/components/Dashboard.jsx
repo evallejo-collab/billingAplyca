@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { contractsApi } from '../services/supabaseApi';
-import { FileText, Clock, DollarSign, Users, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 
 const Dashboard = () => {
-  const [stats, setStats] = useState(null);
   const [activeContracts, setActiveContracts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -17,23 +16,13 @@ const Dashboard = () => {
       setLoading(true);
       setError(null);
       
-      // Load all contracts to calculate stats
+      // Load all contracts
       const contractsResponse = await contractsApi.getAll();
       const allContracts = contractsResponse.data || [];
       
       // Filter active contracts
       const activeContracts = allContracts.filter(contract => contract.status === 'active');
       setActiveContracts(activeContracts);
-      
-      // Calculate stats from all contracts
-      const stats = {
-        total_contracts: allContracts.length,
-        active_contracts: activeContracts.length,
-        total_used_hours: allContracts.reduce((sum, contract) => sum + (parseFloat(contract.used_hours) || 0), 0),
-        total_billed_amount: allContracts.reduce((sum, contract) => sum + (parseFloat(contract.billed_amount) || 0), 0)
-      };
-      
-      setStats(stats);
     } catch (err) {
       setError(err.message);
       console.error('Error loading dashboard:', err);
@@ -127,66 +116,6 @@ const Dashboard = () => {
         </button>
       </div>
 
-      {/* Stats Grid */}
-      {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="card">
-            <div className="card-body">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <FileText className="w-8 h-8 text-gray-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">CONTRATOS TOTALES</p>
-                  <p className="text-xl font-semibold text-gray-900">{stats.total_contracts || 0}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="card-body">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <CheckCircle className="w-8 h-8 text-gray-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">CONTRATOS ACTIVOS</p>
-                  <p className="text-xl font-semibold text-green-700">{stats.active_contracts || 0}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="card-body">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <Clock className="w-8 h-8 text-gray-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">HORAS UTILIZADAS</p>
-                  <p className="text-xl font-semibold text-gray-900">{formatHours(stats.total_used_hours)}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="card-body">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <DollarSign className="w-8 h-8 text-gray-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">TOTAL FACTURADO</p>
-                  <p className="text-xl font-semibold text-gray-900">{formatCurrency(stats.total_billed_amount)}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Active Contracts */}
       <div className="card">
