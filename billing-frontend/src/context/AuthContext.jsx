@@ -22,25 +22,36 @@ export const AuthProvider = ({ children }) => {
         setSession(session);
         
         if (session?.user) {
-          // Temporarily disable profile fetching until table is created
-          // TODO: Enable after creating user_profiles table
-          /*
-          const { data: profile } = await supabase
-            .from('user_profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-          */
-          
-          setUser({
-            id: session.user.id,
-            email: session.user.email,
-            full_name: session.user.user_metadata?.full_name || 'Usuario',
-            username: session.user.email?.split('@')[0] || 'user',
-            role: 'admin', // Temporarily default all users to admin
-            is_active: true,
-            client_id: null
-          });
+          // Get user profile with role from database
+          try {
+            const { data: profile } = await supabase
+              .from('user_profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+            
+            setUser({
+              id: session.user.id,
+              email: session.user.email,
+              full_name: profile?.full_name || session.user.user_metadata?.full_name || 'Usuario',
+              username: session.user.email?.split('@')[0] || 'user',
+              role: profile?.role || 'admin', // Default to admin if no profile exists
+              is_active: profile?.is_active !== false,
+              client_id: profile?.client_id || null
+            });
+          } catch (error) {
+            console.error('Error fetching user profile:', error);
+            // Fallback to basic user info if profile doesn't exist
+            setUser({
+              id: session.user.id,
+              email: session.user.email,
+              full_name: session.user.user_metadata?.full_name || 'Usuario',
+              username: session.user.email?.split('@')[0] || 'user',
+              role: 'admin', // Default fallback
+              is_active: true,
+              client_id: null
+            });
+          }
         }
       } catch (error) {
         console.error('Error in checkSession:', error);
@@ -58,25 +69,36 @@ export const AuthProvider = ({ children }) => {
       setSession(session);
       
       if (session?.user) {
-        // Temporarily disable profile fetching until table is created
-        // TODO: Enable after creating user_profiles table
-        /*
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        */
-        
-        setUser({
-          id: session.user.id,
-          email: session.user.email,
-          full_name: session.user.user_metadata?.full_name || 'Usuario',
-          username: session.user.email?.split('@')[0] || 'user',
-          role: 'admin', // Temporarily default all users to admin
-          is_active: true,
-          client_id: null
-        });
+        // Get user profile with role from database
+        try {
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          
+          setUser({
+            id: session.user.id,
+            email: session.user.email,
+            full_name: profile?.full_name || session.user.user_metadata?.full_name || 'Usuario',
+            username: session.user.email?.split('@')[0] || 'user',
+            role: profile?.role || 'admin', // Default to admin if no profile exists
+            is_active: profile?.is_active !== false,
+            client_id: profile?.client_id || null
+          });
+        } catch (error) {
+          console.error('Error fetching user profile:', error);
+          // Fallback to basic user info if profile doesn't exist
+          setUser({
+            id: session.user.id,
+            email: session.user.email,
+            full_name: session.user.user_metadata?.full_name || 'Usuario',
+            username: session.user.email?.split('@')[0] || 'user',
+            role: 'admin', // Default fallback
+            is_active: true,
+            client_id: null
+          });
+        }
       } else {
         setUser(null);
       }
