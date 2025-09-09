@@ -52,6 +52,12 @@ const Users = () => {
       setLoading(true);
       setError(null);
 
+      // Temporarily disabled until user_profiles table is created
+      // TODO: Enable after creating user_profiles table
+      setError('La gestión de usuarios estará disponible próximamente. Necesitamos crear la tabla user_profiles primero.');
+      setUsers([]);
+      
+      /*
       const { data: profiles, error: profilesError } = await supabase
         .from('user_profiles')
         .select('*, client:clients(name)')
@@ -62,6 +68,7 @@ const Users = () => {
       }
 
       setUsers(profiles || []);
+      */
     } catch (err) {
       setError(err.message);
       console.error('Error loading users:', err);
