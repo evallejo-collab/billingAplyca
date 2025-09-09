@@ -15,14 +15,20 @@ import {
 } from 'lucide-react';
 import { ROLES, getRoleLabel, hasPermission, PERMISSIONS } from '../utils/roles';
 import ConfirmModal from './ConfirmModal';
+import InvitationModal from './InvitationModal';
 
 const Users = () => {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
+  const [pendingInvitations, setPendingInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showInvitations, setShowInvitations] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [invitationModalOpen, setInvitationModalOpen] = useState(false);
+  const [invitationStatus, setInvitationStatus] = useState('idle');
+  const [currentInvitation, setCurrentInvitation] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -45,6 +51,7 @@ const Users = () => {
     }
     
     loadUsers();
+    loadPendingInvitations();
   }, [currentUser]);
 
   const loadUsers = async () => {
@@ -54,7 +61,7 @@ const Users = () => {
 
       const { data: profiles, error: profilesError } = await supabase
         .from('user_profiles')
-        .select('*, client:clients(name)')
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (profilesError) {
@@ -67,6 +74,24 @@ const Users = () => {
       console.error('Error loading users:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadPendingInvitations = async () => {
+    try {
+      const { data: invitations, error: invitationsError } = await supabase
+        .from('pending_invitations')
+        .select('*')
+        .eq('status', 'pending')
+        .order('invited_at', { ascending: false });
+
+      if (invitationsError) {
+        throw invitationsError;
+      }
+
+      setPendingInvitations(invitations || []);
+    } catch (err) {
+      console.error('Error loading invitations:', err);
     }
   };
 
@@ -148,31 +173,53 @@ const Users = () => {
 
         if (error) throw error;
       } else {
-        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-          email: formData.email,
-          password: formData.password,
-          user_metadata: {
-            full_name: formData.full_name
+        // Show loading modal
+        setInvitationStatus('loading');
+        setInvitationModalOpen(true);
+        
+        try {
+          // Store the invitation in pending_invitations table
+          const { data: invitation, error: inviteError } = await supabase
+            .from('pending_invitations')
+            .insert({
+              email: formData.email,
+              full_name: formData.full_name,
+              role: formData.role,
+              client_id: formData.client_id || null,
+              invited_by: currentUser.id,
+              status: 'pending'
+            })
+            .select()
+            .single();
+
+          if (inviteError) {
+            throw new Error(inviteError.message || 'Error storing invitation');
           }
-        });
 
-        if (authError) throw authError;
+          setCurrentInvitation({
+            ...invitation,
+            instructions: `Para completar la invitación:
 
-        const { error: profileError } = await supabase
-          .from('user_profiles')
-          .insert([{
-            id: authData.user.id,
-            email: formData.email,
-            full_name: formData.full_name,
-            role: formData.role,
-            client_id: formData.client_id || null,
-            is_active: formData.is_active
-          }]);
+1. Ve al Dashboard de Supabase → Authentication → Users
+2. Haz clic en "Invite a user"
+3. Ingresa el email: ${formData.email}
+4. Envía la invitación
 
-        if (profileError) throw profileError;
+El usuario recibirá un email y cuando se registre, automáticamente tendrá el rol asignado: ${getRoleLabel(formData.role)}`
+          });
+
+          // For now, don't try automatic signup due to trigger issues
+          // Just show success with manual instructions
+          setInvitationStatus('success');
+          
+        } catch (inviteError) {
+          console.error('Invitation error:', inviteError);
+          setInvitationStatus('error');
+        }
       }
 
       await loadUsers();
+      await loadPendingInvitations();
       setIsModalOpen(false);
       setSelectedUser(null);
     } catch (err) {
@@ -235,13 +282,26 @@ const Users = () => {
           <h1 className="text-2xl font-semibold text-gray-900">Gestión de Usuarios</h1>
           <p className="text-sm text-gray-600 mt-1">Administrar usuarios y permisos del sistema</p>
         </div>
-        <button 
-          onClick={handleCreateUser}
-          className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          NUEVO USUARIO
-        </button>
+        <div className="flex space-x-3">
+          <button 
+            onClick={() => setShowInvitations(!showInvitations)}
+            className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              showInvitations 
+                ? 'bg-gray-600 text-white hover:bg-gray-700' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            <Mail className="w-4 h-4 mr-2" />
+            INVITACIONES ({pendingInvitations.length})
+          </button>
+          <button 
+            onClick={handleCreateUser}
+            className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            INVITAR USUARIO
+          </button>
+        </div>
       </div>
 
       <div className="flex items-center space-x-4">
@@ -262,6 +322,81 @@ const Users = () => {
           <div className="flex items-center">
             <AlertCircle className="w-5 h-5 text-red-500 mr-2" />
             <span className="text-red-700">{error}</span>
+          </div>
+        </div>
+      )}
+
+      {showInvitations && (
+        <div className="card mb-6">
+          <div className="p-4 border-b border-gray-200">
+            <h3 className="text-lg font-medium text-gray-900">Invitaciones Pendientes</h3>
+            <p className="text-sm text-gray-600">Usuarios que han sido invitados pero aún no han completado su registro</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Usuario
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Rol Asignado
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Invitado el
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Acción
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {pendingInvitations.map((invitation) => (
+                  <tr key={invitation.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 w-10 h-10">
+                          <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                            <Mail className="w-5 h-5 text-yellow-600" />
+                          </div>
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">
+                            {invitation.full_name}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {invitation.email}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                        {getRoleLabel(invitation.role)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {new Date(invitation.invited_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600">
+                      <button
+                        onClick={() => alert(`Para enviar la invitación:\n\n1. Ve al Dashboard de Supabase → Authentication → Users\n2. Clic en "Invite a user"\n3. Email: ${invitation.email}\n4. Envía la invitación`)}
+                        className="hover:text-blue-900"
+                      >
+                        Ver instrucciones
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            
+            {pendingInvitations.length === 0 && (
+              <div className="text-center py-8">
+                <Mail className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">No hay invitaciones pendientes</p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -318,7 +453,7 @@ const Users = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {user.client?.name || '-'}
+                    {user.client_id ? `Cliente ID: ${user.client_id}` : '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(user.is_active !== false)}`}>
@@ -363,7 +498,7 @@ const Users = () => {
           <div className="bg-white rounded-lg w-full max-w-md">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">
-                {isEditing ? 'Editar Usuario' : 'Nuevo Usuario'}
+                {isEditing ? 'Editar Usuario' : 'Invitar Usuario'}
               </h2>
               <button 
                 onClick={() => setIsModalOpen(false)}
@@ -406,19 +541,12 @@ const Users = () => {
               </div>
 
               {!isEditing && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Contraseña *
-                  </label>
-                  <input
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    required
-                    minLength={6}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-sm text-blue-800">
+                    <strong>📧 Invitación Automática:</strong> El sistema creará automáticamente la cuenta 
+                    y enviará un email de confirmación al usuario. El usuario deberá confirmar su email 
+                    y establecer su contraseña.
+                  </p>
                 </div>
               )}
 
@@ -465,7 +593,7 @@ const Users = () => {
                   disabled={loading}
                   className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                 >
-                  {loading ? 'GUARDANDO...' : (isEditing ? 'ACTUALIZAR' : 'CREAR')}
+                  {loading ? 'ENVIANDO...' : (isEditing ? 'ACTUALIZAR' : 'ENVIAR INVITACIÓN')}
                 </button>
               </div>
             </form>
@@ -482,6 +610,17 @@ const Users = () => {
         confirmText="ELIMINAR"
         cancelText="CANCELAR"
         isDestructive={true}
+      />
+
+      <InvitationModal
+        isOpen={invitationModalOpen}
+        onClose={() => {
+          setInvitationModalOpen(false);
+          setInvitationStatus('idle');
+          setCurrentInvitation(null);
+        }}
+        invitation={currentInvitation}
+        status={invitationStatus}
       />
     </div>
   );

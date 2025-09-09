@@ -3,6 +3,9 @@
   "outputDirectory": "dist",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
+  "env": {
+    "VITE_CLARITY_PROJECT_ID": "t5jmqu5mb4"
+  },
   "headers": [
     {
       "source": "/assets/(.*)",

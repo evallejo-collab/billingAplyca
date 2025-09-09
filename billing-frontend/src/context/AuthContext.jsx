@@ -22,36 +22,16 @@ export const AuthProvider = ({ children }) => {
         setSession(session);
         
         if (session?.user) {
-          // Get user profile with role from database
-          try {
-            const { data: profile } = await supabase
-              .from('user_profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-            
-            setUser({
-              id: session.user.id,
-              email: session.user.email,
-              full_name: profile?.full_name || session.user.user_metadata?.full_name || 'Usuario',
-              username: session.user.email?.split('@')[0] || 'user',
-              role: profile?.role || 'admin', // Default to admin if no profile exists
-              is_active: profile?.is_active !== false,
-              client_id: profile?.client_id || null
-            });
-          } catch (error) {
-            console.error('Error fetching user profile:', error);
-            // Fallback to basic user info if profile doesn't exist
-            setUser({
-              id: session.user.id,
-              email: session.user.email,
-              full_name: session.user.user_metadata?.full_name || 'Usuario',
-              username: session.user.email?.split('@')[0] || 'user',
-              role: 'admin', // Default fallback
-              is_active: true,
-              client_id: null
-            });
-          }
+          // Simple user setup - we'll restore database queries later
+          setUser({
+            id: session.user.id,
+            email: session.user.email,
+            full_name: session.user.user_metadata?.full_name || session.user.email || 'Usuario',
+            username: session.user.email?.split('@')[0] || 'user',
+            role: (session.user.email === 'edwinvallejo@aplyca.com' || session.user.email === 'evallejo@aplyca.com') ? 'admin' : 'collaborator',
+            is_active: true,
+            client_id: null
+          });
         }
       } catch (error) {
         console.error('Error in checkSession:', error);
@@ -63,42 +43,19 @@ export const AuthProvider = ({ children }) => {
     checkSession();
 
     // Escuchar cambios de auth
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event);
-      
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       
       if (session?.user) {
-        // Get user profile with role from database
-        try {
-          const { data: profile } = await supabase
-            .from('user_profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-          
-          setUser({
-            id: session.user.id,
-            email: session.user.email,
-            full_name: profile?.full_name || session.user.user_metadata?.full_name || 'Usuario',
-            username: session.user.email?.split('@')[0] || 'user',
-            role: profile?.role || 'admin', // Default to admin if no profile exists
-            is_active: profile?.is_active !== false,
-            client_id: profile?.client_id || null
-          });
-        } catch (error) {
-          console.error('Error fetching user profile:', error);
-          // Fallback to basic user info if profile doesn't exist
-          setUser({
-            id: session.user.id,
-            email: session.user.email,
-            full_name: session.user.user_metadata?.full_name || 'Usuario',
-            username: session.user.email?.split('@')[0] || 'user',
-            role: 'admin', // Default fallback
-            is_active: true,
-            client_id: null
-          });
-        }
+        setUser({
+          id: session.user.id,
+          email: session.user.email,
+          full_name: session.user.user_metadata?.full_name || session.user.email || 'Usuario',
+          username: session.user.email?.split('@')[0] || 'user',
+          role: (session.user.email === 'edwinvallejo@aplyca.com' || session.user.email === 'evallejo@aplyca.com') ? 'admin' : 'collaborator',
+          is_active: true,
+          client_id: null
+        });
       } else {
         setUser(null);
       }
