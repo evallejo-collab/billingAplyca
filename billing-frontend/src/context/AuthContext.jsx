@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
+import { hasPermission, ROLES } from '../utils/roles';
 
 const AuthContext = createContext();
 
@@ -21,12 +22,21 @@ export const AuthProvider = ({ children }) => {
         setSession(session);
         
         if (session?.user) {
+          // Get user profile with role from database
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          
           setUser({
             id: session.user.id,
             email: session.user.email,
-            full_name: session.user.user_metadata?.full_name || 'Usuario',
+            full_name: profile?.full_name || session.user.user_metadata?.full_name || 'Usuario',
             username: session.user.email?.split('@')[0] || 'user',
-            role: 'admin'
+            role: profile?.role || 'admin', // Default to admin if no profile exists
+            is_active: profile?.is_active !== false,
+            client_id: profile?.client_id || null
           });
         }
       } catch (error) {
@@ -45,12 +55,21 @@ export const AuthProvider = ({ children }) => {
       setSession(session);
       
       if (session?.user) {
+        // Get user profile with role from database
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        
         setUser({
           id: session.user.id,
           email: session.user.email,
-          full_name: session.user.user_metadata?.full_name || 'Usuario',
+          full_name: profile?.full_name || session.user.user_metadata?.full_name || 'Usuario',
           username: session.user.email?.split('@')[0] || 'user',
-          role: 'admin'
+          role: profile?.role || 'admin', // Default to admin if no profile exists
+          is_active: profile?.is_active !== false,
+          client_id: profile?.client_id || null
         });
       } else {
         setUser(null);
@@ -84,11 +103,24 @@ export const AuthProvider = ({ children }) => {
   };
 
   const isAdmin = () => {
-    return user && user.role === 'admin';
+    return user && (user.role === ROLES.ADMIN || user.role === 'admin');
+  };
+
+  const isCollaborator = () => {
+    return user && user.role === ROLES.COLLABORATOR;
+  };
+
+  const isClient = () => {
+    return user && user.role === ROLES.CLIENT;
   };
 
   const isAuthenticated = () => {
-    return !!user && !!session;
+    return !!user && !!session && user.is_active !== false;
+  };
+
+  const checkPermission = (permission) => {
+    if (!user || user.is_active === false) return false;
+    return hasPermission(user.role, permission);
   };
 
   const value = {
@@ -98,7 +130,10 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     isAdmin,
-    isAuthenticated
+    isCollaborator,
+    isClient,
+    isAuthenticated,
+    checkPermission
   };
 
   return (

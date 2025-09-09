@@ -17,6 +17,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { hasPermission, PERMISSIONS, ROLES } from '../utils/roles';
 import AIChat from './AIChat';
 
 const Layout = () => {
@@ -25,34 +26,62 @@ const Layout = () => {
   const { user, logout, isAdmin } = useAuth();
   const location = useLocation();
 
-  const navigation = [
-    { name: 'Clientes', href: '/clients', icon: Users },
-    { name: 'Contratos', href: '/contracts', icon: FileText },
-    { name: 'Proyectos', href: '/projects', icon: Folder },
+  // Filter navigation items based on user permissions
+  const allNavigation = [
+    { name: 'Clientes', href: '/clients', icon: Users, permission: PERMISSIONS.VIEW_CLIENTS },
+    { name: 'Contratos', href: '/contracts', icon: FileText, permission: PERMISSIONS.VIEW_CONTRACTS },
+    { name: 'Proyectos', href: '/projects', icon: Folder, permission: PERMISSIONS.VIEW_PROJECTS },
   ];
+
+  const navigation = allNavigation.filter(item => 
+    !item.permission || hasPermission(user?.role, item.permission)
+  );
 
   const navigationEnd = [
-    ...(isAdmin() ? [{ name: 'Usuarios', href: '/users', icon: Settings }] : []),
+    ...(hasPermission(user?.role, PERMISSIONS.MANAGE_USERS) ? [{ name: 'Usuarios', href: '/users', icon: Settings }] : []),
   ];
 
-  const megaMenuItems = {
-    'trabajo': {
-      name: 'Trabajo y Facturación',
-      icon: Receipt,
-      items: [
-        { name: 'Registro de Tiempo', href: '/time-entries', icon: Clock, description: 'Control de tiempo trabajado' },
-        { name: 'Facturación', href: '/billing', icon: Receipt, description: 'Gestión de pagos y facturación' },
-      ]
-    },
-    'analisis': {
-      name: 'Análisis',
-      icon: TrendingUp,
-      items: [
-        { name: 'Dashboard', href: '/', icon: Home, description: 'Panel de control principal' },
-        { name: 'Reportes', href: '/reports', icon: BarChart3, description: 'Análisis y estadísticas' },
-      ]
-    }
+  // Create mega menu items with permission filtering
+  const createMegaMenuItems = () => {
+    const baseItems = {
+      'trabajo': {
+        name: 'Trabajo y Facturación',
+        icon: Receipt,
+        items: [
+          { name: 'Registro de Tiempo', href: '/time-entries', icon: Clock, description: 'Control de tiempo trabajado', permission: PERMISSIONS.VIEW_TIME_ENTRIES },
+          { name: 'Facturación', href: '/billing', icon: Receipt, description: 'Gestión de pagos y facturación', permission: PERMISSIONS.VIEW_PAYMENTS },
+        ]
+      },
+      'analisis': {
+        name: 'Análisis',
+        icon: TrendingUp,
+        items: [
+          { name: 'Dashboard', href: '/', icon: Home, description: 'Panel de control principal', permission: PERMISSIONS.VIEW_DASHBOARD },
+          { name: 'Reportes', href: '/reports', icon: BarChart3, description: 'Análisis y estadísticas', permission: PERMISSIONS.VIEW_REPORTS },
+        ]
+      }
+    };
+
+    // Filter items based on permissions
+    const filteredItems = {};
+    Object.keys(baseItems).forEach(key => {
+      const filteredSubItems = baseItems[key].items.filter(item => 
+        !item.permission || hasPermission(user?.role, item.permission)
+      );
+      
+      // Only include mega menu if it has accessible items
+      if (filteredSubItems.length > 0) {
+        filteredItems[key] = {
+          ...baseItems[key],
+          items: filteredSubItems
+        };
+      }
+    });
+
+    return filteredItems;
   };
+
+  const megaMenuItems = createMegaMenuItems();
 
   const isActiveMegaMenu = (megaMenuKey) => {
     const megaMenu = megaMenuItems[megaMenuKey];

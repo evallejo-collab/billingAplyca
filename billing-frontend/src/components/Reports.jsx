@@ -1,9 +1,20 @@
 import { useState, useEffect } from 'react';
 import { contractsApi, clientsApi, projectsApi, timeEntriesApi, paymentsApi } from '../services/supabaseApi';
 import { Calendar, TrendingUp, DollarSign, Clock, FileText, ChevronDown, ChevronRight, Folder } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { hasPermission, PERMISSIONS, ROLES } from '../utils/roles';
+import ProtectedRoute from './ProtectedRoute';
 
 const Reports = () => {
-  const [activeTab, setActiveTab] = useState('monthly');
+  const { user } = useAuth();
+  
+  // Set default tab based on user role - clients can only see time reports
+  const getDefaultTab = () => {
+    if (user?.role === ROLES.CLIENT) return 'time-entries';
+    return 'monthly';
+  };
+  
+  const [activeTab, setActiveTab] = useState(getDefaultTab());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
@@ -763,12 +774,17 @@ const Reports = () => {
     </div>
   );
 
-  const tabs = [
-    { id: 'monthly', name: 'Reporte Mensual', icon: Calendar },
-    { id: 'active-contracts', name: 'Contratos Activos', icon: TrendingUp },
-    { id: 'active-projects', name: 'Proyectos Activos', icon: Folder },
-    { id: 'time-entries', name: 'Entradas de Tiempo', icon: Clock },
+  // Filter tabs based on user permissions
+  const allTabs = [
+    { id: 'monthly', name: 'Reporte Mensual', icon: Calendar, permission: PERMISSIONS.VIEW_MONTHLY_REPORTS },
+    { id: 'active-contracts', name: 'Contratos Activos', icon: TrendingUp, permission: PERMISSIONS.VIEW_CONTRACT_REPORTS },
+    { id: 'active-projects', name: 'Proyectos Activos', icon: Folder, permission: PERMISSIONS.VIEW_PROJECT_REPORTS },
+    { id: 'time-entries', name: 'Entradas de Tiempo', icon: Clock, permission: PERMISSIONS.VIEW_TIME_REPORTS },
   ];
+
+  const tabs = allTabs.filter(tab => 
+    !tab.permission || hasPermission(user?.role, tab.permission)
+  );
 
   return (
     <div className="space-y-6">

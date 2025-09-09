@@ -1,40 +1,140 @@
 import { useAuth } from '../context/AuthContext';
-import LoginPage from './LoginPage';
+import { hasPermission, getAllowedRoutes } from '../utils/roles';
+import { AlertCircle, Shield, Lock } from 'lucide-react';
 
-const ProtectedRoute = ({ children, requireAdmin = false }) => {
-  const { user, loading, isAuthenticated, isAdmin } = useAuth();
+const ProtectedRoute = ({ children, requiredPermission = null, fallback = null }) => {
+  const { user, loading, isAuthenticated } = useAuth();
 
+  // Show loading state
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600"></div>
+      <div className="flex items-center justify-center min-h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
+  // User not authenticated
   if (!isAuthenticated()) {
-    return <LoginPage />;
+    return (
+      <div className="flex items-center justify-center min-h-64">
+        <div className="text-center">
+          <Lock className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Acceso Restringido</h2>
+          <p className="text-gray-600">Debes iniciar sesión para acceder a esta sección.</p>
+        </div>
+      </div>
+    );
   }
 
-  if (requireAdmin && !isAdmin()) {
+  // User account is inactive
+  if (user?.is_active === false) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-sm p-6 text-center">
-          <div className="mx-auto h-12 w-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
-            <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Acceso Restringido</h3>
-          <p className="text-gray-600">
-            No tienes permisos para acceder a esta sección. Se requieren privilegios de administrador.
+      <div className="flex items-center justify-center min-h-64">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Cuenta Inactiva</h2>
+          <p className="text-gray-600">Tu cuenta ha sido desactivada. Contacta al administrador.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Check specific permission if required
+  if (requiredPermission && !hasPermission(user?.role, requiredPermission)) {
+    // Show custom fallback if provided
+    if (fallback) {
+      return fallback;
+    }
+
+    // Default permission denied view
+    return (
+      <div className="flex items-center justify-center min-h-64">
+        <div className="text-center">
+          <Shield className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Sin Permisos</h2>
+          <p className="text-gray-600">No tienes permisos para acceder a esta funcionalidad.</p>
+          <p className="text-sm text-gray-500 mt-2">
+            Contacta al administrador si consideras que deberías tener acceso.
           </p>
         </div>
       </div>
     );
   }
 
+  // All checks passed, render the protected content
   return children;
+};
+
+// Higher-order component for protecting entire route components
+export const withProtectedRoute = (Component, requiredPermission = null) => {
+  return function ProtectedComponent(props) {
+    return (
+      <ProtectedRoute requiredPermission={requiredPermission}>
+        <Component {...props} />
+      </ProtectedRoute>
+    );
+  };
+};
+
+// Specific protection components for common use cases
+export const AdminOnly = ({ children }) => (
+  <ProtectedRoute requiredPermission="manage_system">
+    {children}
+  </ProtectedRoute>
+);
+
+export const CollaboratorOnly = ({ children }) => {
+  const { user } = useAuth();
+  
+  if (!user || (user.role !== 'admin' && user.role !== 'collaborator')) {
+    return (
+      <div className="flex items-center justify-center min-h-64">
+        <div className="text-center">
+          <Shield className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Solo para Colaboradores</h2>
+          <p className="text-gray-600">Esta funcionalidad está reservada para colaboradores de Aplyca.</p>
+        </div>
+      </div>
+    );
+  }
+  
+  return children;
+};
+
+export const ClientRestricted = ({ children, clientId = null }) => {
+  const { user } = useAuth();
+  
+  // Admins and collaborators can see everything
+  if (user?.role === 'admin' || user?.role === 'collaborator') {
+    return children;
+  }
+  
+  // Clients can only see their own data
+  if (user?.role === 'client') {
+    if (clientId && user?.client_id && user.client_id !== clientId) {
+      return (
+        <div className="flex items-center justify-center min-h-64">
+          <div className="text-center">
+            <Lock className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">Acceso Restringido</h2>
+            <p className="text-gray-600">Solo puedes ver información relacionada con tu empresa.</p>
+          </div>
+        </div>
+      );
+    }
+    return children;
+  }
+  
+  return (
+    <div className="flex items-center justify-center min-h-64">
+      <div className="text-center">
+        <Shield className="w-12 h-12 text-red-500 mx-auto mb-4" />
+        <h2 className="text-lg font-semibold text-gray-900 mb-2">Sin Permisos</h2>
+        <p className="text-gray-600">No tienes permisos para acceder a esta información.</p>
+      </div>
+    </div>
+  );
 };
 
 export default ProtectedRoute;
