@@ -53,7 +53,10 @@ const ClientPortal = () => {
     hoursRemaining: 0,
     supportPayments: [],
     recurrentSupportPayments: [],
-    supportAndDevelopmentPayments: []
+    supportAndDevelopmentPayments: [],
+    debtSupportEvolutivos: 0,
+    debtSupportFijo: 0,
+    missingSupportMonths: 0
   });
   const [showPaymentDetails, setShowPaymentDetails] = useState(false);
   const [showMonthlyBreakdown, setShowMonthlyBreakdown] = useState(false);
@@ -157,7 +160,10 @@ const ClientPortal = () => {
           hoursRemaining: 0,
           supportPayments: [],
           recurrentSupportPayments: [],
-          supportAndDevelopmentPayments: []
+          supportAndDevelopmentPayments: [],
+          debtSupportEvolutivos: 0,
+          debtSupportFijo: 0,
+          missingSupportMonths: 0
         });
         setLoading(false);
         return;
@@ -445,6 +451,93 @@ const ClientPortal = () => {
         };
       }));
 
+      // Calculate debt for support and evolutivos (hours without billing)
+      console.log('🔍 CALCULATING DEBTS:');
+      
+      // 1. Deuda Soporte y Evolutivos: hours registered but not billed
+      let debtSupportEvolutivos = 0;
+      
+      // Get average hourly rate from projects for this client
+      const clientProjects = projects.filter(p => 
+        p.client_id === parseInt(currentClientId) || p.independent_client_id === parseInt(currentClientId)
+      );
+      const avgHourlyRate = clientProjects.length > 0 
+        ? clientProjects.reduce((sum, p) => sum + (p.hourly_rate || 0), 0) / clientProjects.length
+        : 0;
+      
+      console.log('  - Client projects for debt calc:', clientProjects.length);
+      console.log('  - Average hourly rate:', avgHourlyRate);
+      
+      // Check each month for unbilled hours
+      for (let month = 1; month <= 12; month++) {
+        const monthKey = `${selectedYear}-${month.toString().padStart(2, '0')}`;
+        const monthData = monthlyMap[monthKey];
+        
+        if (monthData && monthData.hours > 0) {
+          // Check if there are payments for this month's work
+          const monthPayments = allPayments.filter(payment => {
+            const paymentDate = new Date(payment.payment_date);
+            return paymentDate.getMonth() + 1 === month && 
+                   paymentDate.getFullYear() === selectedYear &&
+                   ['completed', 'paid'].includes(payment.status) &&
+                   !['fixed', 'recurring_support'].includes(payment.payment_type);
+          });
+          
+          const monthPaymentTotal = monthPayments.reduce((sum, p) => sum + p.amount, 0);
+          const monthHoursValue = monthData.hours * avgHourlyRate;
+          
+          // If hours value exceeds payments, there's debt
+          if (monthHoursValue > monthPaymentTotal) {
+            debtSupportEvolutivos += (monthHoursValue - monthPaymentTotal);
+          }
+          
+          console.log(`  - Month ${month}: Hours=${monthData.hours}, Value=${monthHoursValue}, Payments=${monthPaymentTotal}, Debt=${monthHoursValue - monthPaymentTotal}`);
+        }
+      }
+      
+      // 2. Deuda Soporte Fijo: missing monthly fixed support payments
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1; // 1-based
+      const currentYear = currentDate.getFullYear();
+      
+      let debtSupportFijo = 0;
+      let missingSupportMonths = 0;
+      
+      // Only calculate for current year
+      if (selectedYear === currentYear) {
+        // Check each month from January to current month
+        for (let month = 1; month <= currentMonth; month++) {
+          const hasFixedPayment = allPayments.some(payment => {
+            const paymentDate = new Date(payment.payment_date);
+            return paymentDate.getMonth() + 1 === month && 
+                   paymentDate.getFullYear() === selectedYear &&
+                   payment.payment_type === 'fixed' &&
+                   ['completed', 'paid'].includes(payment.status);
+          });
+          
+          if (!hasFixedPayment) {
+            missingSupportMonths++;
+          }
+          
+          console.log(`  - Month ${month}: Has fixed payment=${hasFixedPayment}`);
+        }
+      }
+      
+      // Get average fixed payment amount to estimate debt
+      const fixedPayments = allPayments.filter(p => 
+        p.payment_type === 'fixed' && ['completed', 'paid'].includes(p.status)
+      );
+      const avgFixedPayment = fixedPayments.length > 0 
+        ? fixedPayments.reduce((sum, p) => sum + p.amount, 0) / fixedPayments.length 
+        : 0;
+      
+      debtSupportFijo = missingSupportMonths * avgFixedPayment;
+      
+      console.log('  - Missing support months:', missingSupportMonths);
+      console.log('  - Average fixed payment:', avgFixedPayment);
+      console.log('  - Total debt soporte fijo:', debtSupportFijo);
+      console.log('  - Total debt soporte y evolutivos:', debtSupportEvolutivos);
+
       setMonthlyData(monthlyArray);
       setContractsData(contractsWithStats);
       setSummary({
@@ -456,7 +549,10 @@ const ClientPortal = () => {
         hoursRemaining,
         supportPayments,
         recurrentSupportPayments,
-        supportAndDevelopmentPayments
+        supportAndDevelopmentPayments,
+        debtSupportEvolutivos,
+        debtSupportFijo,
+        missingSupportMonths
       });
 
     } catch (err) {
@@ -658,6 +754,22 @@ const ClientPortal = () => {
                   <div className="text-3xl font-light text-gray-900 mb-1">{formatCOP(summary.totalPaid)}</div>
                   <div className="text-sm font-medium text-gray-700 mb-1">TOTAL PAGADO</div>
                   <div className="text-xs text-gray-500">Completado</div>
+                </div>
+                <div className="text-center">
+                  <div className={`text-3xl font-light mb-1 ${(summary.debtSupportFijo || 0) > 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                    {summary.missingSupportMonths || 0}
+                  </div>
+                  <div className="text-sm font-medium text-gray-700 mb-1">DEUDA SOPORTE FIJO</div>
+                  <div className="text-xs text-gray-500">
+                    {(summary.missingSupportMonths || 0) > 0 ? `${summary.missingSupportMonths} meses` : 'Al día'}
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className={`text-3xl font-light mb-1 ${(summary.debtSupportEvolutivos || 0) > 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                    {formatCOP(summary.debtSupportEvolutivos || 0)}
+                  </div>
+                  <div className="text-sm font-medium text-gray-700 mb-1">DEUDA SOPORTE Y EVOLUTIVOS</div>
+                  <div className="text-xs text-gray-500">Horas sin facturar</div>
                 </div>
               </div>
             </div>
