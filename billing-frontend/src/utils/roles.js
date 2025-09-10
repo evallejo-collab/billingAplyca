@@ -48,6 +48,9 @@ export const PERMISSIONS = {
   VIEW_PROJECT_REPORTS: 'view_project_reports',
   VIEW_TIME_REPORTS: 'view_time_reports',
   
+  // Cliente Portal
+  VIEW_CLIENT_PORTAL: 'view_client_portal',
+  
   // Administración
   MANAGE_USERS: 'manage_users',
   MANAGE_SYSTEM: 'manage_system'
@@ -97,6 +100,9 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.VIEW_PROJECT_REPORTS,
     PERMISSIONS.VIEW_TIME_REPORTS,
     
+    // Cliente Portal
+    PERMISSIONS.VIEW_CLIENT_PORTAL,
+    
     // Administración
     PERMISSIONS.MANAGE_USERS,
     PERMISSIONS.MANAGE_SYSTEM
@@ -135,8 +141,8 @@ export const ROLE_PERMISSIONS = {
   ],
   
   [ROLES.CLIENT]: [
-    // Solo reportes limitados - tiempo y análisis de sus proyectos
-    PERMISSIONS.VIEW_TIME_REPORTS
+    // Portal del cliente con resumen ejecutivo
+    PERMISSIONS.VIEW_CLIENT_PORTAL
   ]
 };
 
@@ -196,6 +202,10 @@ export const getAllowedRoutes = (userRole) => {
   
   if (hasPermission(userRole, PERMISSIONS.MANAGE_USERS)) {
     routes.push('/users');
+  }
+  
+  if (hasPermission(userRole, PERMISSIONS.VIEW_CLIENT_PORTAL)) {
+    routes.push('/portal');
   }
   
   return routes;

@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from "@vercel/analytics/react";
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ROLES } from './utils/roles';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import Clients from './components/Clients';
@@ -11,9 +12,21 @@ import TimeEntries from './components/TimeEntries';
 import Billing from './components/Billing';
 import Reports from './components/Reports';
 import Users from './components/Users';
+import ClientPortal from './components/ClientPortal';
 import LoginPage from './components/LoginPage';
 import AuthCallback from './components/AuthCallback';
 import ProtectedRoute from './components/ProtectedRoute';
+
+const DefaultRoute = () => {
+  const { user } = useAuth();
+  
+  // Redirect client users to their portal, others to dashboard
+  if (user?.role === ROLES.CLIENT) {
+    return <Navigate to="/portal" replace />;
+  }
+  
+  return <Dashboard />;
+};
 
 const AppRoutes = () => {
   const { isAuthenticated, loading } = useAuth();
@@ -37,7 +50,7 @@ const AppRoutes = () => {
       ) : (
         <>
           <Route path="/" element={<Layout />}>
-            <Route index element={<Dashboard />} />
+            <Route index element={<DefaultRoute />} />
             <Route path="clients" element={<Clients />} />
             <Route path="contracts" element={<Contracts />} />
             <Route path="projects" element={<Projects />} />
@@ -45,6 +58,7 @@ const AppRoutes = () => {
             <Route path="billing" element={<Billing />} />
             <Route path="reports" element={<Reports />} />
             <Route path="users" element={<Users />} />
+            <Route path="portal" element={<ClientPortal />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </>
