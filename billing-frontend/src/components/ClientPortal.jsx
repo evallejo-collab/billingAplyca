@@ -56,7 +56,8 @@ const ClientPortal = () => {
     supportAndDevelopmentPayments: [],
     debtSupportEvolutivos: 0,
     debtSupportFijo: 0,
-    missingSupportMonths: 0
+    missingSupportMonths: 0,
+    missingMonths: []
   });
   const [showPaymentDetails, setShowPaymentDetails] = useState(false);
   const [showMonthlyBreakdown, setShowMonthlyBreakdown] = useState(false);
@@ -163,7 +164,8 @@ const ClientPortal = () => {
           supportAndDevelopmentPayments: [],
           debtSupportEvolutivos: 0,
           debtSupportFijo: 0,
-          missingSupportMonths: 0
+          missingSupportMonths: 0,
+          missingMonths: []
         });
         setLoading(false);
         return;
@@ -502,11 +504,15 @@ const ClientPortal = () => {
       
       let debtSupportFijo = 0;
       let missingSupportMonths = 0;
+      const missingMonths = [];
       
-      // Only calculate for current year
+      // Only calculate for current year, and only up to the current month (not including future months)
       if (selectedYear === currentYear) {
-        // Check each month from January to current month
-        for (let month = 1; month <= currentMonth; month++) {
+        // Check each month from January to current month (not including current month if we're early in it)
+        const monthsToCheck = currentMonth - 1; // Don't include current month unless we're past day 5
+        const actualMonthsToCheck = currentDate.getDate() > 5 ? currentMonth : monthsToCheck;
+        
+        for (let month = 1; month <= actualMonthsToCheck; month++) {
           const hasFixedPayment = allPayments.some(payment => {
             const paymentDate = new Date(payment.payment_date);
             return paymentDate.getMonth() + 1 === month && 
@@ -517,9 +523,28 @@ const ClientPortal = () => {
           
           if (!hasFixedPayment) {
             missingSupportMonths++;
+            missingMonths.push(month);
           }
           
-          console.log(`  - Month ${month}: Has fixed payment=${hasFixedPayment}`);
+          console.log(`  - Month ${month}: Has fixed payment=${hasFixedPayment}${!hasFixedPayment ? ' (MISSING)' : ''}`);
+        }
+      } else if (selectedYear < currentYear) {
+        // For past years, check all 12 months
+        for (let month = 1; month <= 12; month++) {
+          const hasFixedPayment = allPayments.some(payment => {
+            const paymentDate = new Date(payment.payment_date);
+            return paymentDate.getMonth() + 1 === month && 
+                   paymentDate.getFullYear() === selectedYear &&
+                   payment.payment_type === 'fixed' &&
+                   ['completed', 'paid'].includes(payment.status);
+          });
+          
+          if (!hasFixedPayment) {
+            missingSupportMonths++;
+            missingMonths.push(month);
+          }
+          
+          console.log(`  - Month ${month}: Has fixed payment=${hasFixedPayment}${!hasFixedPayment ? ' (MISSING)' : ''}`);
         }
       }
       
@@ -534,6 +559,13 @@ const ClientPortal = () => {
       debtSupportFijo = missingSupportMonths * avgFixedPayment;
       
       console.log('  - Missing support months:', missingSupportMonths);
+      console.log('  - Missing months details:', missingMonths.map(m => {
+        const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+        return monthNames[m - 1];
+      }).join(', '));
+      console.log('  - Current date:', currentDate.toLocaleDateString('es-ES'));
+      console.log('  - Checking months up to:', selectedYear === currentYear ? 
+        (currentDate.getDate() > 5 ? currentMonth : currentMonth - 1) : 12);
       console.log('  - Average fixed payment:', avgFixedPayment);
       console.log('  - Total debt soporte fijo:', debtSupportFijo);
       console.log('  - Total debt soporte y evolutivos:', debtSupportEvolutivos);
@@ -552,7 +584,8 @@ const ClientPortal = () => {
         supportAndDevelopmentPayments,
         debtSupportEvolutivos,
         debtSupportFijo,
-        missingSupportMonths
+        missingSupportMonths,
+        missingMonths
       });
 
     } catch (err) {
@@ -761,7 +794,14 @@ const ClientPortal = () => {
                   </div>
                   <div className="text-sm font-medium text-gray-700 mb-1">DEUDA SOPORTE FIJO</div>
                   <div className="text-xs text-gray-500">
-                    {(summary.missingSupportMonths || 0) > 0 ? `${summary.missingSupportMonths} meses` : 'Al día'}
+                    {(summary.missingSupportMonths || 0) > 0 ? (
+                      summary.missingMonths && summary.missingMonths.length > 0 ? (
+                        summary.missingMonths.map(m => {
+                          const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+                          return monthNames[m - 1];
+                        }).join(', ')
+                      ) : `${summary.missingSupportMonths} meses`
+                    ) : 'Al día'}
                   </div>
                 </div>
                 <div className="text-center">
