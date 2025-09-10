@@ -45,15 +45,19 @@ const TimeEntryWizard = ({ isOpen, onClose, onTimeEntrySaved, selectedEntry, isE
 
   useEffect(() => {
     if (isOpen) {
-      loadClients();
-      loadProjects();
+      const loadData = async () => {
+        await loadClients();
+        await loadProjects();
+        
+        if (isEditing && selectedEntry) {
+          // Pre-populate for editing after data is loaded
+          await populateForEditing();
+        } else {
+          resetWizard();
+        }
+      };
       
-      if (isEditing && selectedEntry) {
-        // Pre-populate for editing
-        populateForEditing();
-      } else {
-        resetWizard();
-      }
+      loadData();
     }
   }, [isOpen, selectedEntry, isEditing]);
 
@@ -103,8 +107,64 @@ const TimeEntryWizard = ({ isOpen, onClose, onTimeEntrySaved, selectedEntry, isE
   };
 
   const populateForEditing = async () => {
-    // Implementation for editing mode
-    // This would pre-select client, project, and populate time details
+    if (!selectedEntry) return;
+    
+    console.log('Populating wizard for editing with entry:', selectedEntry);
+    
+    try {
+      // Find the project associated with this entry
+      let project = null;
+      if (selectedEntry.project_id) {
+        project = projects.find(p => p.id === selectedEntry.project_id);
+        if (!project) {
+          // If not in loaded projects, try to load it separately
+          const response = await projectsApi.getById(selectedEntry.project_id);
+          project = response.data;
+        }
+      }
+      
+      // Find the client associated with the project or entry
+      let client = null;
+      if (project) {
+        // For contract projects, get client from contract
+        if (project.contract_id) {
+          const contractResponse = await contractsApi.getById(project.contract_id);
+          if (contractResponse.data?.client) {
+            client = contractResponse.data.client;
+          }
+        } else if (project.client_id) {
+          // For independent projects, get client directly
+          client = clients.find(c => c.id === project.client_id);
+          if (!client) {
+            const clientResponse = await clientsApi.getById(project.client_id);
+            client = clientResponse.data;
+          }
+        }
+      }
+      
+      // Set the form data
+      if (client) {
+        setSelectedClient(client);
+      }
+      if (project) {
+        setSelectedProject(project);
+      }
+      
+      setTimeDetails({
+        task_category: selectedEntry.task_category || '',
+        description: selectedEntry.description || '',
+        hours_used: selectedEntry.hours_used?.toString() || '',
+        entry_date: selectedEntry.entry_date || new Date().toISOString().split('T')[0],
+        notes: selectedEntry.notes || ''
+      });
+      
+      // Start at the time details step for editing
+      setCurrentStep(3);
+      
+    } catch (error) {
+      console.error('Error populating wizard for editing:', error);
+      setError('Error cargando datos para edición');
+    }
   };
 
   const handleNext = () => {

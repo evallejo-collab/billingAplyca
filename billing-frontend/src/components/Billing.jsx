@@ -549,19 +549,19 @@ const Billing = () => {
                         return acc;
                       }, {});
 
-                      // Define payment type labels and colors
+                      // Define payment type labels and colors - Professional with subtle color
                       const getPaymentTypeInfo = (type) => {
                         switch (type) {
                           case 'fixed':
                             return { label: 'Pagos Fijos', color: 'bg-blue-50 border-blue-200 text-blue-800', icon: DollarSign };
                           case 'percentage':
-                            return { label: 'Pagos por Porcentaje', color: 'bg-green-50 border-green-200 text-green-800', icon: DollarSign };
+                            return { label: 'Pagos por Porcentaje', color: 'bg-emerald-50 border-emerald-200 text-emerald-800', icon: DollarSign };
                           case 'recurring_support':
-                            return { label: 'Soporte Recurrente', color: 'bg-purple-50 border-purple-200 text-purple-800', icon: Clock };
+                            return { label: 'Soporte Recurrente', color: 'bg-violet-50 border-violet-200 text-violet-800', icon: Clock };
                           case 'project_scope':
-                            return { label: 'Proyectos de Alcance Fijo', color: 'bg-orange-50 border-orange-200 text-orange-800', icon: Receipt };
+                            return { label: 'Proyectos de Alcance Fijo', color: 'bg-amber-50 border-amber-200 text-amber-800', icon: Receipt };
                           case 'support_evolutive':
-                            return { label: 'Soporte y Evolutivos', color: 'bg-indigo-50 border-indigo-200 text-indigo-800', icon: Clock };
+                            return { label: 'Soporte y Evolutivos', color: 'bg-teal-50 border-teal-200 text-teal-800', icon: Clock };
                           default:
                             return { label: 'Otros Pagos', color: 'bg-gray-50 border-gray-200 text-gray-800', icon: DollarSign };
                         }

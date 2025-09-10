@@ -156,6 +156,12 @@ const Reports = () => {
       // Filter only active contracts
       const activeContracts = allContracts.filter(contract => contract.status === 'active');
       
+      console.log('Active contracts data:', activeContracts);
+      if (activeContracts.length > 0) {
+        console.log('Sample contract fields:', Object.keys(activeContracts[0]));
+        console.log('Sample contract:', activeContracts[0]);
+      }
+      
       setActiveContractsData(activeContracts);
       
     } catch (err) {
@@ -404,7 +410,11 @@ const Reports = () => {
         <div className="card-body">
           <div className="space-y-4">
             {activeContractsData.map((contract) => {
-              const completionPercentage = parseFloat(contract.progress_percentage || 0);
+              // Calculate completion percentage based on used vs total hours
+              const totalHours = parseFloat(contract.total_hours || 0);
+              const usedHours = parseFloat(contract.used_hours || 0);
+              const completionPercentage = totalHours > 0 ? (usedHours / totalHours) * 100 : 0;
+              
               const getProgressColor = (percentage) => {
                 if (percentage >= 90) return 'bg-red-500';
                 if (percentage >= 75) return 'bg-yellow-500';
@@ -429,7 +439,7 @@ const Reports = () => {
                     <div>
                       <div className="flex justify-between text-sm text-gray-600 mb-1">
                         <span>Progreso de Horas</span>
-                        <span>{formatHours(contract.used_hours)} / {formatHours(contract.total_hours)}</span>
+                        <span>{formatHours(usedHours)} / {formatHours(totalHours)}</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
@@ -441,14 +451,45 @@ const Reports = () => {
                     
                     {/* Time Progress Bar */}
                     {(() => {
+                      // Validate and parse dates
+                      if (!contract.start_date || !contract.end_date) {
+                        return (
+                          <div className="text-center py-2">
+                            <span className="text-sm text-gray-400 italic">
+                              {!contract.start_date && !contract.end_date 
+                                ? 'Sin fechas definidas' 
+                                : !contract.start_date 
+                                ? 'Sin fecha de inicio' 
+                                : 'Sin fecha de fin'}
+                            </span>
+                          </div>
+                        );
+                      }
+                      
                       const startDate = new Date(contract.start_date);
-                      const endDate = contract.end_date ? new Date(contract.end_date) : null;
+                      const endDate = new Date(contract.end_date);
                       const today = new Date();
                       
-                      if (!endDate) return null;
+                      // Validate dates are valid
+                      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+                        return (
+                          <div className="text-center py-2">
+                            <span className="text-sm text-gray-400 italic">Fechas inválidas</span>
+                          </div>
+                        );
+                      }
+                      
+                      // Check if end date is before start date
+                      if (endDate <= startDate) {
+                        return (
+                          <div className="text-center py-2">
+                            <span className="text-sm text-gray-400 italic">Fechas inconsistentes</span>
+                          </div>
+                        );
+                      }
                       
                       const totalDuration = endDate - startDate;
-                      const elapsedTime = today - startDate;
+                      const elapsedTime = Math.max(0, today - startDate); // Ensure non-negative
                       const timePercentage = Math.max(0, Math.min(100, (elapsedTime / totalDuration) * 100));
                       
                       const getTimeProgressColor = (percentage) => {
@@ -457,20 +498,26 @@ const Reports = () => {
                         return 'bg-indigo-500';
                       };
 
-                      const totalMonths = Math.round(totalDuration / (1000 * 60 * 60 * 24 * 30.44));
-                      const elapsedMonths = Math.round(elapsedTime / (1000 * 60 * 60 * 24 * 30.44));
+                      // Calculate months more accurately
+                      const totalDays = Math.ceil(totalDuration / (1000 * 60 * 60 * 24));
+                      const elapsedDays = Math.max(0, Math.ceil(elapsedTime / (1000 * 60 * 60 * 24)));
+                      const totalMonths = Math.ceil(totalDays / 30);
+                      const elapsedMonths = Math.ceil(elapsedDays / 30);
                       
                       return (
                         <div>
                           <div className="flex justify-between text-sm text-gray-600 mb-1">
                             <span>Progreso Temporal</span>
-                            <span>{Math.max(0, elapsedMonths)} / {totalMonths} meses</span>
+                            <span>{Math.min(elapsedMonths, totalMonths)} / {totalMonths} meses</span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
                             <div 
                               className={`h-2 rounded-full transition-all duration-300 ${getTimeProgressColor(timePercentage)}`}
                               style={{ width: `${timePercentage}%` }}
                             ></div>
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {formatDate(contract.start_date)} - {formatDate(contract.end_date)}
                           </div>
                         </div>
                       );
@@ -480,11 +527,11 @@ const Reports = () => {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
                       <span className="text-xs text-gray-500 uppercase tracking-wide">FACTURADO:</span>
-                      <p className="font-semibold text-gray-900">{formatCurrency(contract.billed_amount)}</p>
+                      <p className="font-semibold text-gray-900">{formatCurrency(contract.billed_amount || 0)}</p>
                     </div>
                     <div>
                       <span className="text-xs text-gray-500 uppercase tracking-wide">VALOR TOTAL:</span>
-                      <p className="font-semibold text-gray-900">{formatCurrency(contract.contract_value)}</p>
+                      <p className="font-semibold text-gray-900">{formatCurrency((contract.total_hours || 0) * (contract.hourly_rate || 0))}</p>
                     </div>
                     <div>
                       <span className="text-xs text-gray-500 uppercase tracking-wide">INICIO:</span>
@@ -492,7 +539,7 @@ const Reports = () => {
                     </div>
                     <div>
                       <span className="text-xs text-gray-500 uppercase tracking-wide">TARIFA:</span>
-                      <p className="font-semibold text-gray-900">{formatCurrency(contract.hourly_rate)}/h</p>
+                      <p className="font-semibold text-gray-900">{formatCurrency(contract.hourly_rate || 0)}/h</p>
                     </div>
                   </div>
                 </div>

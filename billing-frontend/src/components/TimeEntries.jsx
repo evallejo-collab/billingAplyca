@@ -385,6 +385,9 @@ const TimeEntries = () => {
                         Tipo de Tarea
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Detalle
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Horas
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -431,6 +434,15 @@ const TimeEntries = () => {
                               </span>
                             ) : (
                               <span className="text-gray-400 italic">Sin categoría</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          <div className="max-w-xs">
+                            {entry.description ? (
+                              <p className="text-gray-700 text-sm leading-relaxed">{entry.description}</p>
+                            ) : (
+                              <span className="text-gray-400 italic text-sm">Sin detalle</span>
                             )}
                           </div>
                         </td>

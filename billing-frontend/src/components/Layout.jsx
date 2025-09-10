@@ -14,7 +14,8 @@ import {
   LogOut,
   Receipt,
   ChevronDown,
-  TrendingUp
+  TrendingUp,
+  UserCheck
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { hasPermission, PERMISSIONS, ROLES } from '../utils/roles';
@@ -26,14 +27,23 @@ const Layout = () => {
   const { user, logout, isAdmin } = useAuth();
   const location = useLocation();
 
-  // Filter navigation items based on user permissions
+  // For client users, show special client navigation
+  const clientNavigation = [
+    { name: 'Mi Portal', href: '/portal', icon: UserCheck, permission: PERMISSIONS.VIEW_CLIENT_PORTAL },
+  ];
+
+  // Regular navigation for admins and collaborators
   const allNavigation = [
     { name: 'Clientes', href: '/clients', icon: Users, permission: PERMISSIONS.VIEW_CLIENTS },
     { name: 'Contratos', href: '/contracts', icon: FileText, permission: PERMISSIONS.VIEW_CONTRACTS },
     { name: 'Proyectos', href: '/projects', icon: Folder, permission: PERMISSIONS.VIEW_PROJECTS },
   ];
 
-  const navigation = allNavigation.filter(item => 
+  // Choose navigation based on user role
+  const isClientUser = user?.role === ROLES.CLIENT;
+  const navigationItems = isClientUser ? clientNavigation : allNavigation;
+  
+  const navigation = navigationItems.filter(item => 
     !item.permission || hasPermission(user?.role, item.permission)
   );
 
@@ -41,8 +51,11 @@ const Layout = () => {
     ...(hasPermission(user?.role, PERMISSIONS.MANAGE_USERS) ? [{ name: 'Usuarios', href: '/users', icon: Settings }] : []),
   ];
 
-  // Create mega menu items with permission filtering
+  // Create mega menu items with permission filtering (only for non-client users)
   const createMegaMenuItems = () => {
+    // Client users don't get mega menus
+    if (isClientUser) return {};
+    
     const baseItems = {
       'trabajo': {
         name: 'Trabajo y Facturación',
@@ -58,6 +71,7 @@ const Layout = () => {
         items: [
           { name: 'Dashboard', href: '/', icon: Home, description: 'Panel de control principal', permission: PERMISSIONS.VIEW_DASHBOARD },
           { name: 'Reportes', href: '/reports', icon: BarChart3, description: 'Análisis y estadísticas', permission: PERMISSIONS.VIEW_REPORTS },
+          { name: 'Portal Cliente', href: '/portal', icon: UserCheck, description: 'Vista del portal para clientes', permission: PERMISSIONS.VIEW_CLIENT_PORTAL },
         ]
       }
     };
@@ -233,25 +247,25 @@ const Layout = () => {
           data-megamenu
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="py-6">
-              <div className="grid grid-cols-2 gap-6 max-w-2xl">
+            <div className="py-4">
+              <div className="flex flex-wrap gap-4">
                 {megaMenuItems[megaMenuOpen].items.map((item) => {
                   const Icon = item.icon;
                   return (
                     <NavLink
                       key={item.name}
                       to={item.href}
-                      className="group flex items-start p-4 rounded-lg hover:bg-gray-50 transition-colors border border-gray-100 hover:border-violet-200"
+                      className="group flex items-center p-3 rounded-lg hover:bg-gray-50 transition-colors border border-gray-100 hover:border-violet-200 min-w-[200px]"
                       onClick={() => setMegaMenuOpen(null)}
                     >
                       <div className="flex-shrink-0">
-                        <Icon className="w-6 h-6 text-violet-600 group-hover:text-violet-700" />
+                        <Icon className="w-5 h-5 text-violet-600 group-hover:text-violet-700" />
                       </div>
-                      <div className="ml-4">
+                      <div className="ml-3">
                         <div className="text-sm font-medium text-gray-900 group-hover:text-violet-700">
                           {item.name}
                         </div>
-                        <div className="text-sm text-gray-500 mt-1">
+                        <div className="text-xs text-gray-500 mt-1">
                           {item.description}
                         </div>
                       </div>
