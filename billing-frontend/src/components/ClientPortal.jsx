@@ -506,6 +506,20 @@ const ClientPortal = () => {
       let missingSupportMonths = 0;
       const missingMonths = [];
       
+      // Debug: Let's see all payments and their types
+      console.log('🔍 DEBUGGING FIXED PAYMENTS:');
+      console.log('  - Total payments:', allPayments.length);
+      console.log('  - All payment types found:', [...new Set(allPayments.map(p => p.payment_type))]);
+      console.log('  - All payment statuses found:', [...new Set(allPayments.map(p => p.status))]);
+      
+      // Show all payments for this year
+      const yearPayments = allPayments.filter(p => new Date(p.payment_date).getFullYear() === selectedYear);
+      console.log(`  - Payments for year ${selectedYear}:`, yearPayments.length);
+      yearPayments.forEach(payment => {
+        const date = new Date(payment.payment_date);
+        console.log(`    * ${date.toLocaleDateString('es-ES')}: Type="${payment.payment_type}", Status="${payment.status}", Amount=${payment.amount}`);
+      });
+      
       // Only calculate for current year, and only up to the current month (not including future months)
       if (selectedYear === currentYear) {
         // Check each month from January to current month (not including current month if we're early in it)
@@ -513,20 +527,32 @@ const ClientPortal = () => {
         const actualMonthsToCheck = currentDate.getDate() > 5 ? currentMonth : monthsToCheck;
         
         for (let month = 1; month <= actualMonthsToCheck; month++) {
-          const hasFixedPayment = allPayments.some(payment => {
+          const monthPayments = allPayments.filter(payment => {
             const paymentDate = new Date(payment.payment_date);
             return paymentDate.getMonth() + 1 === month && 
-                   paymentDate.getFullYear() === selectedYear &&
-                   payment.payment_type === 'fixed' &&
-                   ['completed', 'paid'].includes(payment.status);
+                   paymentDate.getFullYear() === selectedYear;
           });
+          
+          const fixedPayments = monthPayments.filter(payment => 
+            payment.payment_type === 'fixed' &&
+            ['completed', 'paid'].includes(payment.status)
+          );
+          
+          const hasFixedPayment = fixedPayments.length > 0;
           
           if (!hasFixedPayment) {
             missingSupportMonths++;
             missingMonths.push(month);
           }
           
-          console.log(`  - Month ${month}: Has fixed payment=${hasFixedPayment}${!hasFixedPayment ? ' (MISSING)' : ''}`);
+          const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+          console.log(`  - ${monthNames[month-1]}: Payments=${monthPayments.length}, Fixed=${fixedPayments.length}, HasFixed=${hasFixedPayment}${!hasFixedPayment ? ' (MISSING)' : ''}`);
+          
+          if (monthPayments.length > 0) {
+            monthPayments.forEach(p => {
+              console.log(`    - Payment: Type="${p.payment_type}", Status="${p.status}", Amount=${p.amount}`);
+            });
+          }
         }
       } else if (selectedYear < currentYear) {
         // For past years, check all 12 months
