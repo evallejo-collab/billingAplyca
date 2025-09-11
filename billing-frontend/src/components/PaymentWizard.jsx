@@ -28,7 +28,8 @@ const PaymentWizard = ({ isOpen, onClose, onPaymentSaved, item }) => {
     billingMonth: new Date().toISOString().slice(0, 7), // YYYY-MM format
     billingYear: new Date().getFullYear(),
     selectedProjectId: '',
-    projectPaymentType: 'fixed' // 'fixed' or 'percentage' for project scope
+    projectPaymentType: 'fixed', // 'fixed' or 'percentage' for project scope
+    equivalentHours: ''
   });
   
   const [availableProjects, setAvailableProjects] = useState([]);
@@ -279,7 +280,8 @@ const PaymentWizard = ({ isOpen, onClose, onPaymentSaved, item }) => {
         amount: safeAmount,
         description: description,
         payment_date: formData.paymentDate,
-        payment_type: formData.paymentType
+        payment_type: formData.paymentType,
+        equivalent_hours: formData.equivalentHours ? parseFloat(formData.equivalentHours) : null
       };
       
       // Solo agregar billing_month si es realmente necesario
@@ -390,6 +392,21 @@ const PaymentWizard = ({ isOpen, onClose, onPaymentSaved, item }) => {
                     step="1000"
                     min="0"
                     required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Horas Equivalentes
+                    <span className="text-gray-500 text-xs ml-1">(opcional - para descontar del total del contrato)</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.equivalentHours}
+                    onChange={(e) => setFormData({...formData, equivalentHours: e.target.value})}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    placeholder="0"
+                    step="0.1"
+                    min="0"
                   />
                 </div>
               </div>

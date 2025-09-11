@@ -1144,7 +1144,8 @@ const EditPaymentModal = ({ isOpen, onClose, payment, item, onPaymentSaved }) =>
     percentage: '',
     description: '',
     paymentDate: new Date().toISOString().split('T')[0],
-    billingMonth: new Date().toISOString().slice(0, 7)
+    billingMonth: new Date().toISOString().slice(0, 7),
+    equivalentHours: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -1163,7 +1164,8 @@ const EditPaymentModal = ({ isOpen, onClose, payment, item, onPaymentSaved }) =>
         percentage: '',
         description: payment.description || '',
         paymentDate: payment.payment_date || new Date().toISOString().split('T')[0],
-        billingMonth: payment.billing_month || new Date().toISOString().slice(0, 7)
+        billingMonth: payment.billing_month || new Date().toISOString().slice(0, 7),
+        equivalentHours: payment.equivalent_hours?.toString() || ''
       });
     }
   }, [payment]);
@@ -1212,7 +1214,8 @@ const EditPaymentModal = ({ isOpen, onClose, payment, item, onPaymentSaved }) =>
         description: description,
         payment_date: formData.paymentDate,
         payment_type: formData.paymentType,
-        billing_month: formData.paymentType === 'recurring_support' ? formData.billingMonth : null
+        billing_month: formData.paymentType === 'recurring_support' ? formData.billingMonth : null,
+        equivalent_hours: formData.equivalentHours ? parseFloat(formData.equivalentHours) : null
       };
 
       const response = await paymentsApi.update(payment.id, paymentData);
@@ -1302,25 +1305,57 @@ const EditPaymentModal = ({ isOpen, onClose, payment, item, onPaymentSaved }) =>
                     required
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Horas Equivalentes
+                    <span className="text-gray-500 text-xs ml-1">(opcional - para descontar del total del contrato)</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.equivalentHours}
+                    onChange={(e) => setFormData({...formData, equivalentHours: e.target.value})}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    placeholder="0"
+                    step="0.1"
+                    min="0"
+                  />
+                </div>
               </div>
             )}
 
             {/* Fixed Amount Payment Types */}
             {['project_scope', 'support_evolutive'].includes(formData.paymentType) && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Monto del Pago
-                </label>
-                <input
-                  type="number"
-                  value={formData.amount}
-                  onChange={(e) => setFormData({...formData, amount: e.target.value})}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  placeholder="0"
-                  step="1000"
-                  min="0"
-                  required
-                />
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Monto del Pago
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.amount}
+                    onChange={(e) => setFormData({...formData, amount: e.target.value})}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    placeholder="0"
+                    step="1000"
+                    min="0"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Horas Equivalentes
+                    <span className="text-gray-500 text-xs ml-1">(opcional - para descontar del total del contrato)</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.equivalentHours}
+                    onChange={(e) => setFormData({...formData, equivalentHours: e.target.value})}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    placeholder="0"
+                    step="0.1"
+                    min="0"
+                  />
+                </div>
               </div>
             )}
 

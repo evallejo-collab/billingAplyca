@@ -53,7 +53,6 @@ const ClientPortal = () => {
     averageHoursPerMonth: 0,
     pendingAmount: 0,
     totalAnnualHours: null,
-    hoursRemaining: 0,
     supportPayments: [],
     recurrentSupportPayments: [],
     supportAndDevelopmentPayments: [],
@@ -202,7 +201,6 @@ const ClientPortal = () => {
           averageHoursPerMonth: 0, 
           pendingAmount: 0,
           totalAnnualHours: null,
-          hoursRemaining: 0,
           supportPayments: [],
           recurrentSupportPayments: [],
           supportAndDevelopmentPayments: [],
@@ -243,7 +241,7 @@ const ClientPortal = () => {
       
       const { data: payments, error: paymentsError } = await supabase
         .from('payments')
-        .select('id, amount, payment_date, status, payment_type, billing_month')
+        .select('id, amount, payment_date, status, payment_type, billing_month, equivalent_hours')
         .in('project_id', projectIds)
         .gte('payment_date', `${selectedYear}-01-01`)
         .lte('payment_date', `${selectedYear}-12-31`)
@@ -483,17 +481,23 @@ const ClientPortal = () => {
         console.log('Full client data:', clientData);
       }
 
-      // Temporal: if annual_hours doesn't exist in DB, use a default value for testing
-      const totalAnnualHours = clientData?.annual_hours || 1800; // Default 1800 hours per year
-      const hoursRemaining = totalAnnualHours ? Math.max(0, totalAnnualHours - allYearHours) : 0;
+      // Get total hours from selected contract or sum of all contracts
+      let totalAnnualHours = 0;
+      if (selectedContractId) {
+        // If specific contract is selected, use its total_hours
+        const selectedContract = contracts.find(c => c.id === selectedContractId);
+        totalAnnualHours = selectedContract?.total_hours || 0;
+      } else {
+        // If no specific contract, sum total_hours of all contracts
+        totalAnnualHours = contracts.reduce((sum, contract) => sum + (contract.total_hours || 0), 0);
+      }
 
       console.log('📊 PORTAL HOURS CALCULATION:');
-      console.log('  - Client data:', clientData);
-      console.log('  - Annual hours from client:', clientData?.annual_hours);
+      console.log('  - Selected contract ID:', selectedContractId);
+      console.log('  - Contracts data:', contracts.map(c => ({ id: c.id, number: c.contract_number, hours: c.total_hours })));
       console.log('  - All year hours used:', allYearHours);
-      console.log('  - Monthly array hours:', monthlyArray.reduce((sum, month) => sum + month.hours, 0));
-      console.log('  - Using annual hours:', totalAnnualHours);
-      console.log('  - Final hours remaining:', hoursRemaining);
+      console.log('  - Total annual hours from contract(s):', totalAnnualHours);
+      console.log('  - Will calculate effective hours remaining after processing contracts');
 
       // Process contracts data
       const contractsWithStats = await Promise.all(contracts.map(async (contract) => {
@@ -530,21 +534,12 @@ const ClientPortal = () => {
           );
         }
 
-        // Calculate equivalent hours from recurring support payments
-        const contractSupportPayments = allPayments.filter(payment => 
-          payment.payment_type === 'recurring_support' && 
-          ['completed', 'pending', 'paid'].includes(payment.status)
-        );
-        
-        const hourlyRate = parseFloat(contract.hourly_rate) || 0;
-        if (hourlyRate > 0) {
-          equivalentHours = contractSupportPayments.reduce((sum, payment) => 
-            sum + (payment.amount / hourlyRate), 0
-          );
-        }
+        // Note: Support equivalent hours are now calculated globally, not per contract
+        // to avoid duplication since support payments are not tied to specific contracts
+        equivalentHours = 0;
 
-        // Total effective hours = actual hours + equivalent hours from support
-        const totalEffectiveHours = contractHours + equivalentHours;
+        // Total effective hours = actual hours only (support hours calculated globally)
+        const totalEffectiveHours = contractHours;
         const effectiveHoursProgress = contract.total_hours ? (totalEffectiveHours / contract.total_hours) * 100 : 0;
 
         const hoursProgress = contract.total_hours ? (contractHours / contract.total_hours) * 100 : 0;
@@ -750,9 +745,39 @@ const ClientPortal = () => {
       }
 
       // Calculate total equivalent hours and effective hours
-      const totalEquivalentHours = contractsWithStats.reduce((sum, contract) => 
+      const totalEquivalentHoursFromContracts = contractsWithStats.reduce((sum, contract) => 
         sum + (contract.equivalentHours || 0), 0
       );
+
+      // Calculate equivalent hours from direct support payments (not through contracts)
+      // This includes recurring_support and fixed payments with equivalent_hours
+      let totalEquivalentHoursFromSupport = 0;
+      
+      // Calculate equivalent hours from support payments using manual equivalent_hours field only
+      // Both recurring_support and fixed support should use the manual field, not automatic calculation
+      
+      // Get recurring support equivalent hours (manual field)
+      const recurringEquivalentHours = recurrentSupportPayments.reduce((sum, payment) => 
+        sum + (parseFloat(payment.equivalent_hours) || 0), 0
+      );
+      
+      console.log(`  - Recurring support payments found: ${recurrentSupportPayments.length}`);
+      console.log(`  - Using manual equivalent_hours field for all support payments`);
+      
+      // Calculate from fixed support payments (manual equivalent_hours field)
+      const fixedEquivalentHours = allPayments
+        .filter(payment => payment.payment_type === 'fixed' && ['completed', 'pending', 'paid'].includes(payment.status))
+        .reduce((sum, payment) => sum + (parseFloat(payment.equivalent_hours) || 0), 0);
+      
+      totalEquivalentHoursFromSupport = recurringEquivalentHours + fixedEquivalentHours;
+
+      console.log('📊 GLOBAL EQUIVALENT HOURS CALCULATION:');
+      console.log(`  - From contracts: ${totalEquivalentHoursFromContracts.toFixed(1)}h`);
+      console.log(`  - From recurring support: ${recurringEquivalentHours.toFixed(1)}h`);
+      console.log(`  - From fixed support: ${fixedEquivalentHours.toFixed(1)}h`);
+      console.log(`  - Total support equivalent: ${totalEquivalentHoursFromSupport.toFixed(1)}h`);
+      
+      const totalEquivalentHours = totalEquivalentHoursFromContracts + totalEquivalentHoursFromSupport;
       const totalEffectiveHours = allYearHours + totalEquivalentHours;
       const effectiveHoursRemaining = totalAnnualHours ? Math.max(0, totalAnnualHours - totalEffectiveHours) : 0;
 
@@ -798,7 +823,6 @@ const ClientPortal = () => {
         averageHoursPerMonth: allYearHours / 12,
         pendingAmount,
         totalAnnualHours,
-        hoursRemaining,
         effectiveHoursRemaining,
         supportPayments,
         recurrentSupportPayments,
@@ -1012,7 +1036,7 @@ const ClientPortal = () => {
             
             <div className="p-8 bg-gradient-to-b from-white to-gray-50">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-                {/* Horas Efectivas */}
+                {/* Horas Consumidas */}
                 <div className="bg-white border border-gray-100 rounded-2xl p-8 hover:shadow-xl hover:border-blue-200 transition-all duration-300 transform hover:-translate-y-2 hover:bg-gradient-to-br hover:from-white hover:to-blue-50">
                   <div className="text-center">
                     <div className="text-4xl font-normal text-gray-900 mb-2">
@@ -1020,7 +1044,7 @@ const ClientPortal = () => {
                     </div>
                     <div className="text-xs text-gray-500 font-normal uppercase mb-4">Horas</div>
                     <div className="border-t border-gray-100 pt-4">
-                      <div className="text-sm font-normal text-gray-900 mb-2">Horas Efectivas</div>
+                      <div className="text-sm font-normal text-gray-900 mb-2">Horas Consumidas</div>
                       <div className="text-xs text-gray-600">
                         {Math.round(summary.totalHours)} directas + {Math.round(summary.totalEquivalentHours || 0)} soporte
                       </div>
@@ -1038,7 +1062,7 @@ const ClientPortal = () => {
                     <div className="border-t border-gray-100 pt-4">
                       <div className="text-sm font-normal text-gray-900 mb-2">Horas Restantes</div>
                       <div className="text-xs text-gray-600">
-                        {summary.totalAnnualHours ? `de ${summary.totalAnnualHours} anuales` : 'No definido'}
+                        {summary.totalAnnualHours ? `de ${summary.totalAnnualHours} del contrato` : 'No definido'}
                       </div>
                     </div>
                   </div>
@@ -1142,18 +1166,18 @@ const ClientPortal = () => {
                   <tbody className="divide-y divide-gray-200">
                     {contractsData.map((contract) => (
                       <tr key={contract.id} className="hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 bg-white border-b border-gray-100 transition-all duration-200">
-                        <td className="px-8 py-6">
+                        <td className="px-6 py-4">
                           <div>
                             <div className="text-sm font-bold text-gray-900">{contract.contract_number}</div>
                             <div className="text-sm text-gray-700 mt-1">{contract.description}</div>
                           </div>
                         </td>
-                        <td className="px-8 py-6">
+                        <td className="px-6 py-4">
                           <div className={`inline-flex px-2 py-1 text-xs font-normal rounded ${getStatusColor(contract.status)}`}>
                             {getStatusLabel(contract.status)}
                           </div>
                         </td>
-                        <td className="px-8 py-6">
+                        <td className="px-6 py-4">
                           {contract.total_hours ? (
                             <div className="text-sm space-y-2">
                               <div>
@@ -1203,17 +1227,17 @@ const ClientPortal = () => {
                             <div className="text-sm text-gray-200">No definido</div>
                           )}
                         </td>
-                        <td className="px-8 py-6">
+                        <td className="px-6 py-4">
                           <div className="text-sm text-gray-900 font-bold">
                             {formatCOP(contract.totalPaid)}
                           </div>
                         </td>
-                        <td className="px-8 py-6">
+                        <td className="px-6 py-4">
                           <div className={`text-xs font-bold uppercase tracking-wider ${contract.pendingAmount > 0 ? 'text-red-600' : 'text-gray-600'}`}>
                             {contract.pendingAmount > 0 ? formatCOP(contract.pendingAmount) : 'Sin pendientes'}
                           </div>
                         </td>
-                        <td className="px-8 py-6">
+                        <td className="px-6 py-4">
                           <div className="text-sm text-gray-900 font-bold">
                             {contract.usedHours > 0 && contract.totalPaid > 0 
                               ? formatCOP(contract.totalPaid / contract.usedHours) + '/h'
@@ -1250,7 +1274,7 @@ const ClientPortal = () => {
                     </div>
                     {summary.totalAnnualHours && (
                       <p className="text-sm text-gray-600 mb-4">
-                        Quedan {Math.round(summary.hoursRemaining)} horas de {summary.totalAnnualHours} anuales
+                        Quedan {Math.round(summary.effectiveHoursRemaining)} horas de {summary.totalAnnualHours} del contrato
                       </p>
                     )}
                     <div className="h-64">
@@ -1713,28 +1737,28 @@ const ClientPortal = () => {
                     <div className="bg-white border border-gray-200 p-6">
                       <h3 className="text-base font-normal text-gray-900 mb-6">Resumen de Soporte y Evolutivos</h3>
                       <div className="space-y-4">
-                        <div className="flex items-center justify-between p-4 bg-indigo-50 border border-indigo-200 rounded">
+                        <div className="flex items-center justify-between py-3">
                           <div className="flex items-center">
-                            <DollarSign className="h-6 w-6 text-indigo-600 mr-3" />
+                            <DollarSign className="h-5 w-5 text-gray-600 mr-3" />
                             <div>
-                              <div className="text-xs font-bold uppercase tracking-wider text-indigo-900">Total Pagado</div>
-                              <div className="text-xs text-indigo-700">Año {selectedYear}</div>
+                              <div className="text-xs font-semibold uppercase tracking-wider text-gray-800">Total Pagado</div>
+                              <div className="text-xs text-gray-500">Año {selectedYear}</div>
                             </div>
                           </div>
-                          <div className="text-2xl font-normal text-indigo-900">
+                          <div className="text-xl font-semibold text-gray-900">
                             {formatCOP(summary.supportAndDevelopmentPayments.reduce((sum, payment) => sum + payment.amount, 0))}
                           </div>
                         </div>
                         
-                        <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded">
+                        <div className="flex items-center justify-between py-3">
                           <div className="flex items-center">
-                            <FileText className="h-6 w-6 text-gray-600 mr-3" />
+                            <FileText className="h-5 w-5 text-gray-600 mr-3" />
                             <div>
-                              <div className="text-xs font-bold uppercase tracking-wider text-gray-900">Pagos Realizados</div>
-                              <div className="text-xs text-gray-600">Número de pagos</div>
+                              <div className="text-xs font-semibold uppercase tracking-wider text-gray-800">Pagos Realizados</div>
+                              <div className="text-xs text-gray-500">Número de pagos</div>
                             </div>
                           </div>
-                          <div className="text-2xl font-normal text-gray-900">
+                          <div className="text-xl font-semibold text-gray-900">
                             {summary.supportAndDevelopmentPayments.length}
                           </div>
                         </div>
@@ -1748,100 +1772,197 @@ const ClientPortal = () => {
           )}
 
           {/* Monthly Breakdown */}
-          <div className="bg-gray-50 border border-gray-200">
-            <div className="px-8 py-6 border-b border-gray-200 bg-white">
+          <div className="bg-white border border-gray-100 shadow-xl rounded-2xl overflow-hidden">
+            <div className="px-8 py-6 bg-gradient-to-r from-slate-50 to-gray-50 border-b border-gray-100">
               <button
                 onClick={() => setShowMonthlyBreakdown(!showMonthlyBreakdown)}
-                className="flex items-center justify-between w-full text-left"
+                className="flex items-center justify-between w-full text-left group hover:opacity-80 transition-opacity"
               >
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900">Desglose Mensual</h2>
-                  <p className="text-sm text-gray-600 mt-1">Actividad detallada por mes para {selectedYear}</p>
+                  <h2 className="text-xl font-semibold text-gray-800 mb-2">Desglose Mensual</h2>
+                  <p className="text-sm text-gray-600">Estado de pagos detallado por mes para {selectedYear}</p>
                 </div>
-                {showMonthlyBreakdown ? (
-                  <ChevronUp className="h-5 w-5 text-gray-600" />
-                ) : (
-                  <ChevronDown className="h-5 w-5 text-gray-600" />
-                )}
+                <div className="p-2 rounded-full bg-white shadow-sm group-hover:shadow-md transition-shadow">
+                  {showMonthlyBreakdown ? (
+                    <ChevronUp className="h-5 w-5 text-gray-600" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-gray-600" />
+                  )}
+                </div>
               </button>
             </div>
             {showMonthlyBreakdown && (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto bg-gradient-to-b from-white to-slate-50">
                 <table className="w-full">
-                  <thead className="bg-gray-800 border-b border-gray-700">
-                    <tr>
-                      <th className="px-8 py-6 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
-                        Mes
+                  <thead>
+                    <tr className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 shadow-lg">
+                      <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider border-r border-slate-600">
+                        <div className="flex items-center space-x-2">
+                          <Calendar className="w-4 h-4" />
+                          <span>Mes</span>
+                        </div>
                       </th>
-                      <th className="px-8 py-6 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
-                        Horas
+                      <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider border-r border-slate-600">
+                        <div className="flex items-center space-x-2">
+                          <Clock className="w-4 h-4" />
+                          <span>Horas</span>
+                        </div>
                       </th>
-                      <th className="px-8 py-6 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
-                        Facturado
+                      <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider border-r border-slate-600">
+                        <div className="flex items-center space-x-2">
+                          <Target className="w-4 h-4" />
+                          <span>Soporte Fijo</span>
+                        </div>
                       </th>
-                      <th className="px-8 py-6 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
-                        Pagado
+                      <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider border-r border-slate-600">
+                        <div className="flex items-center space-x-2">
+                          <TrendingUp className="w-4 h-4" />
+                          <span>Soporte y Evolutivos</span>
+                        </div>
                       </th>
-                      <th className="px-8 py-6 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
-                        Balance
-                      </th>
-                      <th className="px-8 py-6 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
-                        Proyectos
+                      <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
+                        <div className="flex items-center space-x-2">
+                          <DollarSign className="w-4 h-4" />
+                          <span>Balance</span>
+                        </div>
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-300">
+                  <tbody className="bg-white divide-y divide-gray-50">
                     {monthlyData.map((month) => (
-                      <tr key={month.month} className="hover:bg-blue-50 bg-white border-b border-gray-200">
-                        <td className="px-8 py-6">
-                          <div className="text-sm font-bold text-gray-900 capitalize">
+                      <tr key={month.month} className="hover:bg-slate-50 bg-white border-b border-gray-100 transition-colors duration-200">
+                        <td className="px-6 py-4">
+                          <div className="text-sm font-semibold text-gray-800 capitalize">
                             {month.monthName}
                           </div>
                         </td>
-                        <td className="px-8 py-6">
-                          <div className="text-sm text-gray-900 font-semibold">
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-700 font-medium">
                             {month.hours.toFixed(1)} h
                           </div>
                         </td>
-                        <td className="px-8 py-6">
-                          <div className="text-sm text-gray-900 font-semibold">
-                            {formatCOP(month.revenue)}
-                          </div>
-                        </td>
-                        <td className="px-8 py-6">
-                          <div className="text-sm text-gray-900 font-semibold">
-                            {formatCOP(month.payments)}
-                          </div>
-                        </td>
-                        <td className="px-8 py-6">
-                          <div className="text-sm">
-                            <div className={`font-bold ${month.balance < 0 ? 'text-red-700' : month.balance > 0 ? 'text-gray-900' : 'text-gray-600'}`}>
-                              {formatCOP(Math.abs(month.balance))}
-                            </div>
-                            {month.balance < 0 && (
-                              <div className="text-xs text-red-500 mt-1">Pendiente</div>
-                            )}
-                            {month.balance > 0 && (
-                              <div className="text-xs text-gray-600 mt-1">Pagado de más</div>
-                            )}
-                            {month.balance === 0 && (
-                              <div className="text-xs text-gray-600 mt-1">Balanceado</div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-8 py-6">
-                          <div className="text-sm">
-                            {month.projects.length > 0 ? (
-                              <div className="space-y-1">
-                                {month.projects.map((project, index) => (
-                                  <div key={index} className="text-gray-700">
-                                    {project}
+                        <td className="px-6 py-4">
+                          <div className="text-center">
+                            {(() => {
+                              const currentDate = new Date();
+                              const currentMonth = currentDate.getMonth() + 1; // 1-based
+                              const currentYear = currentDate.getFullYear();
+                              const isCurrentYear = selectedYear === currentYear;
+                              const shouldHavePayment = isCurrentYear && month.month < currentMonth;
+                              const hasPayment = (month.pagoRecurrente || 0) > 0;
+                              
+                              if (hasPayment) {
+                                return (
+                                  <div className="text-center">
+                                    <div className="font-semibold text-sm text-slate-700">{formatCOP(month.pagoRecurrente || 0)}</div>
+                                    <div className="text-xs text-slate-500 mt-1">Pagado</div>
                                   </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="text-gray-200 italic">Sin actividad</div>
-                            )}
+                                );
+                              } else if (shouldHavePayment) {
+                                return (
+                                  <div className="text-center">
+                                    <div className="font-semibold text-sm text-red-600">EN DEUDA</div>
+                                    <div className="text-xs text-red-500 mt-1">Vencido</div>
+                                  </div>
+                                );
+                              } else {
+                                return (
+                                  <div className="text-center">
+                                    <div className="font-semibold text-sm text-gray-500">-</div>
+                                    <div className="text-xs text-gray-400 mt-1">No aplica</div>
+                                  </div>
+                                );
+                              }
+                            })()}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-center">
+                            {(() => {
+                              const currentDate = new Date();
+                              const currentMonth = currentDate.getMonth() + 1; // 1-based
+                              const currentYear = currentDate.getFullYear();
+                              const isCurrentYear = selectedYear === currentYear;
+                              const shouldHavePayment = isCurrentYear && month.month < currentMonth;
+                              const hasPayment = (month.pagoEvolutivo || 0) > 0;
+                              
+                              if (hasPayment) {
+                                return (
+                                  <div className="text-center">
+                                    <div className="font-semibold text-sm text-slate-700">{formatCOP(month.pagoEvolutivo || 0)}</div>
+                                    <div className="text-xs text-slate-500 mt-1">Pagado</div>
+                                  </div>
+                                );
+                              } else if (shouldHavePayment) {
+                                return (
+                                  <div className="text-center">
+                                    <div className="font-semibold text-sm text-red-600">EN DEUDA</div>
+                                    <div className="text-xs text-red-500 mt-1">Vencido</div>
+                                  </div>
+                                );
+                              } else {
+                                return (
+                                  <div className="text-center">
+                                    <div className="font-semibold text-sm text-gray-500">-</div>
+                                    <div className="text-xs text-gray-400 mt-1">No aplica</div>
+                                  </div>
+                                );
+                              }
+                            })()}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-center">
+                            {(() => {
+                              const currentDate = new Date();
+                              const currentMonth = currentDate.getMonth() + 1; // 1-based
+                              const currentYear = currentDate.getFullYear();
+                              const isCurrentYear = selectedYear === currentYear;
+                              const shouldHavePayment = isCurrentYear && month.month < currentMonth;
+                              const hasSoporteFijo = (month.pagoRecurrente || 0) > 0;
+                              const hasSoporteEvolutivo = (month.pagoEvolutivo || 0) > 0;
+                              const totalPagos = (month.pagoRecurrente || 0) + (month.pagoEvolutivo || 0);
+                              
+                              // Si es mes pasado y no hay pagos = EN DEUDA
+                              if (shouldHavePayment && !hasSoporteFijo && !hasSoporteEvolutivo) {
+                                return (
+                                  <div className="text-center">
+                                    <div className="font-bold text-base text-red-600">EN DEUDA</div>
+                                    <div className="text-xs text-red-500 mt-1">Sin pagos</div>
+                                  </div>
+                                );
+                              }
+                              
+                              // Si es mes pasado y hay pagos parciales
+                              if (shouldHavePayment && (hasSoporteFijo || hasSoporteEvolutivo)) {
+                                return (
+                                  <div className="text-center">
+                                    <div className="font-bold text-base text-amber-700">{formatCOP(totalPagos)}</div>
+                                    <div className="text-xs text-amber-600 mt-1">
+                                      {hasSoporteFijo && hasSoporteEvolutivo ? 'Completo' : 'Parcial'}
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              
+                              // Si hay pagos (mes futuro o actual)
+                              if (totalPagos > 0) {
+                                return (
+                                  <div className="text-center">
+                                    <div className="font-bold text-base text-slate-700">{formatCOP(totalPagos)}</div>
+                                    <div className="text-xs text-slate-500 mt-1">Pagado</div>
+                                  </div>
+                                );
+                              }
+                              
+                              // Sin actividad
+                              return (
+                                <div className="text-center">
+                                  <div className="font-bold text-base text-gray-500">-</div>
+                                  <div className="text-xs text-gray-400 mt-1">Sin actividad</div>
+                                </div>
+                              );
+                            })()}
                           </div>
                         </td>
                       </tr>
