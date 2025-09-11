@@ -1500,18 +1500,6 @@ const ClientPortal = () => {
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded">
-                          <div className="flex items-center">
-                            <TrendingUp className="h-6 w-6 text-gray-600 mr-3" />
-                            <div>
-                              <div className="text-xs font-bold uppercase tracking-wider text-gray-900">Promedio Mensual</div>
-                              <div className="text-xs text-gray-600">Calculado</div>
-                            </div>
-                          </div>
-                          <div className="text-2xl font-normal text-gray-900">
-                            {formatCOP(summary.recurrentSupportPayments.reduce((sum, payment) => sum + payment.amount, 0) / 12)}
-                          </div>
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -1720,46 +1708,37 @@ const ClientPortal = () => {
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Support Summary */}
-                  <div className="bg-white border border-gray-200 p-6">
-                    <h3 className="text-base font-normal text-gray-900 mb-4">Resumen de Soporte y Evolutivos</h3>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center p-4 bg-indigo-50 rounded">
-                        <div>
-                          <div className="text-xs font-bold uppercase tracking-wider text-indigo-900">Total Pagado</div>
+                    {/* Support Summary - Moved inside grid as second column */}
+                    <div className="bg-white border border-gray-200 p-6">
+                      <h3 className="text-base font-normal text-gray-900 mb-6">Resumen de Soporte y Evolutivos</h3>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between p-4 bg-indigo-50 border border-indigo-200 rounded">
+                          <div className="flex items-center">
+                            <DollarSign className="h-6 w-6 text-indigo-600 mr-3" />
+                            <div>
+                              <div className="text-xs font-bold uppercase tracking-wider text-indigo-900">Total Pagado</div>
+                              <div className="text-xs text-indigo-700">Año {selectedYear}</div>
+                            </div>
+                          </div>
                           <div className="text-2xl font-normal text-indigo-900">
                             {formatCOP(summary.supportAndDevelopmentPayments.reduce((sum, payment) => sum + payment.amount, 0))}
                           </div>
                         </div>
-                        <div className="text-indigo-600">
-                          <DollarSign className="w-8 h-8" />
-                        </div>
-                      </div>
-                      
-                      <div className="flex justify-between items-center p-4 bg-gray-50 rounded">
-                        <div>
-                          <div className="text-xs font-bold uppercase tracking-wider text-gray-700">Cantidad de Pagos</div>
+                        
+                        <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded">
+                          <div className="flex items-center">
+                            <FileText className="h-6 w-6 text-gray-600 mr-3" />
+                            <div>
+                              <div className="text-xs font-bold uppercase tracking-wider text-gray-900">Pagos Realizados</div>
+                              <div className="text-xs text-gray-600">Número de pagos</div>
+                            </div>
+                          </div>
                           <div className="text-2xl font-normal text-gray-900">
                             {summary.supportAndDevelopmentPayments.length}
                           </div>
                         </div>
-                        <div className="text-gray-600">
-                          <FileText className="w-8 h-8" />
-                        </div>
-                      </div>
 
-                      <div className="flex justify-between items-center p-4 bg-gray-50 rounded">
-                        <div>
-                          <div className="text-xs font-bold uppercase tracking-wider text-gray-700">Promedio Mensual</div>
-                          <div className="text-2xl font-normal text-gray-900">
-                            {formatCOP(summary.supportAndDevelopmentPayments.reduce((sum, payment) => sum + payment.amount, 0) / 12)}
-                          </div>
-                        </div>
-                        <div className="text-gray-600">
-                          <TrendingUp className="w-8 h-8" />
-                        </div>
                       </div>
                     </div>
                   </div>
