@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../config/supabase';
 import { useAuth } from '../context/AuthContext';
 import { ROLES } from '../utils/roles';
@@ -36,9 +36,13 @@ import {
 } from 'recharts';
 
 const ClientPortal = () => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const isInitialized = useRef(false);
+  
+  // Simplified admin check
+  const userIsAdmin = isAdmin();
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedClientId, setSelectedClientId] = useState(null);
   const [selectedContractId, setSelectedContractId] = useState(null);
@@ -67,35 +71,58 @@ const ClientPortal = () => {
   const [showSupportRecurrentPayments, setShowSupportRecurrentPayments] = useState(false);
   const [showSupportAndDevelopmentPayments, setShowSupportAndDevelopmentPayments] = useState(false);
 
-  const isAdmin = user?.role === ROLES.ADMIN;
-  const isClient = user?.role === ROLES.CLIENT;
-  const currentClientId = isClient ? user?.client_id : selectedClientId;
+  const currentClientId = selectedClientId; // Works for both admin and client users
 
   useEffect(() => {
     const initializeData = async () => {
-      if (isAdmin) {
+      if (userIsAdmin) {
         await loadClients();
-      } else if (isClient && currentClientId) {
-        await loadClientData();
       } else {
-        setLoading(false);
+        // For non-admin users, try to find their associated client
+        try {
+          const { data: association } = await supabase
+            .from('user_client_associations')
+            .select('client_id, clients(id, name)')
+            .eq('user_id', user.id)
+            .eq('is_active', true)
+            .limit(1)
+            .single();
+            
+          if (association?.clients) {
+            setSelectedClientId(association.clients.id);
+            // Load contracts for this client, then auto-select first contract
+            await loadContracts(association.clients.id);
+          } else {
+            setError('No tienes acceso a ningún cliente. Contacta al administrador.');
+            setLoading(false);
+          }
+        } catch (err) {
+          console.error('Error loading client association:', err);
+          setError('No tienes acceso a ningún cliente. Contacta al administrador.');
+          setLoading(false);
+        }
       }
     };
     
-    initializeData();
-  }, [user?.role, user?.client_id]);
-
-  useEffect(() => {
-    if (currentClientId) {
-      loadContracts(currentClientId);
+    if (!isInitialized.current) {
+      isInitialized.current = true;
+      initializeData();
     }
-  }, [currentClientId]);
+  }, [userIsAdmin, user?.id]);
 
   useEffect(() => {
-    if (currentClientId && selectedContractId) {
+    // Only load contracts when client changes (for admin manual selection)
+    // Skip the initial load which is handled in initialization
+    if (selectedClientId && userIsAdmin && isInitialized.current) {
+      loadContracts(selectedClientId);
+    }
+  }, [selectedClientId]);
+
+  useEffect(() => {
+    if (selectedClientId && selectedContractId) {
       loadClientData();
     }
-  }, [currentClientId, selectedContractId, selectedYear]);
+  }, [selectedClientId, selectedContractId, selectedYear]);
 
   const loadClients = async () => {
     try {
@@ -112,6 +139,8 @@ const ClientPortal = () => {
       // Auto-select first client for admin
       if (clientsData && clientsData.length > 0 && !selectedClientId) {
         setSelectedClientId(clientsData[0].id);
+        // Load contracts for the first client
+        await loadContracts(clientsData[0].id);
       } else {
         setLoading(false);
       }
@@ -135,17 +164,41 @@ const ClientPortal = () => {
 
       setContracts(contractsData || []);
       
-      // Auto-select first contract
+      // Auto-select first contract and load client data
       if (contractsData && contractsData.length > 0 && !selectedContractId) {
-        setSelectedContractId(contractsData[0].id);
+        const firstContractId = contractsData[0].id;
+        setSelectedContractId(firstContractId);
+        
+        // Use setTimeout to ensure state update is processed before loading client data
+        setTimeout(async () => {
+          try {
+            // Wait a bit more to ensure state is updated
+            await loadClientData();
+          } catch (err) {
+            console.error('Error loading client data after contract selection:', err);
+            setError(err.message);
+            setLoading(false);
+          }
+        }, 100);
+      } else if (contractsData && contractsData.length === 0) {
+        setError('No se encontraron contratos para este cliente.');
+        setLoading(false);
       }
     } catch (err) {
       setError(err.message);
+      setLoading(false);
     }
   };
 
   const loadClientData = async () => {
     console.log('🔄 PORTAL: Starting to load client data for ID:', currentClientId, 'Year:', selectedYear);
+    
+    // Don't load if currentClientId is null
+    if (!currentClientId) {
+      console.log('❌ PORTAL: Cannot load client data - currentClientId is null');
+      setLoading(false);
+      return;
+    }
     
     try {
       setLoading(true);
@@ -942,7 +995,9 @@ const ClientPortal = () => {
       <div className="bg-red-50 border border-red-200 rounded p-4">
         <div className="flex items-center">
           <AlertCircle className="w-5 h-5 text-red-500 mr-2" />
-          <span className="text-red-700">{error}</span>
+          <span className="text-red-700">
+            {typeof error === 'string' ? error : error.message}
+          </span>
         </div>
       </div>
     );
@@ -953,7 +1008,12 @@ const ClientPortal = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Portal del Cliente</h1>
-          <p className="text-sm text-gray-600 mt-1">Resumen ejecutivo de horas y pagos</p>
+          <p className="text-sm text-gray-600 mt-1">
+            {userIsAdmin 
+              ? 'Resumen ejecutivo de horas y pagos' 
+              : 'Portal del Cliente'
+            }
+          </p>
         </div>
         <div className="flex items-center space-x-4">
           {isAdmin && (

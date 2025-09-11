@@ -13,6 +13,7 @@ import Billing from './components/Billing';
 import Reports from './components/Reports';
 import Users from './components/Users';
 import ClientPortal from './components/ClientPortal';
+import UserClientManagement from './components/UserClientManagement';
 import LoginPage from './components/LoginPage';
 import AuthCallback from './components/AuthCallback';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -59,6 +60,11 @@ const AppRoutes = () => {
             <Route path="reports" element={<Reports />} />
             <Route path="users" element={<Users />} />
             <Route path="portal" element={<ClientPortal />} />
+            <Route path="user-client-management" element={
+              <ProtectedRoute requiredPermission="manage_users">
+                <UserClientManagement />
+              </ProtectedRoute>
+            } />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </>

@@ -10,39 +10,42 @@ export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
 
   useEffect(() => {
-    // Verificar sesión inicial
+    // Simple initial session check
     const checkSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('Error checking session:', error);
+          setLoading(false);
+          return;
         }
         
         setSession(session);
         
         if (session?.user) {
-          // Simple user setup - we'll restore database queries later
+          // Simple hardcoded role assignment to prevent loops
           setUser({
             id: session.user.id,
             email: session.user.email,
             full_name: session.user.user_metadata?.full_name || session.user.email || 'Usuario',
             username: session.user.email?.split('@')[0] || 'user',
-            role: (session.user.email === 'edwinvallejo@aplyca.com' || session.user.email === 'evallejo@aplyca.com') ? 'admin' : 'collaborator',
+            role: session.user.email === 'evallejo@aplyca.com' ? 'admin' : 'client',
             is_active: true,
             client_id: null
           });
         }
+        
+        setLoading(false);
       } catch (error) {
         console.error('Error in checkSession:', error);
-      } finally {
         setLoading(false);
       }
     };
 
     checkSession();
 
-    // Escuchar cambios de auth
+    // Listen to auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       
@@ -52,7 +55,7 @@ export const AuthProvider = ({ children }) => {
           email: session.user.email,
           full_name: session.user.user_metadata?.full_name || session.user.email || 'Usuario',
           username: session.user.email?.split('@')[0] || 'user',
-          role: (session.user.email === 'edwinvallejo@aplyca.com' || session.user.email === 'evallejo@aplyca.com') ? 'admin' : 'collaborator',
+          role: session.user.email === 'evallejo@aplyca.com' ? 'admin' : 'client',
           is_active: true,
           client_id: null
         });

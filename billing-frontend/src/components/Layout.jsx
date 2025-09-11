@@ -48,8 +48,14 @@ const Layout = () => {
   );
 
   const navigationEnd = [
-    ...(hasPermission(user?.role, PERMISSIONS.MANAGE_USERS) ? [{ name: 'Usuarios', href: '/users', icon: Settings }] : []),
+    ...(hasPermission(user?.role, PERMISSIONS.MANAGE_USERS) ? [
+      { name: 'Usuarios', href: '/users', icon: Settings },
+      { name: 'Asociaciones', href: '/user-client-management', icon: Users }
+    ] : []),
   ];
+  
+  // Debug logging for user permissions
+  console.log('Layout Debug - User:', user?.email, 'Role:', user?.role, 'HasManageUsers:', hasPermission(user?.role, PERMISSIONS.MANAGE_USERS));
 
   // Create mega menu items with permission filtering (only for non-client users)
   const createMegaMenuItems = () => {
