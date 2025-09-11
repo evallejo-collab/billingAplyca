@@ -23,6 +23,7 @@ import { hasPermission, PERMISSIONS, ROLES } from '../utils/roles';
 const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [megaMenuOpen, setMegaMenuOpen] = useState(null);
+  const [loggingOut, setLoggingOut] = useState(false);
   const { user, logout, isAdmin } = useAuth();
   const location = useLocation();
 
@@ -120,7 +121,13 @@ const Layout = () => {
   };
 
   const handleLogout = async () => {
-    await logout();
+    setLoggingOut(true);
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+      setLoggingOut(false);
+    }
   };
 
   // Close mega menu when clicking outside
@@ -218,10 +225,11 @@ const Layout = () => {
               </div>
               <button
                 onClick={handleLogout}
-                className="flex items-center px-3 py-2 text-sm text-white hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
+                disabled={loggingOut}
+                className="flex items-center px-3 py-2 text-sm text-white hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors disabled:opacity-50"
               >
                 <LogOut className="w-4 h-4 mr-2" />
-                Salir
+                {loggingOut ? 'Cerrando...' : 'Salir'}
               </button>
             </div>
           </div>
@@ -316,10 +324,11 @@ const Layout = () => {
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="flex items-center w-full px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                  disabled={loggingOut}
+                  className="flex items-center w-full px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50"
                 >
                   <LogOut className="w-5 h-5 mr-3" />
-                  Cerrar Sesión
+                  {loggingOut ? 'Cerrando Sesión...' : 'Cerrar Sesión'}
                 </button>
               </div>
             </nav>

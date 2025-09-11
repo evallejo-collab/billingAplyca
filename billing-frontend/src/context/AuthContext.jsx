@@ -47,9 +47,19 @@ export const AuthProvider = ({ children }) => {
 
     // Listen to auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('🔄 Auth state change:', event, session ? 'has session' : 'no session');
+      
       setSession(session);
       
+      if (event === 'SIGNED_OUT') {
+        console.log('👋 User signed out');
+        setUser(null);
+        setSession(null);
+        return;
+      }
+      
       if (session?.user) {
+        console.log('👤 User signed in:', session.user.email);
         setUser({
           id: session.user.id,
           email: session.user.email,
@@ -60,6 +70,7 @@ export const AuthProvider = ({ children }) => {
           client_id: null
         });
       } else {
+        console.log('❌ No session');
         setUser(null);
       }
     });
@@ -84,9 +95,59 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await supabase.auth.signOut();
+      console.log('🔄 Starting logout process...');
+      
+      // Clear state immediately to prevent any UI flicker
+      setUser(null);
+      setSession(null);
+      setLoading(false);
+      
+      // Sign out from Supabase with scope 'local' to clear all storage
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
+      if (error) {
+        console.error('Supabase signOut error:', error);
+      }
+      
+      // Additional cleanup - clear all Supabase related localStorage
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('sb-')) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => {
+        console.log('🧹 Clearing localStorage key:', key);
+        localStorage.removeItem(key);
+      });
+      
+      // Also clear session storage
+      const sessionKeysToRemove = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && key.startsWith('sb-')) {
+          sessionKeysToRemove.push(key);
+        }
+      }
+      sessionKeysToRemove.forEach(key => {
+        console.log('🧹 Clearing sessionStorage key:', key);
+        sessionStorage.removeItem(key);
+      });
+      
+      console.log('✅ Logout completed - all storage cleared');
+      
+      // Force a page reload to ensure clean state
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
+      
     } catch (error) {
       console.error('Logout error:', error);
+      // Even if everything fails, clear state and reload
+      setUser(null);
+      setSession(null);
+      setLoading(false);
+      window.location.reload();
     }
   };
 
