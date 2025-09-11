@@ -891,7 +891,7 @@ const ClientPortal = () => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white p-3 border border-gray-200 shadow-lg rounded">
-          <p className="font-medium text-gray-900">{`${label}`}</p>
+          <p className="font-normal text-gray-900">{`${label}`}</p>
           {payload.map((entry, index) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
               {`${entry.dataKey}: ${entry.dataKey.includes('facturado') || entry.dataKey.includes('pagado') || entry.dataKey.includes('balance') 
@@ -985,7 +985,7 @@ const ClientPortal = () => {
         <div className="text-center py-12">
           <div className="max-w-md mx-auto">
             <FileText className="w-12 h-12 text-gray-200 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Selecciona un Cliente</h3>
+            <h3 className="text-lg font-normal text-gray-900 mb-2">Selecciona un Cliente</h3>
             <p className="text-gray-600">
               Para ver el portal del cliente, selecciona un cliente en el menú desplegable de arriba.
             </p>
@@ -1001,7 +1001,7 @@ const ClientPortal = () => {
             <div className="px-8 py-6 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-150">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-semibold text-gray-800 tracking-tight">Resumen Ejecutivo {selectedYear}</h2>
+                  <h2 className="text-2xl font-semibold text-gray-800 ">Resumen Ejecutivo {selectedYear}</h2>
                   <p className="text-gray-600 text-sm mt-2">Métricas clave y estado financiero</p>
                 </div>
                 <div className="p-3 bg-white border border-gray-200 rounded-xl shadow-sm">
@@ -1015,14 +1015,14 @@ const ClientPortal = () => {
                 {/* Horas Efectivas */}
                 <div className="bg-white border border-gray-100 rounded-2xl p-8 hover:shadow-xl hover:border-blue-200 transition-all duration-300 transform hover:-translate-y-2 hover:bg-gradient-to-br hover:from-white hover:to-blue-50">
                   <div className="text-center">
-                    <div className="text-4xl font-light text-gray-900 tracking-tight mb-2">
-                      {(summary.totalEffectiveHours || 0).toFixed(1)}
+                    <div className="text-4xl font-normal text-gray-900 mb-2">
+                      {Math.round(summary.totalEffectiveHours || 0)}
                     </div>
-                    <div className="text-xs text-gray-500 font-medium uppercase tracking-widest mb-4">Horas</div>
+                    <div className="text-xs text-gray-500 font-normal uppercase mb-4">Horas</div>
                     <div className="border-t border-gray-100 pt-4">
-                      <div className="text-sm font-medium text-gray-900 mb-2">Horas Efectivas</div>
-                      <div className="text-xs text-gray-600 leading-relaxed">
-                        {summary.totalHours.toFixed(1)} directas + {(summary.totalEquivalentHours || 0).toFixed(1)} soporte
+                      <div className="text-sm font-normal text-gray-900 mb-2">Horas Efectivas</div>
+                      <div className="text-xs text-gray-600">
+                        {Math.round(summary.totalHours)} directas + {Math.round(summary.totalEquivalentHours || 0)} soporte
                       </div>
                     </div>
                   </div>
@@ -1031,13 +1031,13 @@ const ClientPortal = () => {
                 {/* Horas Restantes */}
                 <div className="bg-white border border-gray-100 rounded-2xl p-8 hover:shadow-xl hover:border-green-200 transition-all duration-300 transform hover:-translate-y-2 hover:bg-gradient-to-br hover:from-white hover:to-green-50">
                   <div className="text-center">
-                    <div className="text-4xl font-light text-gray-900 tracking-tight mb-2">
-                      {(summary.effectiveHoursRemaining || 0).toFixed(1)}
+                    <div className="text-4xl font-normal text-gray-900 mb-2">
+                      {Math.round(summary.effectiveHoursRemaining || 0)}
                     </div>
-                    <div className="text-xs text-gray-500 font-medium uppercase tracking-widest mb-4">Horas</div>
+                    <div className="text-xs text-gray-500 font-normal uppercase mb-4">Horas</div>
                     <div className="border-t border-gray-100 pt-4">
-                      <div className="text-sm font-medium text-gray-900 mb-2">Horas Restantes</div>
-                      <div className="text-xs text-gray-600 leading-relaxed">
+                      <div className="text-sm font-normal text-gray-900 mb-2">Horas Restantes</div>
+                      <div className="text-xs text-gray-600">
                         {summary.totalAnnualHours ? `de ${summary.totalAnnualHours} anuales` : 'No definido'}
                       </div>
                     </div>
@@ -1047,13 +1047,13 @@ const ClientPortal = () => {
                 {/* Total Pagado */}
                 <div className="bg-white border border-gray-100 rounded-2xl p-8 hover:shadow-xl hover:border-emerald-200 transition-all duration-300 transform hover:-translate-y-2 hover:bg-gradient-to-br hover:from-white hover:to-emerald-50">
                   <div className="text-center">
-                    <div className="text-3xl font-light text-gray-900 tracking-tight mb-2">
+                    <div className="text-3xl font-normal text-gray-900 mb-2">
                       {formatCOP(summary.totalPaid, true)}
                     </div>
-                    <div className="text-xs text-gray-500 font-medium uppercase tracking-widest mb-4">COP</div>
+                    <div className="text-xs text-gray-500 font-normal uppercase mb-4">COP</div>
                     <div className="border-t border-gray-100 pt-4">
-                      <div className="text-sm font-medium text-gray-900 mb-2">Total Pagado</div>
-                      <div className="text-xs text-gray-600 leading-relaxed">Ingresos {selectedYear}</div>
+                      <div className="text-sm font-normal text-gray-900 mb-2">Total Pagado</div>
+                      <div className="text-xs text-gray-600">Ingresos {selectedYear}</div>
                     </div>
                   </div>
                 </div>
@@ -1061,15 +1061,15 @@ const ClientPortal = () => {
                 {/* Deuda Soporte Fijo */}
                 <div className="bg-white border border-gray-100 rounded-2xl p-8 hover:shadow-xl hover:border-red-200 transition-all duration-300 transform hover:-translate-y-2 hover:bg-gradient-to-br hover:from-white hover:to-red-50">
                   <div className="text-center">
-                    <div className={`text-4xl font-light tracking-tight mb-2 ${
+                    <div className={`text-4xl font-normal  mb-2 ${
                       (summary.missingRecurrentSupportMonths || 0) > 0 ? 'text-red-600' : 'text-gray-900'
                     }`}>
                       {summary.missingRecurrentSupportMonths || 0}
                     </div>
-                    <div className="text-xs text-gray-500 font-medium uppercase tracking-widest mb-4">Meses</div>
+                    <div className="text-xs text-gray-500 font-normal uppercase mb-4">Meses</div>
                     <div className="border-t border-gray-100 pt-4">
-                      <div className="text-sm font-medium text-gray-900 mb-2">Deuda Soporte Fijo</div>
-                      <div className="text-xs text-gray-600 leading-relaxed">
+                      <div className="text-sm font-normal text-gray-900 mb-2">Deuda Soporte Fijo</div>
+                      <div className="text-xs text-gray-600">
                         {(summary.missingRecurrentSupportMonths || 0) > 0 
                           ? (summary.missingRecurrentMonths || []).join(', ')
                           : 'Al corriente'
@@ -1082,15 +1082,15 @@ const ClientPortal = () => {
                 {/* Deuda Soporte y Evolutivos */}
                 <div className="bg-white border border-gray-100 rounded-2xl p-8 hover:shadow-xl hover:border-orange-200 transition-all duration-300 transform hover:-translate-y-2 hover:bg-gradient-to-br hover:from-white hover:to-orange-50">
                   <div className="text-center">
-                    <div className={`text-4xl font-light tracking-tight mb-2 ${
+                    <div className={`text-4xl font-normal  mb-2 ${
                       (summary.missingSupportAndDevelopmentMonths || 0) > 0 ? 'text-red-600' : 'text-gray-900'
                     }`}>
                       {summary.missingSupportAndDevelopmentMonths || 0}
                     </div>
-                    <div className="text-xs text-gray-500 font-medium uppercase tracking-widest mb-4">Meses</div>
+                    <div className="text-xs text-gray-500 font-normal uppercase mb-4">Meses</div>
                     <div className="border-t border-gray-100 pt-4">
-                      <div className="text-sm font-medium text-gray-900 mb-2">Deuda Soporte y Evolutivos</div>
-                      <div className="text-xs text-gray-600 leading-relaxed">
+                      <div className="text-sm font-normal text-gray-900 mb-2">Deuda Soporte y Evolutivos</div>
+                      <div className="text-xs text-gray-600">
                         Horas sin facturar
                       </div>
                     </div>
@@ -1149,7 +1149,7 @@ const ClientPortal = () => {
                           </div>
                         </td>
                         <td className="px-8 py-6">
-                          <div className={`inline-flex px-2 py-1 text-xs font-medium rounded ${getStatusColor(contract.status)}`}>
+                          <div className={`inline-flex px-2 py-1 text-xs font-normal rounded ${getStatusColor(contract.status)}`}>
                             {getStatusLabel(contract.status)}
                           </div>
                         </td>
@@ -1236,7 +1236,7 @@ const ClientPortal = () => {
           {currentClientId && chartData.length > 0 && (
             <div className="bg-white border border-gray-200 shadow-lg rounded overflow-hidden">
               <div className="px-6 py-4 bg-white border-b border-gray-200">
-                <h2 className="text-lg font-medium text-gray-900">Análisis Visual</h2>
+                <h2 className="text-lg font-normal text-gray-900">Análisis Visual</h2>
               </div>
               <div className="p-6 bg-white">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -1250,7 +1250,7 @@ const ClientPortal = () => {
                     </div>
                     {summary.totalAnnualHours && (
                       <p className="text-sm text-gray-600 mb-4">
-                        Quedan {summary.hoursRemaining.toFixed(1)} horas de {summary.totalAnnualHours} anuales
+                        Quedan {Math.round(summary.hoursRemaining)} horas de {summary.totalAnnualHours} anuales
                       </p>
                     )}
                     <div className="h-64">
@@ -1275,10 +1275,10 @@ const ClientPortal = () => {
                                 const monthlyAverage = summary.totalHours / 12;
                                 return (
                                   <div className="bg-white p-3 border border-gray-200 shadow-lg rounded">
-                                    <p className="font-medium text-gray-900">{label}</p>
+                                    <p className="font-normal text-gray-900">{label}</p>
                                     <p className="text-sm text-gray-600">Horas usadas: {data.horas}</p>
                                     <p className="text-sm text-gray-600">
-                                      Promedio mensual: {monthlyAverage.toFixed(1)}h
+                                      Promedio mensual: {Math.round(monthlyAverage)}h
                                     </p>
                                   </div>
                                 );
@@ -1295,8 +1295,8 @@ const ClientPortal = () => {
                               <Cell 
                                 key={`cell-${index}`} 
                                 fill={
-                                  entry.mes === 'PROM' ? '#3b82f6' : // Azul como color de acento
-                                  '#6b7280' // Gris elegante para todos los meses
+                                  entry.mes === 'PROM' ? '#6366f1' : // Índigo suave para el promedio
+                                  '#cbd5e1' // Gris azulado con mejor contraste para todos los meses
                                 } 
                               />
                             ))}
@@ -1335,7 +1335,7 @@ const ClientPortal = () => {
                               if (active && payload && payload.length) {
                                 return (
                                   <div className="bg-white p-3 border border-gray-200 shadow-lg rounded">
-                                    <p className="font-medium text-gray-900">{`${label}`}</p>
+                                    <p className="font-normal text-gray-900">{`${label}`}</p>
                                     {payload.map((entry, index) => (
                                       <p key={index} className="text-sm" style={{ color: entry.color }}>
                                         {entry.name}: {formatCOP(entry.value)}
@@ -1355,7 +1355,7 @@ const ClientPortal = () => {
                             {chartData.map((entry, index) => (
                               <Cell 
                                 key={`cell-${index}`} 
-                                fill="#6b7280" // Gris elegante para pagos recurrentes
+                                fill="#cbd5e1" // Gris azulado con mejor contraste para pagos recurrentes
                               />
                             ))}
                           </Bar>
@@ -1367,7 +1367,7 @@ const ClientPortal = () => {
                             {chartData.map((entry, index) => (
                               <Cell 
                                 key={`cell-${index}`} 
-                                fill="#3b82f6" // Azul como acento para pagos evolutivos
+                                fill="#6366f1" // Índigo suave para pagos evolutivos
                               />
                             ))}
                           </Bar>
@@ -1405,7 +1405,7 @@ const ClientPortal = () => {
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {/* Recurrent Support Payments Chart */}
                     <div className="bg-white border border-gray-200 p-6">
-                      <h3 className="text-base font-medium text-gray-900 mb-4">Pagos Recurrentes</h3>
+                      <h3 className="text-base font-normal text-gray-900 mb-4">Pagos Recurrentes</h3>
                       <div className="h-64">
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={(() => {
@@ -1472,7 +1472,7 @@ const ClientPortal = () => {
 
                     {/* Recurrent Support Payments Summary */}
                     <div className="bg-white border border-gray-200 p-6">
-                      <h3 className="text-base font-medium text-gray-900 mb-6">Resumen de Pagos Recurrentes</h3>
+                      <h3 className="text-base font-normal text-gray-900 mb-6">Resumen de Pagos Recurrentes</h3>
                       <div className="space-y-4">
                         <div className="flex items-center justify-between p-4 bg-indigo-50 border border-indigo-200 rounded">
                           <div className="flex items-center">
@@ -1482,7 +1482,7 @@ const ClientPortal = () => {
                               <div className="text-xs text-indigo-700">Año {selectedYear}</div>
                             </div>
                           </div>
-                          <div className="text-2xl font-light text-indigo-900">
+                          <div className="text-2xl font-normal text-indigo-900">
                             {formatCOP(summary.recurrentSupportPayments.reduce((sum, payment) => sum + payment.amount, 0))}
                           </div>
                         </div>
@@ -1495,7 +1495,7 @@ const ClientPortal = () => {
                               <div className="text-xs text-gray-600">Número de pagos</div>
                             </div>
                           </div>
-                          <div className="text-2xl font-light text-gray-900">
+                          <div className="text-2xl font-normal text-gray-900">
                             {summary.recurrentSupportPayments.length}
                           </div>
                         </div>
@@ -1508,7 +1508,7 @@ const ClientPortal = () => {
                               <div className="text-xs text-gray-600">Calculado</div>
                             </div>
                           </div>
-                          <div className="text-2xl font-light text-gray-900">
+                          <div className="text-2xl font-normal text-gray-900">
                             {formatCOP(summary.recurrentSupportPayments.reduce((sum, payment) => sum + payment.amount, 0) / 12)}
                           </div>
                         </div>
@@ -1523,7 +1523,7 @@ const ClientPortal = () => {
                         onClick={() => setShowPaymentDetails(!showPaymentDetails)}
                         className="flex items-center justify-between w-full text-left"
                       >
-                        <h4 className="text-base font-medium text-gray-900">Detalle de Pagos Recurrentes</h4>
+                        <h4 className="text-base font-normal text-gray-900">Detalle de Pagos Recurrentes</h4>
                         {showPaymentDetails ? (
                           <ChevronUp className="h-5 w-5 text-gray-600" />
                         ) : (
@@ -1557,7 +1557,7 @@ const ClientPortal = () => {
                                   {new Date(payment.payment_date).toLocaleDateString('es-ES')}
                                 </td>
                                 <td className="px-6 py-4 text-sm">
-                                  <span className="inline-flex px-2 py-1 text-xs font-medium rounded bg-purple-100 text-purple-800">
+                                  <span className="inline-flex px-2 py-1 text-xs font-normal rounded bg-purple-100 text-purple-800">
                                     Soporte Recurrente
                                   </span>
                                 </td>
@@ -1603,7 +1603,7 @@ const ClientPortal = () => {
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {/* Support and Development Payments Chart */}
                     <div className="bg-white border border-gray-200 p-6">
-                      <h3 className="text-base font-medium text-gray-900 mb-4">Pago de Soporte y Evolutivos</h3>
+                      <h3 className="text-base font-normal text-gray-900 mb-4">Pago de Soporte y Evolutivos</h3>
                       <div className="h-64">
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={(() => {
@@ -1677,7 +1677,7 @@ const ClientPortal = () => {
                               if (active && payload && payload.length) {
                                 return (
                                   <div className="bg-white p-3 border border-gray-200 shadow-lg rounded">
-                                    <p className="font-medium text-gray-900">{label}</p>
+                                    <p className="font-normal text-gray-900">{label}</p>
                                     {payload.map((entry, index) => (
                                       <p key={index} className="text-sm" style={{ color: entry.color }}>
                                         {entry.dataKey === 'pagos' 
@@ -1724,12 +1724,12 @@ const ClientPortal = () => {
 
                 {/* Support Summary */}
                   <div className="bg-white border border-gray-200 p-6">
-                    <h3 className="text-base font-medium text-gray-900 mb-4">Resumen de Soporte y Evolutivos</h3>
+                    <h3 className="text-base font-normal text-gray-900 mb-4">Resumen de Soporte y Evolutivos</h3>
                     <div className="space-y-4">
                       <div className="flex justify-between items-center p-4 bg-indigo-50 rounded">
                         <div>
                           <div className="text-xs font-bold uppercase tracking-wider text-indigo-900">Total Pagado</div>
-                          <div className="text-2xl font-light text-indigo-900">
+                          <div className="text-2xl font-normal text-indigo-900">
                             {formatCOP(summary.supportAndDevelopmentPayments.reduce((sum, payment) => sum + payment.amount, 0))}
                           </div>
                         </div>
@@ -1741,7 +1741,7 @@ const ClientPortal = () => {
                       <div className="flex justify-between items-center p-4 bg-gray-50 rounded">
                         <div>
                           <div className="text-xs font-bold uppercase tracking-wider text-gray-700">Cantidad de Pagos</div>
-                          <div className="text-2xl font-light text-gray-900">
+                          <div className="text-2xl font-normal text-gray-900">
                             {summary.supportAndDevelopmentPayments.length}
                           </div>
                         </div>
@@ -1753,7 +1753,7 @@ const ClientPortal = () => {
                       <div className="flex justify-between items-center p-4 bg-gray-50 rounded">
                         <div>
                           <div className="text-xs font-bold uppercase tracking-wider text-gray-700">Promedio Mensual</div>
-                          <div className="text-2xl font-light text-gray-900">
+                          <div className="text-2xl font-normal text-gray-900">
                             {formatCOP(summary.supportAndDevelopmentPayments.reduce((sum, payment) => sum + payment.amount, 0) / 12)}
                           </div>
                         </div>
@@ -1875,7 +1875,7 @@ const ClientPortal = () => {
                     <div className="text-gray-200 mb-4">
                       <BarChart3 className="w-12 h-12 mx-auto" />
                     </div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Sin datos disponibles</h3>
+                    <h3 className="text-lg font-normal text-gray-900 mb-2">Sin datos disponibles</h3>
                     <p className="text-gray-600">No se encontraron registros para el año {selectedYear}</p>
                   </div>
                 )}
