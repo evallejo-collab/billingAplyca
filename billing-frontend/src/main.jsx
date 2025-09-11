@@ -11,12 +11,9 @@ if (typeof window !== 'undefined' && clarityProjectId) {
     const clarity = module.default || module
     if (clarity && typeof clarity.init === 'function') {
       clarity.init(clarityProjectId)
-      console.log('Microsoft Clarity initialized with project ID:', clarityProjectId)
     } else {
-      console.warn('Microsoft Clarity init function not found')
     }
   }).catch((error) => {
-    console.warn('Failed to initialize Microsoft Clarity:', error)
   })
 }
 

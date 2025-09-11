@@ -1,6 +1,11 @@
 // Utility functions for currency formatting
 
-export const formatCOP = (amount) => {
+export const formatCOP = (amount, compact = false) => {
+  if (compact && Math.abs(amount) >= 1000000) {
+    const millions = amount / 1000000;
+    return `$${millions.toFixed(1)}M`;
+  }
+  
   return new Intl.NumberFormat('es-CO', {
     style: 'currency',
     currency: 'COP',

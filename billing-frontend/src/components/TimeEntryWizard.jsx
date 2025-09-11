@@ -79,7 +79,7 @@ const TimeEntryWizard = ({ isOpen, onClose, onTimeEntrySaved, selectedEntry, isE
       const response = await clientsApi.getAll();
       setClients(response.data || []);
     } catch (err) {
-      console.error('Error loading clients:', err);
+      // Error loading clients
     }
   };
 
@@ -88,7 +88,7 @@ const TimeEntryWizard = ({ isOpen, onClose, onTimeEntrySaved, selectedEntry, isE
       const response = await projectsApi.getAll();
       setProjects(response.data || []);
     } catch (err) {
-      console.error('Error loading projects:', err);
+      // Error loading projects
     }
   };
 
@@ -109,7 +109,6 @@ const TimeEntryWizard = ({ isOpen, onClose, onTimeEntrySaved, selectedEntry, isE
   const populateForEditing = async () => {
     if (!selectedEntry) return;
     
-    console.log('Populating wizard for editing with entry:', selectedEntry);
     
     try {
       // Find the project associated with this entry
@@ -162,7 +161,6 @@ const TimeEntryWizard = ({ isOpen, onClose, onTimeEntrySaved, selectedEntry, isE
       setCurrentStep(3);
       
     } catch (error) {
-      console.error('Error populating wizard for editing:', error);
       setError('Error cargando datos para edición');
     }
   };

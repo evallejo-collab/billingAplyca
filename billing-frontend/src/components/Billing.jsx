@@ -74,8 +74,6 @@ const Billing = () => {
       const projects = projectsResponse.data || [];
       const clients = clientsResponse.data || [];
       
-      console.log('Raw contracts data:', contracts);
-      console.log('Raw projects data:', projects);
 
       // Transform to billing items
       const billingItems = [];
@@ -87,7 +85,6 @@ const Billing = () => {
         const paidAmount = parseFloat(contract.billed_amount) || 0;
         const pendingAmount = Math.max(0, totalContractValue - paidAmount);
         
-        console.log(`Contract ${contract.id}: billed_amount=${contract.billed_amount}, paidAmount=${paidAmount}`);
         
         billingItems.push({
           id: `contract-${contract.id}`,
@@ -117,7 +114,6 @@ const Billing = () => {
         const paidAmount = parseFloat(project.paid_amount) || 0;
         const pendingAmount = Math.max(0, totalProjectValue - paidAmount);
         
-        console.log(`Project ${project.name}: hourly_rate=${project.hourly_rate}, estimated_hours=${project.estimated_hours}, calculated total=${totalProjectValue}`);
         
         billingItems.push({
           id: `project-${project.id}`,
@@ -139,10 +135,8 @@ const Billing = () => {
         });
       });
 
-      console.log('Final billingItems before setState:', billingItems);
       setBillingItems(billingItems);
     } catch (error) {
-      console.error('Error loading billing data:', error);
     } finally {
       setLoading(false);
     }
@@ -201,7 +195,6 @@ const Billing = () => {
   };
 
   const toggleRowExpansion = async (item) => {
-    console.log('Toggle expansion for item:', item);
     const itemKey = item.id;
     const newExpandedRows = new Set(expandedRows);
     
@@ -213,22 +206,19 @@ const Billing = () => {
       if (!rowPayments[itemKey]) {
         try {
           let response;
-          console.log('Loading payments for:', item.type, item.contractId || item.projectId);
           if (item.type === 'contract') {
             response = await paymentsApi.getByContract(item.contractId);
           } else {
             response = await paymentsApi.getByProject(item.projectId);
           }
           
-          console.log('Payments response:', response);
           const payments = response.data || [];
-          console.log('Found payments:', payments);
           setRowPayments(prev => ({
             ...prev,
             [itemKey]: payments
           }));
         } catch (error) {
-          console.error('Error loading payments:', error);
+          // Error loading payments
         }
       }
     }
@@ -253,7 +243,7 @@ const Billing = () => {
         [itemId]: response.data || []
       }));
     } catch (error) {
-      console.error('Error loading payments:', error);
+      // Error loading payments
     }
   };
 
@@ -262,10 +252,7 @@ const Billing = () => {
     
     try {
       setDeletingPayment(paymentId);
-      console.log('Deleting payment:', paymentId, 'for item:', itemId);
-      
       const response = await paymentsApi.delete(paymentId);
-      console.log('Delete response:', response.data);
       
       // Supabase delete always succeeds if no error is thrown
       {
@@ -280,12 +267,9 @@ const Billing = () => {
         setLoading(false);
         
         // Force reload main data to update totals
-        console.log('Reloading billing data after deletion...');
         await loadBillingData();
-        console.log('Billing data reloaded successfully');
       }
     } catch (err) {
-      console.error('Error deleting payment:', err);
       setError('Error al eliminar el pago');
     } finally {
       setDeletingPayment(null);
@@ -739,9 +723,7 @@ const PaymentModal = ({ isOpen, onClose, item, onPaymentSaved }) => {
           }
           
           setAvailableProjects(projects);
-          console.log('Loaded projects for payment modal:', projects);
       } catch (error) {
-        console.error('Error loading projects:', error);
         setAvailableProjects([]);
       }
     };
@@ -757,13 +739,6 @@ const PaymentModal = ({ isOpen, onClose, item, onPaymentSaved }) => {
     setError(null);
 
     try {
-      console.log('Payment calculation debug:', {
-        paymentType: formData.paymentType,
-        percentage: formData.percentage,
-        amount: formData.amount,
-        itemTotalValue: item.totalValue,
-        itemPendingAmount: item.pendingAmount
-      });
 
       let paymentAmount;
       let description = formData.description;
@@ -786,13 +761,6 @@ const PaymentModal = ({ isOpen, onClose, item, onPaymentSaved }) => {
           
           if (formData.projectPaymentType === 'percentage') {
             // Debug: ver qué campos tiene el proyecto
-            console.log('Project data:', {
-              total_amount: selectedProject.total_amount,
-              hourly_rate: selectedProject.hourly_rate, 
-              estimated_hours: selectedProject.estimated_hours,
-              contract_id: selectedProject.contract_id,
-              is_independent: selectedProject.is_independent
-            });
             
             // Usar la misma lógica para calcular el total
             let projectTotalAmount = parseFloat(selectedProject.total_amount) || 0;
@@ -803,13 +771,11 @@ const PaymentModal = ({ isOpen, onClose, item, onPaymentSaved }) => {
               const linkedContract = availableContracts.find(c => c.id === selectedProject.contract_id);
               if (linkedContract && linkedContract.hourly_rate) {
                 hourlyRate = parseFloat(linkedContract.hourly_rate);
-                console.log('Using contract hourly rate:', hourlyRate);
               }
             }
             
             if (projectTotalAmount === 0 && hourlyRate > 0 && selectedProject.estimated_hours) {
               projectTotalAmount = hourlyRate * parseFloat(selectedProject.estimated_hours);
-              console.log('Calculated project total:', projectTotalAmount);
               
               // Verificar si el cálculo es demasiado grande (límite de PostgreSQL numeric es ~10^131)
               if (projectTotalAmount > 999999999999) { // Limite más conservador
@@ -823,7 +789,6 @@ const PaymentModal = ({ isOpen, onClose, item, onPaymentSaved }) => {
               return;
             }
             paymentAmount = (projectTotalAmount * parseFloat(formData.percentage)) / 100;
-            console.log('Final payment amount:', paymentAmount);
             
             // Validar que el monto final no sea demasiado grande
             if (paymentAmount > 999999999999) {
@@ -846,7 +811,6 @@ const PaymentModal = ({ isOpen, onClose, item, onPaymentSaved }) => {
           break;
       }
 
-      console.log('Calculated payment amount:', paymentAmount);
 
       if (!paymentAmount || paymentAmount <= 0) {
         setError('El monto del pago debe ser mayor a 0. Verifica que el valor total del proyecto/contrato no sea 0.');
@@ -868,19 +832,14 @@ const PaymentModal = ({ isOpen, onClose, item, onPaymentSaved }) => {
       };
       
       // Final validation of payment data
-      console.log('Final payment data before API call:', paymentData);
 
       // Call API based on item type
       let response;
-      console.log('About to make payment API call:', item.type, paymentData);
       if (item.type === 'contract') {
-        console.log('Calling contractsApi.addPayment with ID:', item.contractId);
         response = await contractsApi.addPayment(item.contractId, paymentData);
       } else {
-        console.log('Calling projectsApi.addPayment with ID:', item.projectId);
         response = await projectsApi.addPayment(item.projectId, paymentData);
       }
-      console.log('Payment API response:', response);
 
       onPaymentSaved();
     } catch (err) {
@@ -1005,7 +964,7 @@ const PaymentModal = ({ isOpen, onClose, item, onPaymentSaved }) => {
                           </option>
                         );
                       } catch (error) {
-                        console.error('Error rendering project option:', project, error);
+                        // Error rendering project option
                         return (
                           <option key={project.id} value={project.id}>
                             {project.name || 'Proyecto sin nombre'}

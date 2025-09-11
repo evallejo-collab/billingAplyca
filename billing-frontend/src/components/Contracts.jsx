@@ -36,7 +36,7 @@ const Contracts = () => {
       setContracts(response.data);
     } catch (err) {
       setError(err.message);
-      console.error('Error loading contracts:', err);
+      // Error loading contracts
     } finally {
       setLoading(false);
     }
@@ -47,7 +47,7 @@ const Contracts = () => {
       const response = await clientsApi.getAll();
       setClients(response.data);
     } catch (err) {
-      console.error('Error loading clients:', err);
+      // Error loading clients
     }
   };
 

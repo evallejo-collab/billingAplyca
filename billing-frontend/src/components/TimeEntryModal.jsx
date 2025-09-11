@@ -29,7 +29,6 @@ const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, se
     if (isOpen) {
       if (isEditing && selectedEntry) {
         // Populate form with selected entry data
-        console.log('Loading editing data for entry:', selectedEntry);
         const newFormData = {
           // If it has both contract_id and project_id, it's a contract project
           // If it only has project_id (no contract_id), it's independent
@@ -43,7 +42,6 @@ const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, se
           created_by: selectedEntry.created_by || user?.full_name || '',
           notes: selectedEntry.notes || '',
         };
-        console.log('Setting form data:', newFormData);
         setFormData(newFormData);
         
         // If it's a contract entry, load the projects for that contract
@@ -59,20 +57,16 @@ const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, se
   }, [isOpen, isEditing, selectedEntry, activeContracts]);
 
   useEffect(() => {
-    console.log('Form data changed:', formData);
     if (formData.project_type === 'contract' && formData.contract_id) {
       const contract = activeContracts.find(c => c.id === parseInt(formData.contract_id));
-      console.log('Found contract:', contract);
       setSelectedContract(contract);
       loadProjectsForContract(formData.contract_id);
       setSelectedProject(null);
     } else if (formData.project_type === 'independent' && formData.project_id) {
       const project = independentProjects.find(p => p.id === parseInt(formData.project_id));
-      console.log('Found independent project:', project);
       setSelectedProject(project);
       setSelectedContract(null);
     } else {
-      console.log('Clearing selected contract/project');
       setSelectedContract(null);
       setSelectedProject(null);
       setContractProjects([]);
@@ -102,7 +96,6 @@ const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, se
       const response = await projectsApi.getByContract(contractId);
       setContractProjects(response.data || []);
     } catch (error) {
-      console.error('Error loading projects:', error);
       setContractProjects([]);
     }
   };
@@ -113,7 +106,6 @@ const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, se
       const activeProjects = (response.data || []).filter(project => project.status === 'active');
       setIndependentProjects(activeProjects);
     } catch (error) {
-      console.error('Error loading independent projects:', error);
       setIndependentProjects([]);
     }
   };
@@ -158,14 +150,10 @@ const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, se
 
       if (isEditing && selectedEntry) {
         // Update existing entry
-        console.log('Updating entry with data:', submitData);
         const response = await timeEntriesApi.update(selectedEntry.id, submitData);
-        console.log('Update response:', response);
       } else {
         // Create new entry
-        console.log('Creating entry with data:', submitData);
         const response = await timeEntriesApi.create(submitData);
-        console.log('Create response:', response);
       }
       
       onTimeEntrySaved();

@@ -27,7 +27,7 @@ const Dashboard = () => {
       setAllContracts(allContracts); // Store all contracts for metrics
     } catch (err) {
       setError(err.message);
-      console.error('Error loading dashboard:', err);
+      // Error loading dashboard
     } finally {
       setLoading(false);
     }

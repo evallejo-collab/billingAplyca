@@ -83,9 +83,7 @@ const PaymentWizard = ({ isOpen, onClose, onPaymentSaved, item }) => {
           }
           
           setAvailableProjects(projects);
-          console.log('Loaded projects for payment modal:', projects);
       } catch (error) {
-        console.error('Error loading projects:', error);
         setAvailableProjects([]);
       }
     };
@@ -168,13 +166,6 @@ const PaymentWizard = ({ isOpen, onClose, onPaymentSaved, item }) => {
     setError(null);
 
     try {
-      console.log('Payment calculation debug:', {
-        paymentType: formData.paymentType,
-        percentage: formData.percentage,
-        amount: formData.amount,
-        itemTotalValue: item.totalValue,
-        itemPendingAmount: item.pendingAmount
-      });
 
       let paymentAmount;
       let description = formData.description;
@@ -197,33 +188,21 @@ const PaymentWizard = ({ isOpen, onClose, onPaymentSaved, item }) => {
           
           if (formData.projectPaymentType === 'percentage') {
             // Debug: ver qué campos tiene el proyecto
-            console.log('Project data for calculation:', {
-              total_amount: selectedProject.total_amount,
-              hourly_rate: selectedProject.hourly_rate, 
-              estimated_hours: selectedProject.estimated_hours,
-              contract_id: selectedProject.contract_id,
-              is_independent: selectedProject.is_independent,
-              percentage: formData.percentage
-            });
             
             // Usar la misma lógica para calcular el total
             let projectTotalAmount = parseFloat(selectedProject.total_amount) || 0;
             let hourlyRate = parseFloat(selectedProject.hourly_rate) || 0;
             
-            console.log('Initial values:', { projectTotalAmount, hourlyRate });
             
             // Si el proyecto está vinculado a un contrato y no tiene tarifa propia, usar la del contrato
             if (hourlyRate === 0 && selectedProject.contract_id && !selectedProject.is_independent) {
               const linkedContract = availableContracts.find(c => c.id === selectedProject.contract_id);
-              console.log('Looking for contract:', selectedProject.contract_id, 'in contracts:', availableContracts);
               if (linkedContract && linkedContract.hourly_rate) {
                 hourlyRate = parseFloat(linkedContract.hourly_rate);
-                console.log('Using contract hourly rate:', hourlyRate);
               }
             }
             
             if (projectTotalAmount === 0 && hourlyRate > 0 && selectedProject.estimated_hours) {
-              console.log('Calculating: hourlyRate * estimated_hours =', hourlyRate, '*', selectedProject.estimated_hours);
               
               // Validar inputs antes del cálculo
               const estimatedHours = parseFloat(selectedProject.estimated_hours);
@@ -238,7 +217,6 @@ const PaymentWizard = ({ isOpen, onClose, onPaymentSaved, item }) => {
               }
               
               projectTotalAmount = hourlyRate * estimatedHours;
-              console.log('Calculated project total:', projectTotalAmount);
               
               // Verificar si el cálculo es demasiado grande
               if (projectTotalAmount > 999999999999 || !isFinite(projectTotalAmount)) {
@@ -260,7 +238,6 @@ const PaymentWizard = ({ isOpen, onClose, onPaymentSaved, item }) => {
             }
             
             paymentAmount = (projectTotalAmount * percentage) / 100;
-            console.log('Final payment calculation:', projectTotalAmount, '*', percentage, '/ 100 =', paymentAmount);
             
             // Validar que el monto final no sea demasiado grande
             if (paymentAmount > 999999999999 || !isFinite(paymentAmount)) {
@@ -283,7 +260,6 @@ const PaymentWizard = ({ isOpen, onClose, onPaymentSaved, item }) => {
           break;
       }
 
-      console.log('Calculated payment amount:', paymentAmount);
 
       if (!paymentAmount || paymentAmount <= 0) {
         setError('El monto del pago debe ser mayor a 0. Verifica que el valor total del proyecto/contrato no sea 0.');
@@ -312,7 +288,6 @@ const PaymentWizard = ({ isOpen, onClose, onPaymentSaved, item }) => {
       }
       
       // Final validation of payment data
-      console.log('Final payment data before API call:', paymentData);
       
       // Validación adicional del formato
       if (typeof paymentData.amount !== 'number' || !isFinite(paymentData.amount)) {
@@ -322,22 +297,15 @@ const PaymentWizard = ({ isOpen, onClose, onPaymentSaved, item }) => {
 
       // Call API based on item type
       let response;
-      console.log('About to make payment API call:', item.type, paymentData);
       if (item.type === 'contract') {
-        console.log('Calling contractsApi.addPayment with ID:', item.contractId);
         response = await contractsApi.addPayment(item.contractId, paymentData);
       } else {
-        console.log('Calling projectsApi.addPayment with ID:', item.projectId);
         response = await projectsApi.addPayment(item.projectId, paymentData);
       }
-      console.log('Payment API response:', response);
 
       onPaymentSaved();
       handleClose();
     } catch (err) {
-      console.error('Payment API Error:', err);
-      console.error('Error response:', err.response?.data);
-      console.error('Error status:', err.response?.status);
       
       // Mostrar error más detallado
       let errorMessage = err.message;
@@ -459,7 +427,7 @@ const PaymentWizard = ({ isOpen, onClose, onPaymentSaved, item }) => {
                           </option>
                         );
                       } catch (error) {
-                        console.error('Error rendering project option:', project, error);
+                        // Error rendering project option
                         return (
                           <option key={project.id} value={project.id}>
                             {project.name || 'Proyecto sin nombre'}

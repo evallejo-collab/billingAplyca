@@ -156,11 +156,6 @@ const Reports = () => {
       // Filter only active contracts
       const activeContracts = allContracts.filter(contract => contract.status === 'active');
       
-      console.log('Active contracts data:', activeContracts);
-      if (activeContracts.length > 0) {
-        console.log('Sample contract fields:', Object.keys(activeContracts[0]));
-        console.log('Sample contract:', activeContracts[0]);
-      }
       
       setActiveContractsData(activeContracts);
       
@@ -230,7 +225,7 @@ const Reports = () => {
       const clients = clientsResponse.data || [];
       setAvailableClients(clients);
     } catch (err) {
-      console.error('Error loading clients:', err);
+      // Error loading clients
     }
   };
 
