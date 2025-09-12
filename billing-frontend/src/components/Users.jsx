@@ -59,18 +59,39 @@ const Users = () => {
       setLoading(true);
       setError(null);
 
+      // Get profiles from user_profiles table
       const { data: profiles, error: profilesError } = await supabase
         .from('user_profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (profilesError) {
-        throw profilesError;
+        console.error('Error loading profiles:', profilesError);
+        // Don't throw, continue to show any available data
       }
 
-      setUsers(profiles || []);
+      // Try to get current user's auth data to show additional context
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const allUsers = profiles || [];
+      
+      // If current user is not in profiles, add them
+      if (session?.user && !allUsers.find(u => u.id === session.user.id)) {
+        allUsers.unshift({
+          id: session.user.id,
+          email: session.user.email,
+          full_name: session.user.user_metadata?.full_name || session.user.email,
+          role: session.user.email === 'evallejo@aplyca.com' ? 'admin' : 'client',
+          is_active: true,
+          created_at: session.user.created_at,
+          _is_current_user: true,
+          _needs_profile: true
+        });
+      }
+
+      setUsers(allUsers);
     } catch (err) {
-      setError(err.message);
+      setError(`Error cargando usuarios: ${err.message}. Para ver todos los usuarios creados en Supabase, necesitas crear manualmente los perfiles o usar la consola de Supabase.`);
       console.error('Error loading users:', err);
     } finally {
       setLoading(false);
@@ -166,12 +187,26 @@ const Users = () => {
           is_active: formData.is_active
         };
 
-        const { error } = await supabase
-          .from('user_profiles')
-          .update(updateData)
-          .eq('id', selectedUser.id);
+        if (selectedUser._needs_profile || selectedUser._is_current_user) {
+          // If user exists only in auth, create profile
+          const { error } = await supabase
+            .from('user_profiles')
+            .insert({
+              id: selectedUser.id,
+              email: selectedUser.email,
+              ...updateData
+            });
 
-        if (error) throw error;
+          if (error) throw error;
+        } else {
+          // Update existing profile
+          const { error } = await supabase
+            .from('user_profiles')
+            .update(updateData)
+            .eq('id', selectedUser.id);
+
+          if (error) throw error;
+        }
       } else {
         // Show loading modal
         setInvitationStatus('loading');
@@ -453,7 +488,14 @@ El usuario recibirá un email y cuando se registre, automáticamente tendrá el 
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {user.client_id ? `Cliente ID: ${user.client_id}` : '-'}
+                    <div className="space-y-1">
+                      <div>{user.client_id ? `Cliente ID: ${user.client_id}` : '-'}</div>
+                      {(user._needs_profile || user._is_current_user) && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                          Sin perfil completo
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(user.is_active !== false)}`}>

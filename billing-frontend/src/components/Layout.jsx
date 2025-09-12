@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { hasPermission, PERMISSIONS, ROLES } from '../utils/roles';
+import AIChat from './AIChat';
 
 const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -342,6 +343,9 @@ const Layout = () => {
           <Outlet />
         </div>
       </main>
+
+      {/* AI Chat Component */}
+      <AIChat />
     </div>
   );
 };
