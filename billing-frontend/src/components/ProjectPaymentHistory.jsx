@@ -243,14 +243,14 @@ const ProjectPaymentHistory = () => {
               </div>
               <div>
                 <div className="flex items-center space-x-2 mb-2">
-                  <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded border bg-gray-100 text-gray-700 border-gray-300">
+                  <span className="inline-flex px-2 py-0.5 text-xs font-medium text-gray-700">
                     {item.type === 'contract' ? 'CONTRATO' : 'PROYECTO'}
                   </span>
                   <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getPaymentStatusColor(paymentStatus)}`}>
                     {getPaymentStatusText(paymentStatus).toUpperCase()}
                   </span>
                   {item.isIndependent && (
-                    <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded border bg-purple-100 text-purple-700 border-purple-300">
+                    <span className="inline-flex px-2 py-0.5 text-xs font-medium text-gray-700">
                       INDEPENDIENTE
                     </span>
                   )}
@@ -266,32 +266,32 @@ const ProjectPaymentHistory = () => {
 
           {/* Financial Summary */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
+            <div className="text-center p-4 border border-gray-200 rounded-lg">
               <div className="text-2xl font-bold text-gray-900 mb-1">
                 {formatCurrency(item.totalValue, true)}
               </div>
-              <div className="text-sm text-gray-500">Valor Total</div>
+              <div className="text-sm text-gray-600">Valor Total</div>
             </div>
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <div className="text-2xl font-medium text-green-600 mb-1">
+            <div className="text-center p-4 border border-gray-200 rounded-lg">
+              <div className="text-2xl font-medium text-gray-900 mb-1">
                 {formatCurrency(item.paidAmount, true)}
               </div>
-              <div className="text-sm text-green-600">Pagado</div>
+              <div className="text-sm text-gray-600">Pagado</div>
             </div>
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <div className="text-2xl font-medium text-red-600 mb-1">
+            <div className="text-center p-4 border border-gray-200 rounded-lg">
+              <div className="text-2xl font-medium text-gray-900 mb-1">
                 {formatCurrency(item.pendingAmount, true)}
               </div>
-              <div className="text-sm text-red-600">Pendiente</div>
+              <div className="text-sm text-gray-600">Pendiente</div>
             </div>
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
+            <div className="text-center p-4 border border-gray-200 rounded-lg">
               <div className="text-2xl font-medium text-gray-900 mb-1">
                 {item.paymentPercentage.toFixed(1)}%
               </div>
-              <div className="text-sm text-gray-500">Progreso</div>
+              <div className="text-sm text-gray-600">Progreso</div>
               <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
                 <div 
-                  className="bg-gray-600 h-2 rounded-full transition-all duration-300"
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                   style={{ width: `${Math.min(100, item.paymentPercentage)}%` }}
                 ></div>
               </div>
@@ -416,7 +416,7 @@ const ProjectPaymentHistory = () => {
                                   {formatCurrency(payment.amount, true)}
                                 </div>
                                 {payment.payment_type === 'recurring_support' && payment.billing_month && (
-                                  <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">
+                                  <span className="px-2 py-1 border border-gray-200 text-gray-600 rounded text-xs">
                                     {payment.billing_month}
                                   </span>
                                 )}
