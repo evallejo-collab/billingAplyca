@@ -160,7 +160,7 @@ const Layout = () => {
               />
             </div>
 
-            {/* Desktop Navigation */}
+            {/* Center Navigation */}
             <nav className="hidden md:flex items-center space-x-1">
               {/* Regular Navigation Items */}
               {navigation.map((item) => {
@@ -208,30 +208,33 @@ const Layout = () => {
               })}
             </nav>
 
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="md:hidden p-2 text-white hover:bg-white hover:bg-opacity-20 rounded-lg"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
-
-            {/* User Menu */}
-            <div className="hidden md:flex items-center space-x-4">
-              <div className="flex items-center text-sm text-white">
-                <div className="mr-4">
-                  <span className="font-medium">{user?.full_name}</span>
-                  <span className="text-xs text-gray-200 block">@{user?.username}</span>
-                </div>
-              </div>
+            {/* Right side - Mobile Menu Button and User Menu */}
+            <div className="flex items-center space-x-4">
+              {/* Mobile Menu Button */}
               <button
-                onClick={handleLogout}
-                disabled={loggingOut}
-                className="flex items-center px-3 py-2 text-sm text-white hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors disabled:opacity-50"
+                onClick={() => setSidebarOpen(true)}
+                className="md:hidden p-2 text-white hover:bg-white hover:bg-opacity-20 rounded-lg"
               >
-                <LogOut className="w-4 h-4 mr-2" />
-                {loggingOut ? 'Cerrando...' : 'Salir'}
+                <Menu className="w-6 h-6" />
               </button>
+
+              {/* User Menu */}
+              <div className="hidden md:flex items-center space-x-4">
+                <div className="flex items-center text-sm text-white">
+                  <div className="mr-4">
+                    <span className="font-medium">{user?.full_name}</span>
+                    <span className="text-xs text-gray-200 block">@{user?.username}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                  className="flex items-center px-3 py-2 text-sm text-white hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  {loggingOut ? 'Cerrando...' : 'Salir'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
