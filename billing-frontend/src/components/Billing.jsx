@@ -615,9 +615,9 @@ const Billing = () => {
                             e.stopPropagation();
                             navigate(`/billing/${item.type}/${item.type === 'contract' ? item.contractId : item.projectId}`);
                           }}
-                          className="text-blue-600 hover:text-blue-700 py-1 px-2 text-sm font-medium transition-colors duration-200 flex items-center whitespace-nowrap"
+                          className="text-blue-600 hover:text-blue-700 py-1 px-1 text-xs font-medium transition-colors duration-200 flex items-center whitespace-nowrap"
                         >
-                          <Eye className="w-4 h-4 mr-1" />
+                          <Eye className="w-3 h-3 mr-1" />
                           Ver Historial
                         </button>
                         <button
@@ -626,9 +626,9 @@ const Billing = () => {
                             setSelectedItem(item);
                             setIsPaymentWizardOpen(true);
                           }}
-                          className="text-green-600 hover:text-green-700 py-1 px-2 text-sm font-medium transition-colors duration-200 flex items-center whitespace-nowrap"
+                          className="text-green-600 hover:text-green-700 py-1 px-1 text-xs font-medium transition-colors duration-200 flex items-center whitespace-nowrap"
                         >
-                          <Plus className="w-4 h-4 mr-1" />
+                          <Plus className="w-3 h-3 mr-1" />
                           Agregar Pago
                         </button>
                       </div>
