@@ -407,25 +407,46 @@ const Projects = () => {
                         : 'text-green-700'
                     }`}>{project.remaining_hours || 0}h</p>
                   </div>
-                  <div className={`text-center p-2 rounded border ${
-                    (project.entries_count || 0) > 0 
-                      ? 'bg-blue-50 border-blue-200' 
-                      : 'bg-gray-50 border-gray-200'
-                  }`}>
-                    <div className="flex items-center justify-center mb-1">
-                      <FileText className={`w-4 h-4 mr-1 ${
-                        (project.entries_count || 0) > 0 
-                          ? 'text-blue-600' 
-                          : 'text-gray-600'
-                      }`} />
-                      <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">Registros</span>
-                    </div>
-                    <p className={`text-base font-semibold ${
-                      (project.entries_count || 0) > 0 
-                        ? 'text-blue-700' 
-                        : 'text-gray-900'
-                    }`}>{project.entries_count || 0}</p>
-                  </div>
+                  {(() => {
+                    const estimatedHours = parseFloat(project.estimated_hours) || 0;
+                    const usedHours = parseFloat(project.used_hours) || 0;
+                    const hasOvercost = usedHours > estimatedHours && estimatedHours > 0;
+                    
+                    if (hasOvercost) {
+                      const overcostHours = usedHours - estimatedHours;
+                      return (
+                        <div className="text-center p-2 bg-red-50 rounded border border-red-200">
+                          <div className="flex items-center justify-center mb-1">
+                            <AlertCircle className="w-4 h-4 text-red-600 mr-1" />
+                            <span className="text-xs font-medium text-red-600 uppercase tracking-wide">Sobrecosto</span>
+                          </div>
+                          <p className="text-base font-semibold text-red-700">+{overcostHours.toFixed(1)}h</p>
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div className={`text-center p-2 rounded border ${
+                          (project.entries_count || 0) > 0 
+                            ? 'bg-blue-50 border-blue-200' 
+                            : 'bg-gray-50 border-gray-200'
+                        }`}>
+                          <div className="flex items-center justify-center mb-1">
+                            <FileText className={`w-4 h-4 mr-1 ${
+                              (project.entries_count || 0) > 0 
+                                ? 'text-blue-600' 
+                                : 'text-gray-600'
+                            }`} />
+                            <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">Registros</span>
+                          </div>
+                          <p className={`text-base font-semibold ${
+                            (project.entries_count || 0) > 0 
+                              ? 'text-blue-700' 
+                              : 'text-gray-900'
+                          }`}>{project.entries_count || 0}</p>
+                        </div>
+                      );
+                    }
+                  })()}
                 </div>
 
 
