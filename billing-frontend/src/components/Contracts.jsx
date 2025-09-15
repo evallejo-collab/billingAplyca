@@ -291,7 +291,9 @@ const Contracts = () => {
                       <Clock className="w-4 h-4 mr-1" />
                       Horas
                     </span>
-                    <span className="font-medium">{formatHours(contract.used_hours)} / {formatHours(contract.total_hours)}</span>
+                    <div className="text-right">
+                      <div className="font-medium">{formatHours(contract.used_hours)} / {formatHours(contract.total_hours)}</div>
+                    </div>
                   </div>
                   
                   <div className="progress-bar">

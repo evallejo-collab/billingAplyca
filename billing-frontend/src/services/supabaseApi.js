@@ -235,6 +235,7 @@ export const projectsApi = {
         if (timeEntriesError) {
           console.error('Error fetching time entries for project:', project.id, timeEntriesError);
         }
+        
 
         // Get total paid amount from payments
         const { data: payments, error: paymentsError } = await supabase
@@ -246,7 +247,10 @@ export const projectsApi = {
           console.error('Error fetching payments for project:', project.id, paymentsError);
         }
         
-        const usedHours = timeEntries?.reduce((sum, entry) => sum + (parseFloat(entry.hours_used) || 0), 0) || 0;
+        const usedHours = timeEntries?.reduce((sum, entry) => {
+          // Use parseInt to match portal calculation
+          return sum + parseInt(entry.hours_used || 0);
+        }, 0) || 0;
         const paidAmount = payments?.reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0) || 0;
         const estimatedHours = parseFloat(project.estimated_hours) || 0;
         const remainingHours = Math.max(0, estimatedHours - usedHours);
@@ -405,20 +409,50 @@ export const contractsApi = {
     const contractsWithHours = await Promise.all(
       data.map(async (contract) => {
         // Get total hours used from time_entries
-        const { data: timeEntries } = await supabase
+        const { data: timeEntries, error: timeError } = await supabase
           .from('time_entries')
           .select('hours_used')
           .eq('contract_id', contract.id);
         
-        const usedHours = timeEntries?.reduce((sum, entry) => sum + (parseFloat(entry.hours_used) || 0), 0) || 0;
+        console.log(`Contract ${contract.contract_number} (ID: ${contract.id}):`, {
+          timeEntries,
+          timeError,
+          timeEntriesCount: timeEntries?.length || 0
+        });
+        
+        const directHours = timeEntries?.reduce((sum, entry) => {
+          // Use parseInt to match portal calculation
+          const hours = parseInt(entry.hours_used || 0);
+          console.log(`  - Entry hours: ${entry.hours_used} -> parsed: ${hours}`);
+          return sum + hours;
+        }, 0) || 0;
+        
+        // Get equivalent hours from support payments for this contract
+        const { data: supportPayments } = await supabase
+          .from('payments')
+          .select('equivalent_hours')
+          .eq('contract_id', contract.id)
+          .in('payment_type', ['recurring_support', 'fixed'])
+          .in('status', ['completed', 'pending', 'paid']);
+        
+        const equivalentHours = supportPayments?.reduce((sum, payment) => {
+          return sum + (parseFloat(payment.equivalent_hours) || 0);
+        }, 0) || 0;
+        
+        const totalEffectiveHours = directHours + equivalentHours;
+        
+        console.log(`  - Contract ${contract.contract_number}: Direct: ${directHours}h, Support: ${equivalentHours}h, Total: ${totalEffectiveHours}h`);
+        
         const totalHours = parseFloat(contract.total_hours) || 0;
-        const remainingHours = Math.max(0, totalHours - usedHours);
+        const remainingHours = Math.max(0, totalHours - totalEffectiveHours);
         
         return {
           ...contract,
           client_name: contract.client?.name || contract.client?.company || 'Sin cliente',
           client_email: contract.client?.email || '',
-          used_hours: usedHours,
+          used_hours: totalEffectiveHours, // Total effective hours (direct + support)
+          direct_hours: directHours, // Direct hours only
+          equivalent_hours: equivalentHours, // Support hours only
           remaining_hours: remainingHours,
           entries_count: timeEntries?.length || 0
         };
