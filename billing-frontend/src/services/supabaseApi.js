@@ -715,9 +715,15 @@ export const paymentsApi = {
   async create(payment) {
     const { data: { user } } = await supabase.auth.getUser();
     
+    // Remove null contract_id for independent projects to avoid NOT NULL constraint
+    const paymentData = { ...payment, created_by: user?.id };
+    if (paymentData.contract_id === null || paymentData.contract_id === undefined) {
+      delete paymentData.contract_id;
+    }
+    
     const { data, error } = await supabase
       .from('payments')
-      .insert([{ ...payment, created_by: user?.id }])
+      .insert([paymentData])
       .select(`
         *,
         contract:contracts(contract_number, description),
@@ -730,9 +736,15 @@ export const paymentsApi = {
   },
 
   async update(id, payment) {
+    // Remove null contract_id for independent projects to avoid NOT NULL constraint
+    const paymentData = { ...payment };
+    if (paymentData.contract_id === null || paymentData.contract_id === undefined) {
+      delete paymentData.contract_id;
+    }
+    
     const { data, error } = await supabase
       .from('payments')
-      .update(payment)
+      .update(paymentData)
       .eq('id', id)
       .select(`
         *,
