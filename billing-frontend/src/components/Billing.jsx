@@ -572,22 +572,22 @@ const Billing = () => {
                   {group.projects.map((item) => (
                     <div key={item.id} className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                       <div className="flex items-center space-x-4 flex-1 min-w-0">
-                        <div className="flex items-center space-x-2 flex-shrink-0">
-                          <div className={`w-2 h-2 rounded-full ${item.type === 'contract' ? 'bg-blue-500' : 'bg-emerald-500'}`}></div>
-                          <span className="text-xs font-medium text-gray-600 whitespace-nowrap">
-                            {item.type === 'contract' ? 'Contrato' : 'Proyecto'}
-                          </span>
-                          {item.isIndependent && (
-                            <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full whitespace-nowrap">
-                              Independiente
-                            </span>
-                          )}
-                        </div>
                         <div className="flex-1 min-w-0">
                           <h6 className="text-sm font-semibold text-gray-900 truncate">{item.name}</h6>
-                          {item.description && (
-                            <p className="text-xs text-gray-600 truncate">{item.description}</p>
-                          )}
+                          <div className="flex items-center space-x-2 mt-1">
+                            <div className={`w-2 h-2 rounded-full ${item.type === 'contract' ? 'bg-blue-500' : 'bg-emerald-500'}`}></div>
+                            <span className="text-xs font-medium text-gray-600 whitespace-nowrap">
+                              {item.type === 'contract' ? 'Contrato' : 'Proyecto'}
+                            </span>
+                            {item.isIndependent && (
+                              <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                Independiente
+                              </span>
+                            )}
+                            {item.description && (
+                              <span className="text-xs text-gray-600 truncate">• {item.description}</span>
+                            )}
+                          </div>
                         </div>
                         <div className="flex items-center space-x-6 flex-shrink-0">
                           <div className="text-right">
