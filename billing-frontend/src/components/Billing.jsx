@@ -586,7 +586,7 @@ const Billing = () => {
                                 </span>
                               )}
                             </div>
-                            <h6 className="text-base font-semibold text-gray-900 mb-1">{item.name}</h6>
+                            <h6 className="text-sm font-semibold text-gray-900 mb-1">{item.name}</h6>
                             {item.description && (
                               <p className="text-sm text-gray-600 line-clamp-2">{item.description}</p>
                             )}
@@ -599,8 +599,8 @@ const Billing = () => {
                         {/* Progress Bar */}
                         <div className="mb-4">
                           <div className="flex justify-between items-center mb-2">
-                            <span className="text-sm font-medium text-gray-700">Progreso</span>
-                            <span className="text-sm font-bold text-gray-900">{item.paymentPercentage.toFixed(1)}%</span>
+                            <span className="text-xs font-medium text-gray-700">Progreso</span>
+                            <span className="text-xs font-bold text-gray-900">{item.paymentPercentage.toFixed(1)}%</span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
                             <div 
@@ -617,13 +617,13 @@ const Billing = () => {
                         {/* Métricas en grid */}
                         <div className="grid grid-cols-2 gap-3 mb-4">
                           <div className="text-center p-2 bg-gray-50 rounded-lg">
-                            <div className="text-lg font-bold text-gray-900">
+                            <div className="text-sm font-bold text-gray-900">
                               {formatCurrency(item.totalValue, true)}
                             </div>
                             <div className="text-xs text-gray-500">Total</div>
                           </div>
                           <div className="text-center p-2 bg-gray-50 rounded-lg">
-                            <div className="text-lg font-bold text-gray-900">
+                            <div className="text-sm font-bold text-gray-900">
                               {formatCurrency(item.paidAmount, true)}
                             </div>
                             <div className="text-xs text-gray-600">Pagado</div>
