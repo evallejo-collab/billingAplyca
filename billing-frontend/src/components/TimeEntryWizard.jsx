@@ -216,9 +216,19 @@ const TimeEntryWizard = ({ isOpen, onClose, onTimeEntrySaved, selectedEntry, isE
     setLoading(true);
     try {
       // Find the contract associated with the project
-      let contractId = null;
+      let contractId;
       if (!selectedProject.is_independent && selectedProject.contract_id) {
         contractId = selectedProject.contract_id;
+      } else {
+        // For independent projects, get the first available contract as dummy
+        try {
+          const contractsResponse = await contractsApi.getAll();
+          const firstContract = contractsResponse.data && contractsResponse.data.length > 0 ? contractsResponse.data[0] : null;
+          contractId = firstContract ? firstContract.id : 1;
+        } catch (error) {
+          console.warn('Could not load contracts for independent project, using default ID 1:', error);
+          contractId = 1;
+        }
       }
 
       const timeEntryData = {

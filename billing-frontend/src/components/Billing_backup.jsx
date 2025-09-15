@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { contractsApi, clientsApi, projectsApi, paymentsApi } from '../services/supabaseApi';
 import PaymentWizard from './PaymentWizard';
 import { 
@@ -41,7 +40,6 @@ const getPaymentStatusText = (status) => {
 
 
 const Billing = () => {
-  const navigate = useNavigate();
   const [billingItems, setBillingItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -76,10 +74,11 @@ const Billing = () => {
       const projects = projectsResponse.data || [];
       const clients = clientsResponse.data || [];
       
-      // Create client groups structure
+
+      // Group by client - Option 1: Agrupar por cliente
       const clientGroups = {};
 
-      // Process contracts first
+      // Process contracts
       contracts.forEach(contract => {
         const client = clients.find(c => c.id === contract.client_id);
         const clientName = client ? (client.name || client.company) : 'Cliente desconocido';
@@ -89,24 +88,22 @@ const Billing = () => {
         
         if (!clientGroups[clientName]) {
           clientGroups[clientName] = {
-            id: `client-${clientName}`,
-            type: 'client_group',
             clientName: clientName,
+            clientCompany: client ? (client.company || client.name) : null,
+            contracts: [],
             projects: [],
             totalValue: 0,
             paidAmount: 0,
             pendingAmount: 0
           };
         }
-
+        
         const contractItem = {
           id: `contract-${contract.id}`,
           type: 'contract',
           contractId: contract.id,
           name: contract.contract_number,
           description: contract.description,
-          client: clientName,
-          clientCompany: client ? (client.company || client.name) : null,
           totalValue: totalContractValue,
           paidAmount: paidAmount,
           pendingAmount: pendingAmount,
@@ -118,42 +115,38 @@ const Billing = () => {
           lastPaymentDate: contract.last_payment_date || null
         };
 
-        clientGroups[clientName].projects.push(contractItem);
+        clientGroups[clientName].contracts.push(contractItem);
         clientGroups[clientName].totalValue += totalContractValue;
         clientGroups[clientName].paidAmount += paidAmount;
         clientGroups[clientName].pendingAmount += pendingAmount;
       });
 
-
-      // Process independent projects - group them under their clients
+      // Process independent projects
       projects.filter(p => p.is_independent).forEach(project => {
         const clientName = project.client_name || 'Cliente independiente';
         const totalProjectValue = parseFloat(project.total_amount) || 
           ((parseFloat(project.hourly_rate) || 0) * (parseFloat(project.estimated_hours) || 0));
         const paidAmount = parseFloat(project.paid_amount) || 0;
         const pendingAmount = Math.max(0, totalProjectValue - paidAmount);
-
-        // Create client group if it doesn't exist
+        
         if (!clientGroups[clientName]) {
           clientGroups[clientName] = {
-            id: `client-${clientName}`,
-            type: 'client_group',
             clientName: clientName,
+            clientCompany: null,
+            contracts: [],
             projects: [],
             totalValue: 0,
             paidAmount: 0,
             pendingAmount: 0
           };
         }
-
+        
         const projectItem = {
           id: `project-${project.id}`,
           type: 'project',
           projectId: project.id,
           name: project.name,
           description: project.description,
-          client: clientName,
-          clientCompany: null,
           totalValue: totalProjectValue,
           paidAmount: paidAmount,
           pendingAmount: pendingAmount,
@@ -162,7 +155,6 @@ const Billing = () => {
           paymentStatus: getPaymentStatus(paidAmount, totalProjectValue),
           startDate: project.start_date,
           endDate: project.end_date,
-          isIndependent: true,
           lastPaymentDate: project.last_payment_date || null
         };
 
@@ -172,14 +164,28 @@ const Billing = () => {
         clientGroups[clientName].pendingAmount += pendingAmount;
       });
 
-      // Calculate payment percentages for client groups
-      Object.values(clientGroups).forEach(group => {
-        group.paymentPercentage = group.totalValue > 0 ? (group.paidAmount / group.totalValue) * 100 : 0;
-        group.paymentStatus = getPaymentStatus(group.paidAmount, group.totalValue);
-      });
-
-      // Create final billing structure - just use client groups
-      const billingItems = Object.values(clientGroups);
+      // Convert to billing items with grouped structure
+      const billingItems = Object.values(clientGroups).map(group => ({
+        id: `client-group-${group.clientName.replace(/\s+/g, '-').toLowerCase()}`,
+        type: 'client_group',
+        clientName: group.clientName,
+        client: group.clientName,
+        clientCompany: group.clientCompany,
+        contracts: group.contracts,
+        projects: group.projects,
+        totalValue: group.totalValue,
+        paidAmount: group.paidAmount,
+        pendingAmount: group.pendingAmount,
+        paymentPercentage: group.totalValue > 0 ? (group.paidAmount / group.totalValue) * 100 : 0,
+        paymentStatus: getPaymentStatus(group.paidAmount, group.totalValue),
+        // For display purposes, show the first start date and last end date
+        startDate: [...group.contracts, ...group.projects]
+          .filter(item => item.startDate)
+          .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))[0]?.startDate || null,
+        endDate: [...group.contracts, ...group.projects]
+          .filter(item => item.endDate)
+          .sort((a, b) => new Date(b.endDate) - new Date(a.endDate))[0]?.endDate || null
+      }));
 
       setBillingItems(billingItems);
     } catch (error) {
@@ -211,44 +217,38 @@ const Billing = () => {
   };
 
   const filteredItems = billingItems.filter(item => {
-    // For client groups and independent groups, check both the group and its projects
-    if (item.type === 'client_group' || item.type === 'independent_group') {
-      const groupMatches = item.clientName.toLowerCase().includes(searchTerm.toLowerCase());
+    if (item.type === 'client_group') {
+      // For client groups, search in client name and all contracts/projects
+      const matchesSearch = searchTerm === '' || 
+        item.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.contracts.some(c => 
+          c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          c.description.toLowerCase().includes(searchTerm.toLowerCase())
+        ) ||
+        item.projects.some(p => 
+          p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.description.toLowerCase().includes(searchTerm.toLowerCase())
+        );
       
-      // Check if any project in the group matches
-      const projectMatches = item.projects.some(project => 
-        project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        project.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (project.description && project.description.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
+      const matchesStatus = statusFilter === 'all' || item.paymentStatus === statusFilter;
       
-      const matchesSearch = groupMatches || projectMatches;
+      // For type filter, show if client has items of that type
+      const matchesType = typeFilter === 'all' || 
+        (typeFilter === 'contract' && item.contracts.length > 0) ||
+        (typeFilter === 'project' && item.projects.length > 0);
+
+      return matchesSearch && matchesStatus && matchesType;
+    } else {
+      // Fallback for individual items (should not exist in new structure)
+      const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           item.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           item.description.toLowerCase().includes(searchTerm.toLowerCase());
       
-      // For status filter, check if any project matches or the group overall status matches
-      const groupStatusMatches = statusFilter === 'all' || item.paymentStatus === statusFilter;
-      const projectStatusMatches = item.projects.some(project => 
-        statusFilter === 'all' || project.paymentStatus === statusFilter
-      );
-      const matchesStatus = groupStatusMatches || projectStatusMatches;
-      
-      // For type filter, check if any project matches
-      const projectTypeMatches = item.projects.some(project => 
-        typeFilter === 'all' || project.type === typeFilter
-      );
-      const matchesType = typeFilter === 'all' || projectTypeMatches;
+      const matchesStatus = statusFilter === 'all' || item.paymentStatus === statusFilter;
+      const matchesType = typeFilter === 'all' || item.type === typeFilter;
 
       return matchesSearch && matchesStatus && matchesType;
     }
-    
-    // This shouldn't happen with the new structure, but keep for safety
-    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesStatus = statusFilter === 'all' || item.paymentStatus === statusFilter;
-    const matchesType = typeFilter === 'all' || item.type === typeFilter;
-
-    return matchesSearch && matchesStatus && matchesType;
   });
 
   const getTotalStats = () => {
@@ -278,8 +278,9 @@ const Billing = () => {
       newExpandedRows.delete(itemKey);
     } else {
       newExpandedRows.add(itemKey);
-      // Load payments for this item if not already loaded
-      if (!rowPayments[itemKey]) {
+      // For client groups, we don't need to load payments here as they're handled individually
+      // For individual items, load payments if not already loaded
+      if (!rowPayments[itemKey] && item.type !== 'client_group') {
         try {
           let response;
           if (item.type === 'contract') {
@@ -504,58 +505,84 @@ const Billing = () => {
         </div>
       )}
 
-      {filteredItems.map((group) => (
-        <div key={group.id} className="bg-white border border-gray-200 rounded-lg shadow-sm">
-          {/* Client Group Header */}
+      {filteredItems.map((item) => (
+        <div key={item.id} className="bg-white border border-gray-200 rounded-lg shadow-sm">
           <div 
             className="cursor-pointer hover:bg-gray-50 transition-colors"
-            onClick={() => toggleRowExpansion(group)}
+            onClick={() => toggleRowExpansion(item)}
           >
             <div className="px-6 py-4">
               <div className="flex items-start justify-between">
                 <div className="flex items-start space-x-4 flex-1">
-                  {expandedRows.has(group.id) ? (
+                  {expandedRows.has(item.id) ? (
                     <ChevronDown className="w-5 h-5 text-gray-400 mt-1" />
                   ) : (
                     <ChevronRight className="w-5 h-5 text-gray-400 mt-1" />
                   )}
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-2">
-                      <span className="text-xs text-gray-500">
-                        {group.projects.length} proyecto{group.projects.length !== 1 ? 's' : ''}
+                      {item.type === 'client_group' ? (
+                        <>
+                          <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded border bg-blue-100 text-blue-700 border-blue-300">
+                            CLIENTE
+                          </span>
+                          <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded border bg-gray-100 text-gray-700 border-gray-300">
+                            {item.contracts.length} contratos, {item.projects.length} proyectos
+                          </span>
+                        </>
+                      ) : (
+                        <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded border bg-gray-100 text-gray-700 border-gray-300">
+                          {item.type === 'contract' ? 'CONTRATO' : 'PROYECTO'}
+                        </span>
+                      )}
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getPaymentStatusColor(item.paymentStatus)}`}>
+                        {getPaymentStatusText(item.paymentStatus).toUpperCase()}
                       </span>
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1">{group.clientName}</h3>
+                    <h3 className="text-base font-semibold text-gray-900 mb-1">{item.client}</h3>
+                    {item.type === 'client_group' ? (
+                      <div className="text-sm text-gray-600">
+                        {item.contracts.length > 0 && (
+                          <span>Contratos: {item.contracts.map(c => c.name).join(', ')}</span>
+                        )}
+                        {item.contracts.length > 0 && item.projects.length > 0 && <span> • </span>}
+                        {item.projects.length > 0 && (
+                          <span>Proyectos: {item.projects.map(p => p.name).join(', ')}</span>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-700 mb-2">{item.name}</p>
+                    )}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 ml-6">
                   <div className="text-right">
                     <div className="text-xs text-gray-500 mb-1">TOTAL</div>
                     <div className="text-sm font-semibold text-gray-900">
-                      {formatCurrency(group.totalValue, true)}
+                      {formatCurrency(item.totalValue, true)}
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-xs text-green-600 mb-1">PAGADO</div>
-                    <div className="text-sm font-medium text-green-600">
-                      {formatCurrency(group.paidAmount, true)}
+                    <div className="text-xs text-green-700 mb-1">PAGADO</div>
+                    <div className="text-sm font-semibold text-green-700">
+                      {formatCurrency(item.paidAmount, true)}
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-xs text-red-600 mb-1">PENDIENTE</div>
-                    <div className="text-sm font-medium text-red-600">
-                      {formatCurrency(group.pendingAmount, true)}
+                    <div className="text-xs text-red-700 mb-1">PENDIENTE</div>
+                    <div className="text-sm font-semibold text-red-700">
+                      {formatCurrency(item.pendingAmount, true)}
                     </div>
                   </div>
                   <div className="text-right">
                     <div className="text-xs text-gray-500 mb-1">PROGRESO</div>
                     <div className="text-sm font-semibold text-gray-900 mb-1">
-                      {group.paymentPercentage.toFixed(1)}%
+                      {item.paymentPercentage.toFixed(1)}%
                     </div>
                     <div className="w-20 bg-gray-200 rounded-sm h-1.5">
                       <div 
-                        className="bg-blue-600 h-1.5 rounded-sm transition-all duration-300"
-                        style={{ width: `${Math.min(100, group.paymentPercentage)}%` }}
+                        className="bg-gray-600 h-1.5 rounded-sm transition-all duration-300"
+                        style={{ width: `${Math.min(100, item.paymentPercentage)}%` }}
                       ></div>
                     </div>
                   </div>
@@ -564,81 +591,251 @@ const Billing = () => {
             </div>
           </div>
 
-          {/* Projects List */}
-          {expandedRows.has(group.id) && (
+          {expandedRows.has(item.id) && (
             <div className="border-t border-gray-200 bg-gray-50">
               <div className="px-6 py-4">
-                <div className="space-y-3">
-                  {group.projects.map((item) => (
-                    <div key={item.id} className="bg-white rounded-lg border border-gray-200">
-                      {/* Contract/Project Header */}
-                      <div className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <h5 className="text-base font-medium text-gray-900 mb-1">
-                              <span className="text-xs text-gray-500 mr-2">
-                                {item.type === 'contract' ? 'Contrato' : 'Proyecto'}
-                              </span>
-                              {item.name}
-                              {item.isIndependent && (
-                                <span className="text-xs text-purple-600 ml-2">• Independiente</span>
-                              )}
-                            </h5>
-                            {item.description && (
-                              <p className="text-sm text-gray-600">{item.description}</p>
-                            )}
-                          </div>
-                          <div className="flex items-center space-x-4 ml-6">
-                            <div className="text-right">
-                              <div className="text-xs text-gray-500">Total</div>
-                              <div className="text-sm font-semibold text-gray-900">
-                                {formatCurrency(item.totalValue, true)}
+                {item.type === 'client_group' ? (
+                  <div className="space-y-6">
+                    <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
+                      Contratos y Proyectos del Cliente
+                    </h4>
+                    
+                    {/* Contracts Section */}
+                    {item.contracts.length > 0 && (
+                      <div className="space-y-3">
+                        <h5 className="text-sm font-medium text-gray-700 flex items-center">
+                          <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded border bg-green-100 text-green-700 border-green-300 mr-2">
+                            CONTRATOS
+                          </span>
+                          {item.contracts.length} elemento{item.contracts.length !== 1 ? 's' : ''}
+                        </h5>
+                        {item.contracts.map((contract) => (
+                          <div key={contract.id} className="bg-white rounded-md border border-gray-200 p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <h6 className="font-medium text-gray-900">{contract.name}</h6>
+                                <p className="text-sm text-gray-600">{contract.description}</p>
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mt-1 ${getPaymentStatusColor(contract.paymentStatus)}`}>
+                                  {getPaymentStatusText(contract.paymentStatus)}
+                                </span>
                               </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-xs text-green-600">Pagado</div>
-                              <div className="text-sm font-medium text-green-600">
-                                {formatCurrency(item.paidAmount, true)}
+                              <div className="text-right space-y-1">
+                                <div className="text-sm font-semibold text-gray-900">
+                                  {formatCurrency(contract.totalValue, true)}
+                                </div>
+                                <div className="text-xs text-green-600">
+                                  Pagado: {formatCurrency(contract.paidAmount, true)}
+                                </div>
+                                <div className="text-xs text-red-600">
+                                  Pendiente: {formatCurrency(contract.pendingAmount, true)}
+                                </div>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedItem(contract);
+                                    setIsPaymentWizardOpen(true);
+                                  }}
+                                  className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-gray-800 rounded hover:bg-gray-700 transition-colors"
+                                >
+                                  <Plus className="w-3 h-3 mr-1" />
+                                  PAGO
+                                </button>
                               </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-xs text-gray-500">Progreso</div>
-                              <div className="text-sm font-semibold text-gray-900">
-                                {item.paymentPercentage.toFixed(1)}%
-                              </div>
-                            </div>
-                            <div className="flex space-x-1">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/billing/${item.type}/${item.type === 'contract' ? item.contractId : item.projectId}`);
-                                }}
-                                className="inline-flex items-center px-2 py-1 text-xs text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                title="Ver historial de pagos"
-                              >
-                                <Eye className="w-3 h-3 mr-1" />
-                                Ver pagos
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedItem(item);
-                                  setIsPaymentWizardOpen(true);
-                                }}
-                                className="inline-flex items-center px-2 py-1 text-xs text-gray-500 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-                                title="Agregar nuevo pago"
-                              >
-                                <Plus className="w-3 h-3 mr-1" />
-                                Agregar
-                              </button>
                             </div>
                           </div>
-                        </div>
+                        ))}
                       </div>
+                    )}
 
+                    {/* Projects Section */}
+                    {item.projects.length > 0 && (
+                      <div className="space-y-3">
+                        <h5 className="text-sm font-medium text-gray-700 flex items-center">
+                          <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded border bg-purple-100 text-purple-700 border-purple-300 mr-2">
+                            PROYECTOS
+                          </span>
+                          {item.projects.length} elemento{item.projects.length !== 1 ? 's' : ''}
+                        </h5>
+                        {item.projects.map((project) => (
+                          <div key={project.id} className="bg-white rounded-md border border-gray-200 p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <h6 className="font-medium text-gray-900">{project.name}</h6>
+                                <p className="text-sm text-gray-600">{project.description}</p>
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mt-1 ${getPaymentStatusColor(project.paymentStatus)}`}>
+                                  {getPaymentStatusText(project.paymentStatus)}
+                                </span>
+                              </div>
+                              <div className="text-right space-y-1">
+                                <div className="text-sm font-semibold text-gray-900">
+                                  {formatCurrency(project.totalValue, true)}
+                                </div>
+                                <div className="text-xs text-green-600">
+                                  Pagado: {formatCurrency(project.paidAmount, true)}
+                                </div>
+                                <div className="text-xs text-red-600">
+                                  Pendiente: {formatCurrency(project.pendingAmount, true)}
+                                </div>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedItem(project);
+                                    setIsPaymentWizardOpen(true);
+                                  }}
+                                  className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-gray-800 rounded hover:bg-gray-700 transition-colors"
+                                >
+                                  <Plus className="w-3 h-3 mr-1" />
+                                  PAGO
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
+                        Historial de Pagos
+                      </h4>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedItem(item);
+                          setIsPaymentWizardOpen(true);
+                        }}
+                        className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-gray-800 rounded hover:bg-gray-700 transition-colors"
+                      >
+                        <Plus className="w-3 h-3 mr-1" />
+                        AGREGAR PAGO
+                      </button>
                     </div>
-                  ))}
-                </div>
+                
+                {!rowPayments[item.id] ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                  </div>
+                ) : rowPayments[item.id].length === 0 ? (
+                  <div className="text-center py-8">
+                    <Receipt className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-500">No se han registrado pagos</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {(() => {
+                      // Group payments by type
+                      const groupedPayments = rowPayments[item.id].reduce((acc, payment) => {
+                        const type = payment.payment_type;
+                        if (!acc[type]) {
+                          acc[type] = [];
+                        }
+                        acc[type].push(payment);
+                        return acc;
+                      }, {});
+
+                      // Define payment type labels and colors - Professional with subtle color
+                      const getPaymentTypeInfo = (type) => {
+                        switch (type) {
+                          case 'fixed':
+                            return { label: 'Pagos Fijos', color: 'bg-blue-50 border-blue-200 text-blue-800', icon: DollarSign };
+                          case 'percentage':
+                            return { label: 'Pagos por Porcentaje', color: 'bg-emerald-50 border-emerald-200 text-emerald-800', icon: DollarSign };
+                          case 'recurring_support':
+                            return { label: 'Soporte Recurrente', color: 'bg-violet-50 border-violet-200 text-violet-800', icon: Clock };
+                          case 'project_scope':
+                            return { label: 'Proyectos de Alcance Fijo', color: 'bg-amber-50 border-amber-200 text-amber-800', icon: Receipt };
+                          case 'support_evolutive':
+                            return { label: 'Soporte y Evolutivos', color: 'bg-teal-50 border-teal-200 text-teal-800', icon: Clock };
+                          default:
+                            return { label: 'Otros Pagos', color: 'bg-gray-50 border-gray-200 text-gray-800', icon: DollarSign };
+                        }
+                      };
+
+                      return Object.entries(groupedPayments).map(([paymentType, payments]) => {
+                        const typeInfo = getPaymentTypeInfo(paymentType);
+                        const Icon = typeInfo.icon;
+                        const totalAmount = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+                        
+                        return (
+                          <div key={paymentType} className="bg-white rounded-lg shadow-sm border border-gray-200">
+                            {/* Group Header */}
+                            <div className={`px-4 py-3 border-b border-gray-200 ${typeInfo.color} rounded-t-lg`}>
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-2">
+                                  <Icon className="w-4 h-4" />
+                                  <h5 className="font-semibold text-sm">{typeInfo.label}</h5>
+                                  <span className="bg-white bg-opacity-80 px-2 py-0.5 rounded-full text-xs font-medium">
+                                    {payments.length} pago{payments.length !== 1 ? 's' : ''}
+                                  </span>
+                                </div>
+                                <div className="font-semibold text-sm">
+                                  {formatCurrency(totalAmount, true)}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Payments List */}
+                            <div className="divide-y divide-gray-200">
+                              {payments.map((payment) => (
+                                <div key={payment.id} className="px-4 py-3 hover:bg-gray-50 transition-colors">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-4 flex-1">
+                                      <div className="flex items-center text-sm text-gray-600">
+                                        <Calendar className="w-4 h-4 mr-2" />
+                                        <span className="font-medium">{formatDate(payment.payment_date)}</span>
+                                      </div>
+                                      <div className="text-sm font-semibold text-gray-900">
+                                        {formatCurrency(payment.amount, true)}
+                                      </div>
+                                      {payment.payment_type === 'recurring_support' && payment.billing_month && (
+                                        <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                                          {payment.billing_month}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      {payment.description && (
+                                        <div className="text-sm text-gray-500 max-w-xs truncate" title={payment.description}>
+                                          {payment.description}
+                                        </div>
+                                      )}
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedPayment(payment);
+                                          setSelectedItem(item);
+                                          setIsEditPaymentModalOpen(true);
+                                        }}
+                                        className="text-gray-400 hover:text-gray-600 p-1.5 rounded-md hover:bg-gray-100 transition-colors"
+                                        title="Editar pago"
+                                      >
+                                        <Edit className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeletePayment(payment.id, item.id);
+                                        }}
+                                        className="text-gray-400 hover:text-red-600 p-1.5 rounded-md hover:bg-gray-100 transition-colors"
+                                        title="Eliminar pago"
+                                        disabled={deletingPayment === payment.id}
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

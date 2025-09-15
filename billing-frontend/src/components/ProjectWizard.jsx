@@ -187,6 +187,13 @@ const ProjectWizard = ({ isOpen, onClose, project, isEditing, onProjectSaved, cl
     setError(null);
 
     try {
+      // Validation
+      if (formData.project_type === 'contract' && (!formData.client_id || formData.client_id === '')) {
+        setError('Debe seleccionar un cliente para proyectos asociados a contratos');
+        setLoading(false);
+        return;
+      }
+
       const submitData = {
         name: formData.name,
         description: formData.description,
@@ -200,11 +207,26 @@ const ProjectWizard = ({ isOpen, onClose, project, isEditing, onProjectSaved, cl
 
       if (formData.project_type === 'contract') {
         submitData.contract_id = formData.contract_id ? parseInt(formData.contract_id) : null;
-        submitData.client_id = formData.client_id ? parseInt(formData.client_id) : null;
+        // For contract projects, client_id is required
+        const clientId = parseInt(formData.client_id);
+        if (!clientId || isNaN(clientId)) {
+          setError('Debe seleccionar un cliente válido');
+          setLoading(false);
+          return;
+        }
+        submitData.client_id = clientId;
         submitData.is_independent = false;
       } else {
+        // Validation for independent projects
+        if (!formData.independent_client_id || formData.independent_client_id === '') {
+          setError('Debe seleccionar un cliente para proyectos independientes');
+          setLoading(false);
+          return;
+        }
+
         submitData.is_independent = true;
-        submitData.client_id = null; // Explicitly set to null for independent projects
+        // For independent projects, use independent_client_id as client_id to satisfy NOT NULL constraint
+        submitData.client_id = formData.independent_client_id ? parseInt(formData.independent_client_id) : null;
         submitData.contract_id = null; // Explicitly set to null for independent projects
         submitData.independent_client_id = formData.independent_client_id ? parseInt(formData.independent_client_id) : null;
         submitData.client_name = formData.client_name || null;
@@ -672,7 +694,7 @@ const ProjectWizard = ({ isOpen, onClose, project, isEditing, onProjectSaved, cl
                           value={formData.hourly_rate}
                           onChange={handleInputChange}
                           min="0"
-                          step="1000"
+                          step="any"
                           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                           placeholder="75000"
                         />
@@ -689,7 +711,7 @@ const ProjectWizard = ({ isOpen, onClose, project, isEditing, onProjectSaved, cl
                           value={formData.total_amount || calculateTotalAmount()}
                           onChange={handleInputChange}
                           min="0"
-                          step="1000"
+                          step="any"
                           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                           placeholder="Auto-calculado"
                         />

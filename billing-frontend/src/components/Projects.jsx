@@ -430,17 +430,35 @@ const Projects = () => {
 
 
                 {/* Dates */}
-                <div className="mt-4 text-xs text-gray-500 flex justify-between">
-                  <span>
-                    {project.start_date && (
-                      <>Inicio: {new Date(project.start_date).toLocaleDateString('es-CO')}</>
-                    )}
-                  </span>
-                  <span>
-                    {project.end_date && (
-                      <>Fin: {new Date(project.end_date).toLocaleDateString('es-CO')}</>
-                    )}
-                  </span>
+                <div className="mt-4 text-xs text-gray-500 space-y-1">
+                  <div className="flex justify-between">
+                    <span>
+                      {project.start_date && (
+                        <>Inicio: {new Date(project.start_date).toLocaleDateString('es-CO')}</>
+                      )}
+                    </span>
+                    <span>
+                      {project.end_date && (
+                        <>Fin: {new Date(project.end_date).toLocaleDateString('es-CO')}</>
+                      )}
+                    </span>
+                  </div>
+                  {project.delivery_date && (
+                    <div className="flex justify-between items-center">
+                      <span>
+                        Entrega: {new Date(project.delivery_date).toLocaleDateString('es-CO')}
+                      </span>
+                      {(() => {
+                        const isOverdue = !project.end_date && new Date(project.delivery_date) < new Date();
+                        return isOverdue && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            <AlertCircle className="w-3 h-3 mr-1" />
+                            Atrasado
+                          </span>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </div>
 
                 {/* Time Progress Bar */}

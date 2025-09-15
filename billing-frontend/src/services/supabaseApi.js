@@ -292,6 +292,11 @@ export const projectsApi = {
   },
 
   async create(project) {
+    console.log('🔍 PROJECTS API CREATE DEBUG:');
+    console.log('  - Received project data:', project);
+    console.log('  - client_id value:', project.client_id);
+    console.log('  - client_id type:', typeof project.client_id);
+    
     const { data, error } = await supabase
       .from('projects')
       .insert([project])
@@ -301,7 +306,10 @@ export const projectsApi = {
       `)
       .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error('🚨 PROJECTS API CREATE ERROR:', error);
+      throw error;
+    }
     return { success: true, data };
   },
 
@@ -460,6 +468,36 @@ export const contractsApi = {
     );
     
     return { success: true, data: contractsWithHours };
+  },
+
+  async getById(id) {
+    const { data, error } = await supabase
+      .from('contracts')
+      .select(`
+        *,
+        client:clients(name, email, company)
+      `)
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    
+    // Get total hours used from time_entries
+    const { data: timeEntries } = await supabase
+      .from('time_entries')
+      .select('hours_used')
+      .eq('contract_id', id);
+    
+    const totalUsedHours = timeEntries?.reduce((sum, entry) => sum + (parseFloat(entry.hours_used) || 0), 0) || 0;
+    
+    return { 
+      success: true, 
+      data: {
+        ...data,
+        used_hours: totalUsedHours,
+        client_name: data.client?.name || data.client?.company || 'Cliente desconocido'
+      }
+    };
   },
 
   async getById(id) {

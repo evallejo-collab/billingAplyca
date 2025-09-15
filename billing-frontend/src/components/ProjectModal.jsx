@@ -39,6 +39,7 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
           estimated_hours: project.estimated_hours || '',
           start_date: project.start_date || '',
           end_date: project.end_date || '',
+          delivery_date: project.delivery_date || '',
           status: project.status || 'active',
           project_type: project.is_independent ? 'independent' : 'contract',
           contract_id: project.contract_id || '',
@@ -145,24 +146,61 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
     setLoading(true);
     setError(null);
 
+    console.log('🚀 FORM SUBMIT START');
+    console.log('  - Complete formData:', formData);
+
     try {
+      // Basic validation
+      if (!formData.name) {
+        setError('El nombre del proyecto es requerido');
+        setLoading(false);
+        return;
+      }
+
       const submitData = {
         name: formData.name,
         description: formData.description,
         estimated_hours: formData.estimated_hours ? parseFloat(formData.estimated_hours) : null,
         start_date: formData.start_date || null,
         end_date: formData.end_date || null,
+        delivery_date: formData.delivery_date || null,
         status: formData.status,
         notes: formData.notes || null,
       };
 
       if (formData.project_type === 'contract') {
+        console.log('🔍 CONTRACT PROJECT VALIDATION:');
+        console.log('  - formData.client_id:', formData.client_id);
+        console.log('  - typeof formData.client_id:', typeof formData.client_id);
+        
         submitData.contract_id = formData.contract_id ? parseInt(formData.contract_id) : null;
-        submitData.client_id = formData.client_id ? parseInt(formData.client_id) : null;
+        // For contract projects, client_id is required even if no specific contract is selected
+        const clientId = formData.client_id ? parseInt(formData.client_id) : null;
+        
+        console.log('  - parsed clientId:', clientId);
+        console.log('  - isNaN(clientId):', isNaN(clientId));
+        
+        if (!formData.client_id || formData.client_id === '' || !clientId || isNaN(clientId)) {
+          console.log('❌ CLIENT VALIDATION FAILED');
+          setError('Debe seleccionar un cliente válido para proyectos asociados a contratos');
+          setLoading(false);
+          return;
+        }
+        
+        console.log('✅ CLIENT VALIDATION PASSED');
+        submitData.client_id = clientId;
         submitData.is_independent = false;
       } else {
+        // Validation for independent projects
+        if (!formData.independent_client_id || formData.independent_client_id === '') {
+          setError('Debe seleccionar un cliente para proyectos independientes');
+          setLoading(false);
+          return;
+        }
+
         submitData.is_independent = true;
-        submitData.client_id = null; // Explicitly set to null for independent projects
+        // For independent projects, use independent_client_id as client_id to satisfy NOT NULL constraint
+        submitData.client_id = formData.independent_client_id ? parseInt(formData.independent_client_id) : null;
         submitData.contract_id = null; // Explicitly set to null for independent projects
         submitData.independent_client_id = formData.independent_client_id ? parseInt(formData.independent_client_id) : null;
         submitData.client_name = formData.client_name || null;
@@ -172,6 +210,14 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
         submitData.total_amount = formData.total_amount ? parseFloat(formData.total_amount) : calculateTotalAmount();
         submitData.is_paid = formData.is_paid;
       }
+
+      // Debug: Log what we're sending
+      console.log('🔍 PROJECT MODAL DEBUG:');
+      console.log('  - Form data:', formData);
+      console.log('  - Submit data:', submitData);
+      console.log('  - Project type:', formData.project_type);
+      console.log('  - Client ID:', formData.client_id);
+      console.log('  - Submit Client ID:', submitData.client_id);
 
       let response;
       if (isEditing) {
@@ -523,16 +569,23 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
                       id="client_id"
                       name="client_id"
                       value={formData.client_id}
-                      onChange={handleInputChange}
+                      onChange={(e) => {
+                        console.log('🔄 CLIENT DROPDOWN CHANGE:', e.target.value);
+                        handleInputChange(e);
+                      }}
                       required
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     >
                       <option value="">Seleccionar cliente...</option>
-                      {clients.map(client => (
-                        <option key={client.id} value={client.id}>
-                          {client.name || client.company}
-                        </option>
-                      ))}
+                      {clients && clients.length > 0 ? (
+                        clients.map(client => (
+                          <option key={client.id} value={client.id}>
+                            {client.name || client.company}
+                          </option>
+                        ))
+                      ) : (
+                        <option disabled>No hay clientes disponibles</option>
+                      )}
                     </select>
                   </div>
 
@@ -698,7 +751,7 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
                       value={formData.hourly_rate}
                       onChange={handleInputChange}
                       min="0"
-                      step="1000"
+                      step="any"
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                       placeholder="75000"
                     />
@@ -715,7 +768,7 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
                       value={formData.total_amount || calculateTotalAmount()}
                       onChange={handleInputChange}
                       min="0"
-                      step="1000"
+                      step="any"
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                       placeholder="Auto-calculado"
                     />

@@ -68,6 +68,12 @@ const PaymentWizard = ({ isOpen, onClose, onPaymentSaved, item }) => {
         ]);
         let projects = projectsResponse.data || [];
         setAvailableContracts(contractsResponse.data || []);
+        
+        console.log('🔍 PAYMENT WIZARD DEBUG:');
+        console.log('  - All projects loaded:', projects.length);
+        console.log('  - Item type:', item?.type);
+        console.log('  - Projects with is_independent=true:', projects.filter(p => p.is_independent).length);
+        console.log('  - All projects:', projects.map(p => ({ name: p.name, is_independent: p.is_independent })));
           
           // Filter projects based on context:
           // 1. If this is a contract payment, show only projects for that contract's client
@@ -82,6 +88,9 @@ const PaymentWizard = ({ isOpen, onClose, onPaymentSaved, item }) => {
             // For independent projects, show only other independent projects
             projects = projects.filter(p => p.is_independent);
           }
+          
+          console.log('  - Filtered projects for dropdown:', projects.length);
+          console.log('  - Filtered projects:', projects.map(p => ({ name: p.name, is_independent: p.is_independent })));
           
           setAvailableProjects(projects);
       } catch (error) {

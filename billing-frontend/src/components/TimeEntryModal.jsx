@@ -144,7 +144,9 @@ const TimeEntryModal = ({ isOpen, onClose, activeContracts, onTimeEntrySaved, se
         submitData.contract_id = parseInt(formData.contract_id);
         submitData.project_id = formData.project_id ? parseInt(formData.project_id) : null;
       } else {
-        submitData.contract_id = null;
+        // For independent projects, use the first available contract as dummy contract
+        const defaultContractId = activeContracts.length > 0 ? activeContracts[0].id : 1;
+        submitData.contract_id = defaultContractId;
         submitData.project_id = parseInt(formData.project_id);
       }
 

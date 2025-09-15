@@ -686,9 +686,9 @@ const ClientPortal = () => {
             checkYear++;
           }
           
-          // Count months from after latest paid month to current month (inclusive)
+          // Count months from after latest paid month to current month (exclusive - don't include current month)
           const owedMonthsList = [];
-          while (checkYear < currentYear || (checkYear === currentYear && checkMonth <= currentMonth)) {
+          while (checkYear < currentYear || (checkYear === currentYear && checkMonth < currentMonth)) {
             const monthKey = `${checkYear}-${checkMonth.toString().padStart(2, '0')}`;
             monthsOwed++;
             missingMonthsList.push({ year: checkYear, month: checkMonth, monthKey });
@@ -769,12 +769,14 @@ const ClientPortal = () => {
           checkYear++;
         }
         
-        // Count months from after latest payment to current month (inclusive)
-        while (checkYear < currentYear || (checkYear === currentYear && checkMonth <= currentMonth)) {
+        // Count months from after latest payment to current month (exclusive - don't include current month)
+        const owedMonthsList = [];
+        while (checkYear < currentYear || (checkYear === currentYear && checkMonth < currentMonth)) {
           monthsOwed++;
           missingMonthsList.push({ year: checkYear, month: checkMonth });
           
           const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+          owedMonthsList.push(monthNames[checkMonth-1]);
           console.log(`    - Owed: ${monthNames[checkMonth-1]} ${checkYear}`);
           
           checkMonth++;
@@ -785,6 +787,7 @@ const ClientPortal = () => {
         }
         
         missingSupportAndDevelopmentMonths = monthsOwed;
+        missingSupportAndDevelopmentMonthsList.splice(0, missingSupportAndDevelopmentMonthsList.length, ...owedMonthsList);
         
         // Get average support and development payment amount to estimate debt
         const avgSupportAndDevPayment = allSupportAndDevPayments.reduce((sum, p) => sum + p.amount, 0) / allSupportAndDevPayments.length;
@@ -884,7 +887,8 @@ const ClientPortal = () => {
         debtSupportAndDevelopment,
         missingRecurrentSupportMonths,
         missingSupportAndDevelopmentMonths,
-        missingRecurrentMonths
+        missingRecurrentMonths,
+        missingSupportAndDevelopmentMonthsList
       });
 
     } catch (err) {
@@ -1085,7 +1089,7 @@ const ClientPortal = () => {
             <div className="px-8 py-6 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-150">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-semibold text-gray-800 ">Resumen Ejecutivo {selectedYear}</h2>
+                  <h2 className="text-2xl font-semibold text-gray-800 ">Resumen Ejecutivo</h2>
                   <p className="text-gray-600 text-sm mt-2">Métricas clave y estado financiero</p>
                 </div>
                 <div className="p-3 bg-white border border-gray-200 rounded-xl shadow-sm">
@@ -1175,7 +1179,10 @@ const ClientPortal = () => {
                     <div className="border-t border-gray-100 pt-4">
                       <div className="text-sm font-normal text-gray-900 mb-2">Deuda Soporte y Evolutivos</div>
                       <div className="text-xs text-gray-600">
-                        Horas sin facturar
+                        {(summary.missingSupportAndDevelopmentMonths || 0) > 0 
+                          ? (summary.missingSupportAndDevelopmentMonthsList || []).join(', ')
+                          : 'Al corriente'
+                        }
                       </div>
                     </div>
                   </div>
@@ -1523,9 +1530,9 @@ const ClientPortal = () => {
                               for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
                                 const monthName = new Date(selectedYear, monthIndex).toLocaleDateString('es-ES', { month: 'short' });
                                 
-                                // If it's a past month (before current month) or if it's current month and we're past day 5
-                                const shouldHavePayment = monthIndex < currentMonth || 
-                                                        (monthIndex === currentMonth && currentDay > 5);
+                                // Only mark as missing if it's a PAST month (before current month)
+                                // Do not include current month even if past day 5  
+                                const shouldHavePayment = monthIndex < currentMonth;
                                 
                                 if (shouldHavePayment && supportByMonth[monthName].pagos === 0) {
                                   supportByMonth[monthName].esFaltante = true;
@@ -1709,9 +1716,9 @@ const ClientPortal = () => {
                             for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
                               const monthName = new Date(selectedYear, monthIndex).toLocaleDateString('es-ES', { month: 'short' });
                               
-                              // If it's a past month (before current month) or if it's current month and we're past day 5
-                              const shouldHavePayment = monthIndex < currentMonth || 
-                                                      (monthIndex === currentMonth && currentDay > 5);
+                              // Only mark as missing if it's a PAST month (before current month)
+                              // Do not include current month even if past day 5
+                              const shouldHavePayment = monthIndex < currentMonth;
                               
                               if (shouldHavePayment && 
                                   supportByMonth[monthName] && 
