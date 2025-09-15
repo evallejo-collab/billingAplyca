@@ -50,12 +50,15 @@ export const processAIQuery = async (message, userId) => {
     Contexto del usuario y datos del sistema:
     ${JSON.stringify(context, null, 2)}
     
-    IMPORTANTE para consultas de pagos:
+    IMPORTANTE para consultas de pagos y deudas:
     - Si te preguntan sobre pagos de un cliente específico, usa los datos del contexto para dar información exacta
-    - Menciona números específicos: cantidad de pagos, montos totales, fechas recientes
+    - Para consultas de DEUDA: usa "_total_debt", "_debt_percentage", "_estimated_months_debt"
+    - Para MESES DE DEUDA: usa "_estimated_months_debt" si está disponible
+    - Menciona números específicos: cantidad de pagos, montos totales, fechas recientes, deuda pendiente
     - Si hay datos de "_payment_count" para un cliente, úsalo
-    - Si hay datos de "_total_amount", conviértelo a formato de moneda colombiana (COP)
+    - Si hay datos de "_total_paid", "_total_debt", conviértelo a formato de moneda colombiana (COP)
     - Siempre incluye el número total de pagos encontrados
+    - Para análisis de deuda, incluye: monto total del contrato/proyecto, monto pagado, monto pendiente, porcentaje de deuda
     
     Instrucciones de formato:
     - Responde en español de forma clara y concisa
@@ -267,11 +270,80 @@ const getRelevantData = async (message, userId) => {
             .or(`contract.client.name.ilike.%${clientName}%,contract.client.company.ilike.%${clientName}%,project.client_name.ilike.%${clientName}%`)
             .order('payment_date', { ascending: false });
           
+          // Get contracts for debt calculation
+          const { data: clientContracts, error: contractsError } = await supabase
+            .from('contracts')
+            .select(`
+              *,
+              client:clients!inner(name, company)
+            `)
+            .or(`client.name.ilike.%${clientName}%,client.company.ilike.%${clientName}%`);
+          
+          // Get projects for debt calculation  
+          const { data: clientProjects, error: projectsError } = await supabase
+            .from('projects')
+            .select('*')
+            .ilike('client_name', `%${clientName}%`);
+          
           if (clientPayments) {
             context[`${clientName}_payments`] = clientPayments;
             context[`${clientName}_payment_count`] = clientPayments.length;
-            context[`${clientName}_total_amount`] = clientPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+            context[`${clientName}_total_paid`] = clientPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
           }
+          
+          if (clientContracts) {
+            context[`${clientName}_contracts`] = clientContracts;
+            // Calculate total contract value and billed amount
+            let totalContractValue = 0;
+            let totalBilledAmount = 0;
+            
+            clientContracts.forEach(contract => {
+              const contractValue = (parseFloat(contract.total_hours) || 0) * (parseFloat(contract.hourly_rate) || 0);
+              const billedAmount = parseFloat(contract.billed_amount) || 0;
+              
+              totalContractValue += contractValue;
+              totalBilledAmount += billedAmount;
+            });
+            
+            context[`${clientName}_total_contract_value`] = totalContractValue;
+            context[`${clientName}_total_billed`] = totalBilledAmount;
+            context[`${clientName}_pending_amount`] = totalContractValue - totalBilledAmount;
+          }
+          
+          if (clientProjects) {
+            context[`${clientName}_projects`] = clientProjects;
+            // Calculate project totals
+            let totalProjectValue = 0;
+            let totalProjectPaid = 0;
+            
+            clientProjects.forEach(project => {
+              const projectValue = parseFloat(project.total_amount) || 
+                ((parseFloat(project.hourly_rate) || 0) * (parseFloat(project.estimated_hours) || 0));
+              const paidAmount = parseFloat(project.paid_amount) || 0;
+              
+              totalProjectValue += projectValue;
+              totalProjectPaid += paidAmount;
+            });
+            
+            context[`${clientName}_total_project_value`] = totalProjectValue;
+            context[`${clientName}_project_paid`] = totalProjectPaid;
+            context[`${clientName}_project_pending`] = totalProjectValue - totalProjectPaid;
+          }
+          
+          // Calculate debt analysis
+          const totalValue = (context[`${clientName}_total_contract_value`] || 0) + (context[`${clientName}_total_project_value`] || 0);
+          const totalPaid = context[`${clientName}_total_paid`] || 0;
+          const totalPending = totalValue - totalPaid;
+          
+          context[`${clientName}_total_debt`] = totalPending;
+          context[`${clientName}_debt_percentage`] = totalValue > 0 ? (totalPending / totalValue) * 100 : 0;
+          
+          // Estimate months of debt based on average monthly contract values
+          if (clientContracts && clientContracts.length > 0) {
+            const avgMonthlyValue = totalValue / (clientContracts.length * 12); // Assuming yearly contracts
+            context[`${clientName}_estimated_months_debt`] = avgMonthlyValue > 0 ? Math.ceil(totalPending / avgMonthlyValue) : 0;
+          }
+          
         } catch (error) {
           // Continue if error
         }
@@ -335,5 +407,13 @@ export const getFallbackResponse = (message) => {
     return "Para consultar información específica sobre Terpel, ve a la sección 'Facturación' y busca los pagos de este cliente, o utiliza la búsqueda en 'Clientes' para ver todos sus datos.";
   }
   
-  return "¡Hola! Puedo ayudarte con consultas sobre tiempo registrado, contratos, clientes, proyectos y especialmente con datos de facturación y pagos. También puedo guiarte para crear nuevos elementos. ¿Qué necesitas?";
+  if (messageTokens.includes('deuda') || messageTokens.includes('debe') || messageTokens.includes('pendiente') || messageTokens.includes('debt')) {
+    return "Para consultar información sobre deudas pendientes, ve a la sección 'Facturación' donde puedes ver el estado de pagos por cliente. También puedo ayudarte a calcular montos pendientes si me especificas el cliente.";
+  }
+  
+  if (messageTokens.includes('meses') && (messageTokens.includes('deuda') || messageTokens.includes('debe'))) {
+    return "Para calcular meses de deuda, necesito acceder a la información específica del cliente. Ve a 'Facturación' para ver el historial detallado de pagos y contratos.";
+  }
+  
+  return "¡Hola! Puedo ayudarte con consultas sobre tiempo registrado, contratos, clientes, proyectos y especialmente con datos de facturación, pagos y análisis de deudas. También puedo guiarte para crear nuevos elementos. ¿Qué necesitas?";
 };
