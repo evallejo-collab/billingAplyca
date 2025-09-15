@@ -298,6 +298,11 @@ const PaymentWizard = ({ isOpen, onClose, onPaymentSaved, item }) => {
         paymentData.billing_month = formData.billingMonth;
       }
       
+      // Debug: Check if contract_id is being added somewhere
+      console.log('PaymentWizard - Item type:', item.type);
+      console.log('PaymentWizard - Item data:', item);
+      console.log('PaymentWizard - Payment data before API call:', paymentData);
+      
       // Final validation of payment data
       
       // Validación adicional del formato
@@ -309,8 +314,10 @@ const PaymentWizard = ({ isOpen, onClose, onPaymentSaved, item }) => {
       // Call API based on item type
       let response;
       if (item.type === 'contract') {
+        console.log('PaymentWizard - Calling contractsApi.addPayment with contractId:', item.contractId);
         response = await contractsApi.addPayment(item.contractId, paymentData);
       } else {
+        console.log('PaymentWizard - Calling projectsApi.addPayment with projectId:', item.projectId);
         response = await projectsApi.addPayment(item.projectId, paymentData);
       }
 

@@ -384,17 +384,24 @@ export const projectsApi = {
   async addPayment(projectId, paymentData) {
     const { data: { user } } = await supabase.auth.getUser();
     
+    const insertData = { 
+      ...paymentData, 
+      project_id: projectId,
+      created_by: user?.id 
+    };
+    
+    console.log('projectsApi.addPayment - Final insert data:', insertData);
+    
     const { data, error } = await supabase
       .from('payments')
-      .insert([{ 
-        ...paymentData, 
-        project_id: projectId,
-        created_by: user?.id 
-      }])
+      .insert([insertData])
       .select()
       .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error('projectsApi.addPayment - Database error:', error);
+      throw error;
+    }
     return { success: true, data };
   }
 };
