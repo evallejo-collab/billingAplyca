@@ -45,10 +45,17 @@ export const processAIQuery = async (message, userId) => {
     
     // Create system prompt with context
     const systemPrompt = `Eres un asistente especializado en el sistema de gestión de Aplyca. 
-    Ayudas a los usuarios con consultas sobre tiempo registrado, contratos, clientes y proyectos.
+    Ayudas a los usuarios con consultas sobre tiempo registrado, contratos, clientes, proyectos y ESPECIALMENTE con datos de facturación y pagos.
     
-    Contexto del usuario:
+    Contexto del usuario y datos del sistema:
     ${JSON.stringify(context, null, 2)}
+    
+    IMPORTANTE para consultas de pagos:
+    - Si te preguntan sobre pagos de un cliente específico, usa los datos del contexto para dar información exacta
+    - Menciona números específicos: cantidad de pagos, montos totales, fechas recientes
+    - Si hay datos de "_payment_count" para un cliente, úsalo
+    - Si hay datos de "_total_amount", conviértelo a formato de moneda colombiana (COP)
+    - Siempre incluye el número total de pagos encontrados
     
     Instrucciones de formato:
     - Responde en español de forma clara y concisa
@@ -56,11 +63,13 @@ export const processAIQuery = async (message, userId) => {
     - Usa viñetas (• ) para listas simples
     - Separa párrafos con saltos de línea dobles
     - Usa **texto** para destacar elementos importantes
+    - Para montos, usa formato: $X,XXX,XXX COP
     - Mantén respuestas estructuradas y profesionales
     
     Instrucciones de contenido:
-    - Si no tienes suficiente información, pide aclaraciones
+    - Si tienes datos específicos en el contexto, úsalos para dar respuestas exactas
     - Proporciona datos específicos cuando sea posible
+    - Para consultas de pagos, siempre incluye: número de pagos, monto total si disponible
     - Sé amigable y profesional
     - Para crear elementos, usa pasos numerados claros
     - Si la consulta no está relacionada con el sistema, redirige educadamente
@@ -197,6 +206,79 @@ const getRelevantData = async (message, userId) => {
       }
     }
 
+    // Get payments data if mentioned
+    if (messageTokens.includes('pago') || messageTokens.includes('payment') || messageTokens.includes('facturación') || messageTokens.includes('billing')) {
+      try {
+        const { data: payments, error } = await supabase
+          .from('payments')
+          .select(`
+            *,
+            contract:contracts(contract_number, client:clients(name, company)),
+            project:projects(name, client_name)
+          `)
+          .limit(50)
+          .order('payment_date', { ascending: false });
+        
+        context.payments = payments || [];
+        
+        // Group payments by client for easy analysis
+        if (payments) {
+          const paymentsByClient = {};
+          payments.forEach(payment => {
+            const clientName = payment.contract?.client?.name || 
+                             payment.contract?.client?.company || 
+                             payment.project?.client_name || 
+                             'Cliente desconocido';
+            
+            if (!paymentsByClient[clientName]) {
+              paymentsByClient[clientName] = {
+                totalAmount: 0,
+                paymentCount: 0,
+                payments: []
+              };
+            }
+            
+            paymentsByClient[clientName].totalAmount += parseFloat(payment.amount) || 0;
+            paymentsByClient[clientName].paymentCount += 1;
+            paymentsByClient[clientName].payments.push(payment);
+          });
+          
+          context.payments_by_client = paymentsByClient;
+        }
+      } catch (error) {
+        context.payments = [];
+        context.payments_by_client = {};
+      }
+    }
+
+    // Get specific client payment data if client name is mentioned
+    const clientNames = ['vanti', 'terpel', 'aplyca', 'cliente']; // Add more as needed
+    for (const clientName of clientNames) {
+      if (messageTokens.includes(clientName.toLowerCase())) {
+        try {
+          // Get payments for specific client
+          const { data: clientPayments, error } = await supabase
+            .from('payments')
+            .select(`
+              *,
+              contract:contracts(contract_number, client:clients(name, company)),
+              project:projects(name, client_name)
+            `)
+            .or(`contract.client.name.ilike.%${clientName}%,contract.client.company.ilike.%${clientName}%,project.client_name.ilike.%${clientName}%`)
+            .order('payment_date', { ascending: false });
+          
+          if (clientPayments) {
+            context[`${clientName}_payments`] = clientPayments;
+            context[`${clientName}_payment_count`] = clientPayments.length;
+            context[`${clientName}_total_amount`] = clientPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+          }
+        } catch (error) {
+          // Continue if error
+        }
+        break;
+      }
+    }
+
     // Add current date for time-based queries
     context.current_date = new Date().toISOString();
     
@@ -240,5 +322,18 @@ export const getFallbackResponse = (message) => {
     return "Los proyectos están organizados en la sección 'Proyectos' del menú principal. Ahí puedes ver el estado de cada proyecto y sus métricas.";
   }
   
-  return "¡Hola! Puedo ayudarte con consultas sobre tiempo registrado, contratos, clientes y proyectos. También puedo guiarte para crear nuevos elementos. ¿Qué necesitas?";
+  if (messageTokens.includes('pago') || messageTokens.includes('facturación') || messageTokens.includes('payment') || messageTokens.includes('billing')) {
+    return "Para consultar información de pagos y facturación, ve a la sección 'Facturación' en el menú principal. Ahí encontrarás todos los pagos organizados por cliente, con historial detallado y estados de pago.";
+  }
+  
+  // Check for specific client names
+  if (messageTokens.includes('vanti')) {
+    return "Para consultar información específica sobre Vanti, ve a la sección 'Facturación' y busca los pagos de este cliente, o utiliza la búsqueda en 'Clientes' para ver todos sus datos.";
+  }
+  
+  if (messageTokens.includes('terpel')) {
+    return "Para consultar información específica sobre Terpel, ve a la sección 'Facturación' y busca los pagos de este cliente, o utiliza la búsqueda en 'Clientes' para ver todos sus datos.";
+  }
+  
+  return "¡Hola! Puedo ayudarte con consultas sobre tiempo registrado, contratos, clientes, proyectos y especialmente con datos de facturación y pagos. También puedo guiarte para crear nuevos elementos. ¿Qué necesitas?";
 };
