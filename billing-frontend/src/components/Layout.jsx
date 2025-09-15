@@ -161,7 +161,7 @@ const Layout = () => {
             </div>
 
             {/* Navigation */}
-            <nav className="hidden md:flex items-center space-x-1 ml-8">
+            <nav className="hidden md:flex items-center space-x-1 ml-4">
               {/* Regular Navigation Items */}
               {navigation.map((item) => {
                 const Icon = item.icon;
