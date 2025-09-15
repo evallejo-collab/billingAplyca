@@ -389,7 +389,6 @@ export const projectsApi = {
       .insert([{ 
         ...paymentData, 
         project_id: projectId,
-        contract_id: null,
         created_by: user?.id 
       }])
       .select()
@@ -561,7 +560,6 @@ export const contractsApi = {
       .insert([{ 
         ...paymentData, 
         contract_id: contractId,
-        project_id: null,
         created_by: user?.id 
       }])
       .select()
