@@ -536,14 +536,14 @@ const Billing = () => {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-xs text-green-600 mb-1">PAGADO</div>
-                    <div className="text-sm font-medium text-green-600">
+                    <div className="text-xs text-gray-600 mb-1">PAGADO</div>
+                    <div className="text-sm font-medium text-gray-900">
                       {formatCurrency(group.paidAmount, true)}
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-xs text-red-600 mb-1">PENDIENTE</div>
-                    <div className="text-sm font-medium text-red-600">
+                    <div className="text-xs text-gray-600 mb-1">PENDIENTE</div>
+                    <div className="text-sm font-medium text-gray-900">
                       {formatCurrency(group.pendingAmount, true)}
                     </div>
                   </div>
@@ -581,7 +581,7 @@ const Billing = () => {
                                 {item.type === 'contract' ? 'Contrato' : 'Proyecto'}
                               </span>
                               {item.isIndependent && (
-                                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                                <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">
                                   Independiente
                                 </span>
                               )}
@@ -622,11 +622,11 @@ const Billing = () => {
                             </div>
                             <div className="text-xs text-gray-500">Total</div>
                           </div>
-                          <div className="text-center p-2 bg-green-50 rounded-lg">
-                            <div className="text-lg font-bold text-green-600">
+                          <div className="text-center p-2 bg-gray-50 rounded-lg">
+                            <div className="text-lg font-bold text-gray-900">
                               {formatCurrency(item.paidAmount, true)}
                             </div>
-                            <div className="text-xs text-green-600">Pagado</div>
+                            <div className="text-xs text-gray-600">Pagado</div>
                           </div>
                         </div>
 
@@ -637,7 +637,7 @@ const Billing = () => {
                               e.stopPropagation();
                               navigate(`/billing/${item.type}/${item.type === 'contract' ? item.contractId : item.projectId}`);
                             }}
-                            className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 py-2 px-3 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center justify-center"
+                            className="flex-1 text-blue-600 hover:text-blue-700 py-2 px-3 text-sm font-medium transition-colors duration-200 flex items-center justify-center"
                           >
                             <Eye className="w-4 h-4 mr-1.5" />
                             Ver Historial
@@ -648,7 +648,7 @@ const Billing = () => {
                               setSelectedItem(item);
                               setIsPaymentWizardOpen(true);
                             }}
-                            className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 py-2 px-3 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center justify-center"
+                            className="flex-1 text-green-600 hover:text-green-700 py-2 px-3 text-sm font-medium transition-colors duration-200 flex items-center justify-center"
                           >
                             <Plus className="w-4 h-4 mr-1.5" />
                             Agregar Pago
