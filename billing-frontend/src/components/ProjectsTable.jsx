@@ -37,6 +37,104 @@ const ProjectsTable = () => {
   const [contracts, setContracts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const formatRichText = (text) => {
+    if (!text) return text;
+    
+    // Procesar texto enriquecido paso a paso
+    let processedText = text;
+    
+    // 1. Convertir saltos de línea
+    processedText = processedText.split('\n').map((line, lineIndex) => (
+      <span key={`line-${lineIndex}`}>
+        {lineIndex > 0 && <br />}
+        {processTextFormatting(line)}
+      </span>
+    ));
+    
+    return processedText;
+  };
+  
+  const processTextFormatting = (text) => {
+    const parts = [];
+    let currentIndex = 0;
+    
+    // Regex para detectar diferentes formatos (incluye enlaces con formato [texto](url))
+    const formatRegex = /(\*\*.*?\*\*)|(\*.*?\*)|(\[.*?\]\(.*?\))|(https?:\/\/[^\s]+)|(^• .*$)/gm;
+    let match;
+    
+    while ((match = formatRegex.exec(text)) !== null) {
+      // Agregar texto antes del formato
+      if (match.index > currentIndex) {
+        parts.push(text.slice(currentIndex, match.index));
+      }
+      
+      const matchedText = match[0];
+      
+      if (matchedText.startsWith('**') && matchedText.endsWith('**')) {
+        // Texto en negritas
+        parts.push(
+          <strong key={`bold-${match.index}`} className="font-semibold">
+            {matchedText.slice(2, -2)}
+          </strong>
+        );
+      } else if (matchedText.startsWith('*') && matchedText.endsWith('*') && !matchedText.startsWith('**')) {
+        // Texto en cursiva
+        parts.push(
+          <em key={`italic-${match.index}`} className="italic">
+            {matchedText.slice(1, -1)}
+          </em>
+        );
+      } else if (matchedText.startsWith('[') && matchedText.includes('](')) {
+        // Enlaces con formato [texto](url)
+        const linkMatch = matchedText.match(/\[(.*?)\]\((.*?)\)/);
+        if (linkMatch) {
+          const [, linkText, linkUrl] = linkMatch;
+          parts.push(
+            <a 
+              key={`markdown-link-${match.index}`}
+              href={linkUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 underline"
+            >
+              {linkText}
+            </a>
+          );
+        }
+      } else if (matchedText.startsWith('http')) {
+        // URLs simples
+        parts.push(
+          <a 
+            key={`link-${match.index}`}
+            href={matchedText} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800 underline"
+          >
+            {matchedText}
+          </a>
+        );
+      } else if (matchedText.startsWith('• ')) {
+        // Elementos de lista
+        parts.push(
+          <div key={`list-${match.index}`} className="flex items-start">
+            <span className="text-blue-600 mr-2">•</span>
+            <span>{matchedText.slice(2)}</span>
+          </div>
+        );
+      }
+      
+      currentIndex = match.index + matchedText.length;
+    }
+    
+    // Agregar texto restante
+    if (currentIndex < text.length) {
+      parts.push(text.slice(currentIndex));
+    }
+    
+    return parts.length > 0 ? parts : text;
+  };
   
   // Filters and Search
   const [searchTerm, setSearchTerm] = useState('');
@@ -523,7 +621,7 @@ const ProjectsTable = () => {
                           <div>
                             <div className="text-sm font-medium text-gray-900">{project.name}</div>
                             {project.description && (
-                              <div className="text-sm text-gray-500 truncate max-w-xs">{project.description}</div>
+                              <div className="text-sm text-gray-500 truncate max-w-xs">{formatRichText(project.description)}</div>
                             )}
                           </div>
                         </div>
@@ -565,7 +663,7 @@ const ProjectsTable = () => {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className="px-4 py-4 text-center">
                         <div className="space-y-1">
                           <div className="text-sm">
                             {hasOvercost ? (

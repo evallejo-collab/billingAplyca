@@ -418,19 +418,12 @@ const Projects = () => {
                 </div>
 
                 {/* Hours Info */}
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="text-center p-2 bg-gray-50 rounded border border-gray-200">
-                    <div className="flex items-center justify-center mb-1">
-                      <Target className="w-4 h-4 text-gray-600 mr-1" />
-                      <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">Estimadas</span>
-                    </div>
-                    <p className="text-base font-semibold text-gray-900">{project.estimated_hours || 0}h</p>
+                <div className="p-3 bg-gray-50 rounded border border-gray-200 mb-4">
+                  <div className="flex items-center justify-center mb-2">
+                    <Clock className="w-4 h-4 text-gray-600 mr-2" />
+                    <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">Horas</span>
                   </div>
-                  <div className="text-center p-2 bg-gray-50 rounded border border-gray-200">
-                    <div className="flex items-center justify-center mb-1">
-                      <Clock className="w-4 h-4 text-gray-600 mr-1" />
-                      <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">Utilizadas</span>
-                    </div>
+                  <div className="text-center">
                     {(() => {
                       const estimatedHours = parseFloat(project.estimated_hours) || 0;
                       const usedHours = parseFloat(project.used_hours) || 0;
@@ -440,8 +433,10 @@ const Projects = () => {
                       if (hasOvercost) {
                         return (
                           <div className="relative group">
-                            <p className="text-base text-red-500 cursor-help">
-                              {project.used_hours || 0}h
+                            <p className="text-sm font-semibold whitespace-nowrap">
+                              <span className="text-red-500 cursor-help">{usedHours}h</span>
+                              <span className="text-gray-500 mx-1">/</span>
+                              <span className="text-gray-900">{estimatedHours}h</span>
                             </p>
                             <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
                               Sobrecosto: +{overcostHours.toFixed(1)}h
@@ -450,56 +445,16 @@ const Projects = () => {
                         );
                       } else {
                         return (
-                          <p className="text-base font-semibold text-gray-900">
-                            {project.used_hours || 0}h
+                          <p className="text-sm font-semibold text-gray-900 whitespace-nowrap">
+                            {usedHours}h / {estimatedHours}h
                           </p>
                         );
                       }
                     })()}
                   </div>
-                  <div className={`text-center p-2 rounded border ${
-                    (project.remaining_hours || 0) <= 5 && (project.remaining_hours || 0) > 0
-                      ? 'bg-yellow-50 border-yellow-200'
-                      : (project.remaining_hours || 0) === 0
-                      ? 'bg-red-50 border-red-200'
-                      : 'bg-green-50 border-green-200'
-                  }`}>
-                    <div className="flex items-center justify-center mb-1">
-                      <Clock className={`w-4 h-4 mr-1 ${
-                        (project.remaining_hours || 0) <= 5 && (project.remaining_hours || 0) > 0
-                          ? 'text-yellow-600'
-                          : (project.remaining_hours || 0) === 0
-                          ? 'text-red-600'
-                          : 'text-green-600'
-                      }`} />
-                      <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">Restantes</span>
-                    </div>
-                    <p className={`text-base font-semibold ${
-                      (project.remaining_hours || 0) <= 5 && (project.remaining_hours || 0) > 0
-                        ? 'text-yellow-700'
-                        : (project.remaining_hours || 0) === 0
-                        ? 'text-red-700'
-                        : 'text-green-700'
-                    }`}>{project.remaining_hours || 0}h</p>
-                  </div>
-                  <div className={`text-center p-2 rounded border ${
-                    (project.entries_count || 0) > 0 
-                      ? 'bg-blue-50 border-blue-200' 
-                      : 'bg-gray-50 border-gray-200'
-                  }`}>
-                    <div className="flex items-center justify-center mb-1">
-                      <FileText className={`w-4 h-4 mr-1 ${
-                        (project.entries_count || 0) > 0 
-                          ? 'text-blue-600' 
-                          : 'text-gray-600'
-                      }`} />
-                      <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">Registros</span>
-                    </div>
-                    <p className={`text-base font-semibold ${
-                      (project.entries_count || 0) > 0 
-                        ? 'text-blue-700' 
-                        : 'text-gray-900'
-                    }`}>{project.entries_count || 0}</p>
+                  <div className="text-center mt-2">
+                    <p className="text-xs text-gray-500 mb-1">Registros</p>
+                    <p className="text-sm font-semibold text-gray-900">{project.entries_count || 0}</p>
                   </div>
                 </div>
 

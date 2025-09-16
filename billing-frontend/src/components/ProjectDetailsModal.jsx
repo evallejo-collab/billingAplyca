@@ -191,24 +191,16 @@ const ProjectDetailsModal = ({ isOpen, onClose, project }) => {
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
             <h3 className="text-sm font-medium text-gray-700 mb-3">Progreso de Horas</h3>
             
-            <div className="grid grid-cols-4 gap-4 text-center">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-xs text-gray-500">Estimadas</p>
-                <p className="text-lg font-semibold text-gray-700">{project.estimated_hours || 0}h</p>
+                <p className="text-xs text-gray-500 mb-1">Horas</p>
+                <p className="text-base font-semibold text-gray-700 whitespace-nowrap">
+                  {project.used_hours || 0}h / {project.estimated_hours || 0}h
+                </p>
               </div>
               
               <div>
-                <p className="text-xs text-gray-500">Utilizadas</p>
-                <p className="text-lg font-semibold text-gray-700">{project.used_hours || 0}h</p>
-              </div>
-              
-              <div>
-                <p className="text-xs text-gray-500">Restantes</p>
-                <p className="text-lg font-semibold text-gray-700">{project.remaining_hours || 0}h</p>
-              </div>
-
-              <div>
-                <p className="text-xs text-gray-500">Registros</p>
+                <p className="text-xs text-gray-500 mb-1">Registros</p>
                 <p className="text-lg font-semibold text-gray-700">{project.entries_count || 0}</p>
               </div>
             </div>
