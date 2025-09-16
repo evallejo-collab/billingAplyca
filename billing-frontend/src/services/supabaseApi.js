@@ -26,7 +26,6 @@ export const clientsApi = {
               
               if (!contractsError && contracts) {
                 contractsCount = contracts.length;
-                console.log(`Client ${client.name} has ${contractsCount} contracts`);
               } else if (contractsError) {
                 console.warn(`Contracts error for client ${client.id}:`, contractsError);
               }
@@ -44,7 +43,6 @@ export const clientsApi = {
               
               if (!projectsError && projects) {
                 projectsCount = projects.length;
-                console.log(`Client ${client.name} has ${projectsCount} projects`);
               } else if (projectsError) {
                 console.warn(`Projects error for client ${client.id}:`, projectsError);
               }
@@ -171,7 +169,6 @@ export const clientsApi = {
         entries_count: 0
       }));
 
-      console.log(`Found ${contractsWithData.length} contracts for client ${clientId}`);
       return { data: { success: true, contracts: contractsWithData } };
     } catch (error) {
       console.error('Error in getContracts:', error);
@@ -201,7 +198,6 @@ export const clientsApi = {
         entries_count: 0
       }));
 
-      console.log(`Found ${projectsWithData.length} projects for client ${clientId}`);
       return { data: { success: true, projects: projectsWithData } };
     } catch (error) {
       console.error('Error in getProjects:', error);
@@ -305,7 +301,6 @@ export const projectsApi = {
           ? parseFloat(project.total_amount) 
           : (estimatedHours * hourlyRate);
         
-        console.log(`Project ${project.name}: total_amount=${project.total_amount}, estimated_hours=${estimatedHours}, hourly_rate=${hourlyRate}, calculated total=${totalAmount}`);
         
         return {
           ...project,
@@ -473,16 +468,10 @@ export const contractsApi = {
           .select('hours_used')
           .eq('contract_id', contract.id);
         
-        console.log(`Contract ${contract.contract_number} (ID: ${contract.id}):`, {
-          timeEntries,
-          timeError,
-          timeEntriesCount: timeEntries?.length || 0
-        });
         
         const directHours = timeEntries?.reduce((sum, entry) => {
           // Use parseInt to match portal calculation
           const hours = parseInt(entry.hours_used || 0);
-          console.log(`  - Entry hours: ${entry.hours_used} -> parsed: ${hours}`);
           return sum + hours;
         }, 0) || 0;
         
@@ -500,7 +489,6 @@ export const contractsApi = {
         
         const totalEffectiveHours = directHours + equivalentHours;
         
-        console.log(`  - Contract ${contract.contract_number}: Direct: ${directHours}h, Support: ${equivalentHours}h, Total: ${totalEffectiveHours}h`);
         
         const totalHours = parseFloat(contract.total_hours) || 0;
         const remainingHours = Math.max(0, totalHours - totalEffectiveHours);
@@ -893,7 +881,6 @@ export const paymentsApi = {
 // ================ USERS API ================
 export const usersApi = {
   async getAll() {
-    console.log('usersApi.getAll() called');
     
     try {
       // Get current authenticated user (this is all we can get from frontend)
@@ -905,7 +892,6 @@ export const usersApi = {
       }
       
       if (user) {
-        console.log('Returning current authenticated user from Auth');
         const currentUser = {
           id: user.id,
           email: user.email,

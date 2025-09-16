@@ -148,8 +148,6 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
     setLoading(true);
     setError(null);
 
-    console.log('🚀 FORM SUBMIT START');
-    console.log('  - Complete formData:', formData);
 
     try {
       // Basic validation
@@ -171,25 +169,18 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
       };
 
       if (formData.project_type === 'contract') {
-        console.log('🔍 CONTRACT PROJECT VALIDATION:');
-        console.log('  - formData.client_id:', formData.client_id);
-        console.log('  - typeof formData.client_id:', typeof formData.client_id);
         
         submitData.contract_id = formData.contract_id ? parseInt(formData.contract_id) : null;
         // For contract projects, client_id is required even if no specific contract is selected
         const clientId = formData.client_id ? parseInt(formData.client_id) : null;
         
-        console.log('  - parsed clientId:', clientId);
-        console.log('  - isNaN(clientId):', isNaN(clientId));
         
         if (!formData.client_id || formData.client_id === '' || !clientId || isNaN(clientId)) {
-          console.log('❌ CLIENT VALIDATION FAILED');
           setError('Debe seleccionar un cliente válido para proyectos asociados a contratos');
           setLoading(false);
           return;
         }
         
-        console.log('✅ CLIENT VALIDATION PASSED');
         submitData.client_id = clientId;
         submitData.is_independent = false;
       } else {
@@ -214,13 +205,6 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
         submitData.purchase_order_number = formData.purchase_order_number || null;
       }
 
-      // Debug: Log what we're sending
-      console.log('🔍 PROJECT MODAL DEBUG:');
-      console.log('  - Form data:', formData);
-      console.log('  - Submit data:', submitData);
-      console.log('  - Project type:', formData.project_type);
-      console.log('  - Client ID:', formData.client_id);
-      console.log('  - Submit Client ID:', submitData.client_id);
 
       let response;
       if (isEditing) {
@@ -657,7 +641,6 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
                       name="client_id"
                       value={formData.client_id}
                       onChange={(e) => {
-                        console.log('🔄 CLIENT DROPDOWN CHANGE:', e.target.value);
                         handleInputChange(e);
                       }}
                       required
