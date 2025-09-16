@@ -273,7 +273,7 @@ const Contracts = () => {
                     <p className="text-sm text-gray-500">{contract.contract_number}</p>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(contract.status)}`}>
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${getStatusColor(contract.status)}`}>
                       {contract.status}
                     </span>
                     <div className="relative">

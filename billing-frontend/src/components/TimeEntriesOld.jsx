@@ -427,7 +427,7 @@ const TimeEntries = () => {
                         <td className="px-6 py-4 text-sm text-gray-900">
                           <div className="max-w-xs">
                             {entry.task_category ? (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
                                 {entry.task_category === 'soporte_general' && 'Soporte general'}
                                 {entry.task_category === 'desarrollo' && 'Desarrollo'}
                                 {entry.task_category === 'qa' && 'Q.A'}

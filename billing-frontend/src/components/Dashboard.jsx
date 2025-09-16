@@ -63,7 +63,7 @@ const Dashboard = () => {
 
   const getStatusText = (status) => {
     switch (status) {
-      case 'active': return 'ACTIVO';
+      case 'active': return 'Activo';
       case 'completed': return 'COMPLETADO';
       case 'cancelled': return 'CANCELADO';
       default: return status?.toUpperCase() || 'DESCONOCIDO';
@@ -142,7 +142,7 @@ const Dashboard = () => {
                 <TrendingUp className="w-8 h-8 text-gray-600" />
               </div>
               <div className="ml-4">
-                <p className="text-xs text-gray-500 uppercase tracking-wide">CONTRATOS ACTIVOS</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Contratos Activos</p>
                 <p className="text-xl font-semibold text-green-700">{activeContracts.length}</p>
               </div>
             </div>

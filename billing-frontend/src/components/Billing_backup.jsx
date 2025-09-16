@@ -766,7 +766,7 @@ const Billing = () => {
                                 <div className="flex items-center space-x-2">
                                   <Icon className="w-4 h-4" />
                                   <h5 className="font-semibold text-sm">{typeInfo.label}</h5>
-                                  <span className="bg-white bg-opacity-80 px-2 py-0.5 rounded-full text-xs font-medium">
+                                  <span className="bg-white bg-opacity-80 px-2 py-0.5 rounded text-xs font-medium">
                                     {payments.length} pago{payments.length !== 1 ? 's' : ''}
                                   </span>
                                 </div>

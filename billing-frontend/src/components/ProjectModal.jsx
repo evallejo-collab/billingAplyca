@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { projectsApi, clientsApi } from '../services/supabaseApi';
-import { X, Save, Folder, User, Building, FileText, Clock, DollarSign, Calendar, AlertCircle } from 'lucide-react';
+import { X, Save, Folder, User, Building, FileText, Clock, DollarSign, Calendar, AlertCircle, CheckCircle, Target, Calculator, CreditCard } from 'lucide-react';
+import RichTextEditor from './RichTextEditor';
 
 const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, clients, contracts }) => {
   const [formData, setFormData] = useState({
@@ -275,133 +276,192 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
 
           {/* Read-only view */}
           {project && !isEditing ? (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nombre del Proyecto
-                  </label>
-                  <p className="text-lg font-semibold text-gray-900">{project.name}</p>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tipo de Proyecto
-                  </label>
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                    project.is_independent ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
-                  }`}>
-                    {project.is_independent ? (
-                      <>
-                        <Building className="w-4 h-4 mr-1" />
-                        Proyecto Independiente
-                      </>
-                    ) : (
-                      <>
-                        <FileText className="w-4 h-4 mr-1" />
-                        Proyecto de Contrato
-                      </>
+            <div className="space-y-8">
+              {/* Project Header */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">{project.name}</h2>
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium border ${
+                        project.is_independent 
+                          ? 'bg-purple-50 text-purple-700 border-purple-200' 
+                          : 'bg-blue-50 text-blue-700 border-blue-200'
+                      }`}>
+                        {project.is_independent ? (
+                          <>
+                            <Building className="w-4 h-4 mr-2" />
+                            Independiente
+                          </>
+                        ) : (
+                          <>
+                            <FileText className="w-4 h-4 mr-2" />
+                            Contrato
+                          </>
+                        )}
+                      </span>
+                      <span className={`inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium border
+                        ${project.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 
+                          project.status === 'completed' ? 'bg-blue-50 text-blue-700 border-blue-200' : 
+                          project.status === 'ready_to_invoice' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                          project.status === 'invoiced' ? 'bg-violet-50 text-violet-700 border-violet-200' :
+                          project.status === 'on_hold' ? 'bg-slate-50 text-slate-700 border-slate-200' :
+                          'bg-red-50 text-red-700 border-red-200'}`}>
+                        {project.status === 'on_hold' ? 'En pausa' : 
+                         project.status === 'active' ? 'Activo' :
+                         project.status === 'completed' ? 'Listo para facturar' :
+                         project.status === 'ready_to_invoice' ? 'Pendiente facturar' :
+                         project.status === 'invoiced' ? 'Facturado' : project.status}
+                      </span>
+                    </div>
+                    <p className="text-gray-600 font-medium">{project.client_name || 'Cliente no especificado'}</p>
+                    {!project.is_independent && project.contract_number && (
+                      <p className="text-blue-600 font-medium">Contrato: {project.contract_number}</p>
                     )}
-                  </span>
+                  </div>
                 </div>
               </div>
               
+              {/* Description Section */}
               {project.description && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Descripción
-                  </label>
-                  <p className="text-gray-900">{project.description}</p>
+                <div className="bg-white border border-gray-200 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                    <FileText className="w-5 h-5 mr-2 text-gray-600" />
+                    Descripción del Proyecto
+                  </h3>
+                  <p className="text-gray-700 leading-relaxed">{project.description}</p>
                 </div>
               )}
               
-              {/* Client Information */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Cliente
-                  </label>
-                  <p className="text-lg text-gray-900">{project.client_name || 'No especificado'}</p>
+              {/* Hours Progress Section */}
+              <div className="bg-white border border-gray-200 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+                  <Clock className="w-5 h-5 mr-2 text-gray-600" />
+                  Progreso de Horas
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                  <div className="text-center">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <Clock className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                      <p className="text-sm font-medium text-blue-600 mb-1">Estimadas</p>
+                      <p className="text-2xl font-bold text-blue-700">{project.estimated_hours || 0}<span className="text-lg">h</span></p>
+                    </div>
+                  </div>
+                  
+                  <div className="text-center">
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                      <CheckCircle className="w-8 h-8 text-orange-600 mx-auto mb-2" />
+                      <p className="text-sm font-medium text-orange-600 mb-1">Utilizadas</p>
+                      <p className="text-2xl font-bold text-orange-700">{project.used_hours || 0}<span className="text-lg">h</span></p>
+                    </div>
+                  </div>
+                  
+                  <div className="text-center">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <Target className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                      <p className="text-sm font-medium text-green-600 mb-1">Restantes</p>
+                      <p className="text-2xl font-bold text-green-700">{project.remaining_hours || 0}<span className="text-lg">h</span></p>
+                    </div>
+                  </div>
                 </div>
                 
-                {!project.is_independent && project.contract_number && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Contrato
-                    </label>
-                    <p className="text-lg text-blue-600">{project.contract_number}</p>
+                {/* Progress Bar */}
+                {project.estimated_hours > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm text-gray-600">
+                      <span>Progreso</span>
+                      <span>{Math.round(((project.used_hours || 0) / project.estimated_hours) * 100)}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-3">
+                      <div
+                        className={`h-3 rounded-full transition-all duration-300 ${
+                          ((project.used_hours || 0) / project.estimated_hours) >= 1
+                            ? 'bg-red-500'
+                            : ((project.used_hours || 0) / project.estimated_hours) >= 0.8
+                            ? 'bg-orange-500'
+                            : 'bg-blue-500'
+                        }`}
+                        style={{ width: `${Math.min(((project.used_hours || 0) / project.estimated_hours) * 100, 100)}%` }}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
               
-              {/* Hours Information */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <Clock className="w-4 h-4 inline mr-1" />
-                    Horas Estimadas
-                  </label>
-                  <p className="text-lg font-semibold text-blue-600">{project.estimated_hours || 0}h</p>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tiempo Utilizado
-                  </label>
-                  <p className="text-lg font-semibold text-orange-600">{project.used_hours || 0}h</p>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tiempo Restante
-                  </label>
-                  <p className="text-lg font-semibold text-green-600">{project.remaining_hours || 0}h</p>
-                </div>
-              </div>
-              
               {/* Financial Information - Only for independent projects */}
               {project.is_independent && (
-                <div className="bg-purple-50 rounded-lg p-4">
-                  <h3 className="text-sm font-medium text-gray-900 mb-3">Información Financiera</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <DollarSign className="w-4 h-4 inline mr-1" />
-                        Tarifa por Hora
-                      </label>
-                      <p className="text-lg font-semibold text-gray-900">{project.hourly_rate ? `${new Intl.NumberFormat('es-CO', {style: 'currency', currency: 'COP'}).format(project.hourly_rate)}/h` : 'No especificada'}</p>
+                <div className="bg-white border border-gray-200 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+                    <DollarSign className="w-5 h-5 mr-2 text-gray-600" />
+                    Información Financiera
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div className="text-center">
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <DollarSign className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                        <p className="text-sm font-medium text-green-600 mb-1">Tarifa/Hora</p>
+                        <p className="text-lg font-bold text-green-700">
+                          {project.hourly_rate ? new Intl.NumberFormat('es-CO', {style: 'currency', currency: 'COP', minimumFractionDigits: 0}).format(project.hourly_rate) : 'N/A'}
+                        </p>
+                      </div>
                     </div>
                     
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Valor Total
-                      </label>
-                      <p className="text-lg font-semibold text-gray-900">{project.total_amount ? new Intl.NumberFormat('es-CO', {style: 'currency', currency: 'COP'}).format(project.total_amount) : 'No especificado'}</p>
+                    <div className="text-center">
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <Target className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                        <p className="text-sm font-medium text-blue-600 mb-1">Valor Total</p>
+                        <p className="text-lg font-bold text-blue-700">
+                          {project.total_amount ? new Intl.NumberFormat('es-CO', {style: 'currency', currency: 'COP', minimumFractionDigits: 0}).format(project.total_amount) : 'N/A'}
+                        </p>
+                      </div>
                     </div>
                     
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Costo Actual
-                      </label>
-                      <p className="text-lg font-semibold text-purple-600">{new Intl.NumberFormat('es-CO', {style: 'currency', currency: 'COP'}).format(project.current_cost || 0)}</p>
+                    <div className="text-center">
+                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                        <Calculator className="w-8 h-8 text-purple-600 mx-auto mb-2" />
+                        <p className="text-sm font-medium text-purple-600 mb-1">Costo Actual</p>
+                        <p className="text-lg font-bold text-purple-700">
+                          {new Intl.NumberFormat('es-CO', {style: 'currency', currency: 'COP', minimumFractionDigits: 0}).format(project.current_cost || 0)}
+                        </p>
+                      </div>
                     </div>
                   </div>
                   
+                  {/* Payment Progress */}
                   {project.paid_amount > 0 && (
-                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Monto Pagado
-                        </label>
-                        <p className="text-lg font-semibold text-green-600">{new Intl.NumberFormat('es-CO', {style: 'currency', currency: 'COP'}).format(project.paid_amount || 0)}</p>
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <h4 className="text-md font-semibold text-gray-900 mb-4 flex items-center">
+                        <CreditCard className="w-4 h-4 mr-2 text-gray-600" />
+                        Progreso de Pagos
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div className="text-center">
+                          <p className="text-sm text-gray-600 mb-1">Pagado</p>
+                          <p className="text-xl font-bold text-green-600">
+                            {new Intl.NumberFormat('es-CO', {style: 'currency', currency: 'COP', minimumFractionDigits: 0}).format(project.paid_amount || 0)}
+                          </p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm text-gray-600 mb-1">Porcentaje Pagado</p>
+                          <p className="text-xl font-bold text-blue-600">
+                            {project.total_amount > 0 ? ((project.paid_amount / project.total_amount) * 100).toFixed(1) : 0}%
+                          </p>
+                        </div>
                       </div>
                       
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Progreso de Pago
-                        </label>
-                        <p className="text-lg font-semibold text-blue-600">{project.total_amount > 0 ? ((project.paid_amount / project.total_amount) * 100).toFixed(1) : 0}%</p>
-                      </div>
+                      {/* Payment Progress Bar */}
+                      {project.total_amount > 0 && (
+                        <div className="space-y-2">
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${Math.min((project.paid_amount / project.total_amount) * 100, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -413,7 +473,7 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Estado
                   </label>
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium capitalize
+                  <span className={`inline-flex items-center px-3 py-1 rounded text-sm font-medium capitalize
                     ${project.status === 'active' ? 'bg-green-100 text-green-800' : 
                       project.status === 'completed' ? 'bg-blue-100 text-blue-800' : 
                       project.status === 'ready_to_invoice' ? 'bg-orange-100 text-orange-800' :
@@ -429,36 +489,65 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
                 </div>
               </div>
               
-              {/* Dates Section */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {project.start_date && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <Calendar className="w-4 h-4 inline mr-1" />
-                      Fecha de Inicio
-                    </label>
-                    <p className="text-gray-900">{new Date(project.start_date).toLocaleDateString('es-CO')}</p>
+              {/* Timeline and Dates Section */}
+              {(project.start_date || project.end_date || project.delivery_date) && (
+                <div className="bg-white border border-gray-200 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+                    <Calendar className="w-5 h-5 mr-2 text-gray-600" />
+                    Cronograma del Proyecto
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {project.start_date && (
+                      <div className="text-center">
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <Calendar className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                          <p className="text-sm font-medium text-blue-600 mb-1">Inicio</p>
+                          <p className="text-lg font-bold text-blue-700">
+                            {new Date(project.start_date).toLocaleDateString('es-CO', { 
+                              day: 'numeric', 
+                              month: 'short', 
+                              year: 'numeric' 
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {project.delivery_date && (
+                      <div className="text-center">
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                          <Target className="w-8 h-8 text-amber-600 mx-auto mb-2" />
+                          <p className="text-sm font-medium text-amber-600 mb-1">Entrega</p>
+                          <p className="text-lg font-bold text-amber-700">
+                            {new Date(project.delivery_date).toLocaleDateString('es-CO', { 
+                              day: 'numeric', 
+                              month: 'short', 
+                              year: 'numeric' 
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {project.end_date && (
+                      <div className="text-center">
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                          <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                          <p className="text-sm font-medium text-green-600 mb-1">Finalización</p>
+                          <p className="text-lg font-bold text-green-700">
+                            {new Date(project.end_date).toLocaleDateString('es-CO', { 
+                              day: 'numeric', 
+                              month: 'short', 
+                              year: 'numeric' 
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-                
-                {project.end_date && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Fecha de Finalización
-                    </label>
-                    <p className="text-gray-900">{new Date(project.end_date).toLocaleDateString('es-CO')}</p>
-                  </div>
-                )}
-                
-                {project.delivery_date && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Fecha de Entrega
-                    </label>
-                    <p className="text-lg font-semibold text-blue-600">{new Date(project.delivery_date).toLocaleDateString('es-CO')}</p>
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
               
               {/* Purchase Order Information for Independent Projects */}
               {project.is_independent && project.purchase_order_number && (
@@ -543,16 +632,12 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
 
             {/* Description */}
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Descripción
               </label>
-              <textarea
-                id="description"
-                name="description"
+              <RichTextEditor
                 value={formData.description}
-                onChange={handleInputChange}
-                rows={3}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                onChange={(value) => setFormData(prev => ({ ...prev, description: value }))}
                 placeholder="Descripción detallada del proyecto..."
               />
             </div>
@@ -837,16 +922,12 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
 
             {/* Notes Section */}
             <div>
-              <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Notas Adicionales
               </label>
-              <textarea
-                id="notes"
-                name="notes"
+              <RichTextEditor
                 value={formData.notes}
-                onChange={handleInputChange}
-                rows={3}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                onChange={(value) => setFormData(prev => ({ ...prev, notes: value }))}
                 placeholder="Notas adicionales sobre el proyecto, requerimientos especiales, etc."
               />
             </div>

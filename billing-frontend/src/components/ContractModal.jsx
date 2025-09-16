@@ -91,27 +91,16 @@ const ContractModal = ({ isOpen, onClose, contract, isEditing, onContractSaved }
         delete submitData.end_date;
       }
 
-      console.log('Submitting contract data:', submitData);
-
       let response;
       if (isEditing && contract) {
-        console.log('Updating contract:', contract.id);
         response = await contractsApi.update(contract.id, submitData);
       } else {
-        console.log('Creating new contract');
         response = await contractsApi.create(submitData);
       }
-
-      console.log('Contract saved successfully:', response.data);
       onContractSaved();
       onClose();
     } catch (err) {
       console.error('Contract submission error:', err);
-      console.log('Error details:', {
-        status: err.response?.status,
-        statusText: err.response?.statusText,
-        data: err.response?.data
-      });
       
       if (err.response?.data?.message) {
         setError(err.response.data.message);
@@ -179,8 +168,8 @@ const ContractModal = ({ isOpen, onClose, contract, isEditing, onContractSaved }
                   ${contract.status === 'active' ? 'bg-green-50 text-green-800 border border-green-200' : 
                     contract.status === 'completed' ? 'bg-blue-50 text-blue-800 border border-blue-200' : 
                     'bg-red-50 text-red-800 border border-red-200'}`}>
-                  {contract.status === 'active' ? 'ACTIVO' : 
-                   contract.status === 'completed' ? 'COMPLETADO' : 'CANCELADO'}
+                  {contract.status === 'active' ? 'Activo' : 
+                   contract.status === 'completed' ? 'Completado' : 'Cancelado'}
                 </span>
               </div>
 

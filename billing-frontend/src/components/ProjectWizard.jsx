@@ -318,7 +318,7 @@ const ProjectWizard = ({ isOpen, onClose, project, isEditing, onProjectSaved, cl
               
               return (
                 <div key={step.number} className="flex items-center">
-                  <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium transition-colors ${
+                  <div className={`flex items-center justify-center w-8 h-8 rounded text-sm font-medium transition-colors ${
                     isCompleted ? 'bg-green-600 text-white' :
                     isActive ? 'bg-blue-600 text-white' :
                     'bg-gray-300 text-gray-600'

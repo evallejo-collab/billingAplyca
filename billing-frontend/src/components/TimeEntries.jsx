@@ -422,7 +422,7 @@ const TimeEntries = () => {
                                     {new Date(entry.entry_date).toLocaleDateString('es-CO')}
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap">
-                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
                                       entry.task_category === 'development' ? 'bg-blue-100 text-blue-800' :
                                       entry.task_category === 'support' ? 'bg-green-100 text-green-800' :
                                       entry.task_category === 'meeting' ? 'bg-purple-100 text-purple-800' :

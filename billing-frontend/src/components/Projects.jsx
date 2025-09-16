@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { projectsApi, clientsApi, contractsApi } from '../services/supabaseApi';
 import ConfirmModal from './ConfirmModal';
+import ProjectsTable from './ProjectsTable';
 import { 
   Plus, 
   Search, 
@@ -19,7 +20,9 @@ import {
   CheckCircle,
   XCircle,
   Pause,
-  Target
+  Target,
+  List,
+  Grid3X3
 } from 'lucide-react';
 import ProjectModal from './ProjectModal';
 import ProjectWizard from './ProjectWizard';
@@ -32,8 +35,12 @@ const Projects = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [clientFilter, setClientFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState(''); // 'contract', 'independent', or ''
+  const [viewMode, setViewMode] = useState(() => {
+    // Get saved view mode from localStorage, default to 'table' for professional look
+    return localStorage.getItem('projects_view_mode') || 'table';
+  });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -136,20 +143,29 @@ const Projects = () => {
     handleWizardClose();
   };
 
+  const handleViewModeChange = (mode) => {
+    setViewMode(mode);
+    localStorage.setItem('projects_view_mode', mode);
+  };
+
   const getStatusBadge = (status) => {
     const statusConfig = {
-      active: { label: 'ACTIVO', className: 'bg-green-50 text-green-800 border border-green-200', icon: CheckCircle },
-      completed: { label: 'LISTO FACTURAR', className: 'bg-blue-50 text-blue-800 border border-blue-200', icon: CheckCircle },
-      ready_to_invoice: { label: 'PEND. FACTURAR', className: 'bg-orange-50 text-orange-800 border border-orange-200', icon: DollarSign },
-      invoiced: { label: 'FACTURADO', className: 'bg-purple-50 text-purple-800 border border-purple-200', icon: CheckCircle },
-      on_hold: { label: 'EN PAUSA', className: 'bg-yellow-50 text-yellow-800 border border-yellow-200', icon: Pause },
+      active: { label: 'Activo', className: 'bg-emerald-50 text-emerald-700 border border-emerald-200', icon: CheckCircle },
+      completed: { label: 'Listo para facturar', className: 'bg-blue-50 text-blue-700 border border-blue-200', icon: CheckCircle },
+      ready_to_invoice: { label: 'Pendiente facturar', className: 'bg-amber-50 text-amber-700 border border-amber-200', icon: DollarSign },
+      invoiced: { label: 'Facturado', className: 'bg-violet-50 text-violet-700 border border-violet-200', icon: CheckCircle },
+      on_hold: { label: 'En pausa', className: 'bg-slate-50 text-slate-700 border border-slate-200', icon: Pause },
     };
 
-    const config = statusConfig[status] || { label: status?.toUpperCase() || 'DESCONOCIDO', className: 'bg-gray-50 text-gray-800 border border-gray-200', icon: Target };
+    const config = statusConfig[status] || { 
+      label: status?.charAt(0).toUpperCase() + status?.slice(1).toLowerCase() || 'Desconocido', 
+      className: 'bg-gray-50 text-gray-700 border border-gray-200', 
+      icon: Target 
+    };
     const Icon = config.icon;
 
     return (
-      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap ${config.className}`}>
+      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium whitespace-nowrap ${config.className}`}>
         <Icon className="w-3 h-3 mr-1" />
         {config.label}
       </span>
@@ -159,14 +175,14 @@ const Projects = () => {
   const getProjectType = (project) => {
     if (project.is_independent) {
       return {
-        label: 'INDEPENDIENTE',
-        className: 'bg-purple-50 text-purple-800 border border-purple-200',
+        label: 'Independiente',
+        className: 'bg-purple-50 text-purple-700 border border-purple-200',
         icon: Building
       };
     } else {
       return {
-        label: 'CONTRATO',
-        className: 'bg-blue-50 text-blue-800 border border-blue-200',
+        label: 'Contrato',
+        className: 'bg-blue-50 text-blue-700 border border-blue-200',
         icon: FileText
       };
     }
@@ -209,13 +225,14 @@ const Projects = () => {
       project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       getClientName(project).toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesStatus = !statusFilter || project.status === statusFilter;
+    const matchesClient = !clientFilter || 
+      (project.client_id == clientFilter || project.client_id === parseInt(clientFilter));
     
     const matchesType = !typeFilter || 
       (typeFilter === 'independent' && project.is_independent) ||
       (typeFilter === 'contract' && !project.is_independent);
 
-    return matchesSearch && matchesStatus && matchesType;
+    return matchesSearch && matchesClient && matchesType;
   });
 
   if (loading) {
@@ -227,6 +244,11 @@ const Projects = () => {
     );
   }
 
+  // If table view mode is selected, use the new professional table component
+  if (viewMode === 'table') {
+    return <ProjectsTable />;
+  }
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -235,13 +257,33 @@ const Projects = () => {
           <h1 className="text-2xl font-semibold text-gray-900">Gestión de Proyectos</h1>
           <p className="text-sm text-gray-600 mt-1">Administración y seguimiento de proyectos activos e independientes</p>
         </div>
-        <button
-          onClick={handleCreateProject}
-          className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-3 h-3 mr-1" />
-          NUEVO PROYECTO
-        </button>
+        <div className="flex items-center space-x-3">
+          {/* View Toggle */}
+          <div className="flex items-center border border-gray-300 rounded-lg">
+            <button
+              onClick={() => handleViewModeChange('table')}
+              className={`p-2 text-sm transition-colors ${viewMode === 'table' ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:text-gray-700'}`}
+              title="Vista de tabla profesional"
+            >
+              <List className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => handleViewModeChange('cards')}
+              className={`p-2 text-sm transition-colors ${viewMode === 'cards' ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:text-gray-700'}`}
+              title="Vista de tarjetas"
+            >
+              <Grid3X3 className="w-4 h-4" />
+            </button>
+          </div>
+          
+          <button
+            onClick={handleCreateProject}
+            className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-3 h-3 mr-1" />
+            NUEVO PROYECTO
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -262,19 +304,19 @@ const Projects = () => {
             </div>
           </div>
           
-          {/* Status Filter */}
+          {/* Client Filter */}
           <div>
             <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              value={clientFilter}
+              onChange={(e) => setClientFilter(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="">Todos los estados</option>
-              <option value="active">Activo</option>
-              <option value="completed">Completado - Listo para facturar</option>
-              <option value="ready_to_invoice">Finalizado - Pendiente por facturar</option>
-              <option value="invoiced">Facturado</option>
-              <option value="on_hold">En Pausa</option>
+              <option value="">Todos los clientes</option>
+              {clients.map(client => (
+                <option key={client.id} value={client.id}>
+                  {client.name || client.company}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -325,6 +367,15 @@ const Projects = () => {
                         {projectType.label}
                       </span>
                       {getStatusBadge(project.status)}
+                      {(() => {
+                        const isOverdue = project.delivery_date && new Date(project.delivery_date) < new Date() && project.status === 'active';
+                        return isOverdue && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-red-50 text-red-700 border border-red-200">
+                            <AlertCircle className="w-3 h-3 mr-1" />
+                            Atrasado
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
                   <div className="flex space-x-1 ml-2">
@@ -380,7 +431,31 @@ const Projects = () => {
                       <Clock className="w-4 h-4 text-gray-600 mr-1" />
                       <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">Utilizadas</span>
                     </div>
-                    <p className="text-base font-semibold text-gray-900">{project.used_hours || 0}h</p>
+                    {(() => {
+                      const estimatedHours = parseFloat(project.estimated_hours) || 0;
+                      const usedHours = parseFloat(project.used_hours) || 0;
+                      const hasOvercost = usedHours > estimatedHours && estimatedHours > 0;
+                      const overcostHours = hasOvercost ? usedHours - estimatedHours : 0;
+                      
+                      if (hasOvercost) {
+                        return (
+                          <div className="relative group">
+                            <p className="text-base text-red-500 cursor-help">
+                              {project.used_hours || 0}h
+                            </p>
+                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                              Sobrecosto: +{overcostHours.toFixed(1)}h
+                            </div>
+                          </div>
+                        );
+                      } else {
+                        return (
+                          <p className="text-base font-semibold text-gray-900">
+                            {project.used_hours || 0}h
+                          </p>
+                        );
+                      }
+                    })()}
                   </div>
                   <div className={`text-center p-2 rounded border ${
                     (project.remaining_hours || 0) <= 5 && (project.remaining_hours || 0) > 0
@@ -407,46 +482,25 @@ const Projects = () => {
                         : 'text-green-700'
                     }`}>{project.remaining_hours || 0}h</p>
                   </div>
-                  {(() => {
-                    const estimatedHours = parseFloat(project.estimated_hours) || 0;
-                    const usedHours = parseFloat(project.used_hours) || 0;
-                    const hasOvercost = usedHours > estimatedHours && estimatedHours > 0;
-                    
-                    if (hasOvercost) {
-                      const overcostHours = usedHours - estimatedHours;
-                      return (
-                        <div className="text-center p-2 bg-red-50 rounded border border-red-200">
-                          <div className="flex items-center justify-center mb-1">
-                            <AlertCircle className="w-4 h-4 text-red-600 mr-1" />
-                            <span className="text-xs font-medium text-red-600 uppercase tracking-wide">Sobrecosto</span>
-                          </div>
-                          <p className="text-base font-semibold text-red-700">+{overcostHours.toFixed(1)}h</p>
-                        </div>
-                      );
-                    } else {
-                      return (
-                        <div className={`text-center p-2 rounded border ${
-                          (project.entries_count || 0) > 0 
-                            ? 'bg-blue-50 border-blue-200' 
-                            : 'bg-gray-50 border-gray-200'
-                        }`}>
-                          <div className="flex items-center justify-center mb-1">
-                            <FileText className={`w-4 h-4 mr-1 ${
-                              (project.entries_count || 0) > 0 
-                                ? 'text-blue-600' 
-                                : 'text-gray-600'
-                            }`} />
-                            <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">Registros</span>
-                          </div>
-                          <p className={`text-base font-semibold ${
-                            (project.entries_count || 0) > 0 
-                              ? 'text-blue-700' 
-                              : 'text-gray-900'
-                          }`}>{project.entries_count || 0}</p>
-                        </div>
-                      );
-                    }
-                  })()}
+                  <div className={`text-center p-2 rounded border ${
+                    (project.entries_count || 0) > 0 
+                      ? 'bg-blue-50 border-blue-200' 
+                      : 'bg-gray-50 border-gray-200'
+                  }`}>
+                    <div className="flex items-center justify-center mb-1">
+                      <FileText className={`w-4 h-4 mr-1 ${
+                        (project.entries_count || 0) > 0 
+                          ? 'text-blue-600' 
+                          : 'text-gray-600'
+                      }`} />
+                      <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">Registros</span>
+                    </div>
+                    <p className={`text-base font-semibold ${
+                      (project.entries_count || 0) > 0 
+                        ? 'text-blue-700' 
+                        : 'text-gray-900'
+                    }`}>{project.entries_count || 0}</p>
+                  </div>
                 </div>
 
 
@@ -469,15 +523,6 @@ const Projects = () => {
                       <span>
                         Entrega: {new Date(project.delivery_date).toLocaleDateString('es-CO')}
                       </span>
-                      {(() => {
-                        const isOverdue = !project.end_date && new Date(project.delivery_date) < new Date();
-                        return isOverdue && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                            <AlertCircle className="w-3 h-3 mr-1" />
-                            Atrasado
-                          </span>
-                        );
-                      })()}
                     </div>
                   )}
                 </div>

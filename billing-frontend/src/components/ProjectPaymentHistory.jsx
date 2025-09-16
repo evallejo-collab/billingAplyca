@@ -487,6 +487,25 @@ const ProjectPaymentHistory = () => {
           onPaymentSaved={handlePaymentSaved}
         />
       )}
+      
+      {/* Edit Payment Modal */}
+      {isEditPaymentModalOpen && selectedPayment && (
+        <PaymentWizard
+          isOpen={isEditPaymentModalOpen}
+          onClose={() => {
+            setIsEditPaymentModalOpen(false);
+            setSelectedPayment(null);
+          }}
+          item={item}
+          payment={selectedPayment}
+          isEditing={true}
+          onPaymentSaved={() => {
+            handlePaymentSaved();
+            setIsEditPaymentModalOpen(false);
+            setSelectedPayment(null);
+          }}
+        />
+      )}
     </div>
   );
 };

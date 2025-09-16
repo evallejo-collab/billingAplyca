@@ -501,7 +501,7 @@ El usuario recibirá un email y cuando se registre, automáticamente tendrá el 
                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(user.is_active !== false)}`}>
                       {getStatusIcon(user.is_active !== false)}
                       <span className="ml-1">
-                        {user.is_active !== false ? 'ACTIVO' : 'INACTIVO'}
+                        {user.is_active !== false ? 'Activo' : 'Inactivo'}
                       </span>
                     </span>
                   </td>

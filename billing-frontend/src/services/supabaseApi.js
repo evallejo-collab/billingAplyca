@@ -210,6 +210,52 @@ export const clientsApi = {
   }
 };
 
+// ================ HELPER FUNCTIONS ================
+const updateProjectPaymentStatus = async (projectId) => {
+  try {
+    // Get project details
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('total_amount, hourly_rate, estimated_hours, is_paid')
+      .eq('id', projectId)
+      .single();
+    
+    if (projectError) throw projectError;
+    
+    // Calculate total project value
+    const totalProjectValue = parseFloat(project.total_amount) || 
+      ((parseFloat(project.hourly_rate) || 0) * (parseFloat(project.estimated_hours) || 0));
+    
+    // Get sum of all payments for this project
+    const { data: payments, error: paymentsError } = await supabase
+      .from('payments')
+      .select('amount')
+      .eq('project_id', projectId);
+    
+    if (paymentsError) throw paymentsError;
+    
+    const totalPaidAmount = payments?.reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0) || 0;
+    
+    // Determine if project is fully paid (with small tolerance for floating point precision)
+    const isPaid = totalProjectValue > 0 && totalPaidAmount >= (totalProjectValue - 0.01);
+    
+    // Update project if payment status changed
+    if (project.is_paid !== isPaid) {
+      const { error: updateError } = await supabase
+        .from('projects')
+        .update({ is_paid: isPaid })
+        .eq('id', projectId);
+      
+      if (updateError) throw updateError;
+    }
+    
+    return isPaid;
+  } catch (error) {
+    console.error('Error updating project payment status:', error);
+    // Don't throw error to avoid breaking payment operations
+  }
+};
+
 // ================ PROJECTS API ================
 export const projectsApi = {
   async getAll() {
@@ -267,7 +313,8 @@ export const projectsApi = {
           used_hours: usedHours,
           remaining_hours: remainingHours,
           entries_count: timeEntries?.length || 0,
-          current_cost: usedHours * hourlyRate,
+          current_cost: paidAmount, // Current cost should be the amount paid, not hours * rate
+          hours_cost: usedHours * hourlyRate, // Separate field for hours-based cost
           total_amount: totalAmount,
           paid_amount: paidAmount
         };
@@ -292,11 +339,6 @@ export const projectsApi = {
   },
 
   async create(project) {
-    console.log('🔍 PROJECTS API CREATE DEBUG:');
-    console.log('  - Received project data:', project);
-    console.log('  - client_id value:', project.client_id);
-    console.log('  - client_id type:', typeof project.client_id);
-    
     const { data, error } = await supabase
       .from('projects')
       .insert([project])
@@ -390,7 +432,6 @@ export const projectsApi = {
       created_by: user?.id 
     };
     
-    console.log('projectsApi.addPayment - Final insert data:', insertData);
     
     const { data, error } = await supabase
       .from('payments')
@@ -402,6 +443,10 @@ export const projectsApi = {
       console.error('projectsApi.addPayment - Database error:', error);
       throw error;
     }
+    
+    // Update project payment status after adding payment
+    await updateProjectPaymentStatus(projectId);
+    
     return { success: true, data };
   }
 };
@@ -741,6 +786,15 @@ export const paymentsApi = {
   },
 
   async update(id, payment) {
+    // Get the payment to find which project/contract it belongs to
+    const { data: existingPayment, error: getError } = await supabase
+      .from('payments')
+      .select('project_id, contract_id')
+      .eq('id', id)
+      .single();
+    
+    if (getError) throw getError;
+    
     // Remove null contract_id for independent projects to avoid NOT NULL constraint
     const paymentData = { ...payment };
     if (paymentData.contract_id === null || paymentData.contract_id === undefined) {
@@ -759,16 +813,37 @@ export const paymentsApi = {
       .single();
     
     if (error) throw error;
+    
+    // Update project payment status if this is a project payment
+    if (existingPayment.project_id) {
+      await updateProjectPaymentStatus(existingPayment.project_id);
+    }
+    
     return { success: true, data };
   },
 
   async delete(id) {
+    // Get the payment to find which project it belongs to before deleting
+    const { data: existingPayment, error: getError } = await supabase
+      .from('payments')
+      .select('project_id, contract_id')
+      .eq('id', id)
+      .single();
+    
+    if (getError) throw getError;
+    
     const { error } = await supabase
       .from('payments')
       .delete()
       .eq('id', id);
     
     if (error) throw error;
+    
+    // Update project payment status if this was a project payment
+    if (existingPayment.project_id) {
+      await updateProjectPaymentStatus(existingPayment.project_id);
+    }
+    
     return { success: true };
   },
 

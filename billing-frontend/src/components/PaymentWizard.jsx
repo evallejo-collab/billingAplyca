@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { contractsApi, projectsApi } from '../services/supabaseApi';
+import { contractsApi, projectsApi, paymentsApi } from '../services/supabaseApi';
 import { useAuth } from '../context/AuthContext';
 import { 
   X, 
@@ -12,7 +12,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 
-const PaymentWizard = ({ isOpen, onClose, onPaymentSaved, item }) => {
+const PaymentWizard = ({ isOpen, onClose, onPaymentSaved, item, payment = null, isEditing = false }) => {
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -99,10 +99,31 @@ const PaymentWizard = ({ isOpen, onClose, onPaymentSaved, item }) => {
     };
 
     if (isOpen) {
-      resetWizard();
+      if (!isEditing) {
+        resetWizard();
+      }
       loadProjects();
     }
-  }, [isOpen, item]);
+  }, [isOpen, item, isEditing]);
+  
+  // Separate useEffect for handling payment data loading
+  useEffect(() => {
+    if (isOpen && isEditing && payment) {
+      const newFormData = {
+        amount: payment.amount?.toString() || '',
+        paymentType: payment.payment_type || 'recurring_support',
+        percentage: payment.percentage?.toString() || '',
+        description: payment.description || '',
+        paymentDate: payment.payment_date ? payment.payment_date.split('T')[0] : new Date().toISOString().split('T')[0],
+        billingMonth: payment.billing_month || new Date().toISOString().slice(0, 7),
+        billingYear: payment.billing_year || new Date().getFullYear(),
+        selectedProjectId: payment.project_id || '',
+        projectPaymentType: payment.project_payment_type || 'fixed',
+        equivalentHours: payment.equivalent_hours?.toString() || ''
+      };
+      setFormData(newFormData);
+    }
+  }, [isOpen, isEditing, payment]);
 
   const handleClose = () => {
     resetWizard();
@@ -313,12 +334,17 @@ const PaymentWizard = ({ isOpen, onClose, onPaymentSaved, item }) => {
 
       // Call API based on item type
       let response;
-      if (item.type === 'contract') {
-        console.log('PaymentWizard - Calling contractsApi.addPayment with contractId:', item.contractId);
-        response = await contractsApi.addPayment(item.contractId, paymentData);
+      
+      if (isEditing && payment) {
+        // Update existing payment
+        response = await paymentsApi.update(payment.id, paymentData);
       } else {
-        console.log('PaymentWizard - Calling projectsApi.addPayment with projectId:', item.projectId);
-        response = await projectsApi.addPayment(item.projectId, paymentData);
+        // Create new payment
+        if (item.type === 'contract') {
+          response = await contractsApi.addPayment(item.contractId, paymentData);
+        } else {
+          response = await projectsApi.addPayment(item.projectId, paymentData);
+        }
       }
 
       onPaymentSaved();
@@ -682,7 +708,9 @@ const PaymentWizard = ({ isOpen, onClose, onPaymentSaved, item }) => {
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">Registrar Pago</h2>
+            <h2 className="text-xl font-semibold text-gray-900">
+              {isEditing ? 'Editar Pago' : 'Registrar Pago'}
+            </h2>
             <p className="text-sm text-gray-600 mt-1">
               {item?.type === 'contract' ? `Contrato: ${item?.name}` : `Proyecto: ${item?.name}`}
             </p>
