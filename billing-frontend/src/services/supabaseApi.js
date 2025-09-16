@@ -773,6 +773,12 @@ export const paymentsApi = {
   },
 
   async getByContract(contractId) {
+    // Validate contractId to prevent undefined queries
+    if (!contractId || contractId === undefined || contractId === 'undefined') {
+      console.warn('paymentsApi.getByContract called with invalid contractId:', contractId);
+      return { success: true, data: [] };
+    }
+    
     const { data, error } = await supabase
       .from('payments')
       .select(`
@@ -788,6 +794,12 @@ export const paymentsApi = {
   },
 
   async getByProject(projectId) {
+    // Validate projectId to prevent undefined queries
+    if (!projectId || projectId === undefined || projectId === 'undefined') {
+      console.warn('paymentsApi.getByProject called with invalid projectId:', projectId);
+      return { success: true, data: [] };
+    }
+    
     const { data, error } = await supabase
       .from('payments')
       .select(`

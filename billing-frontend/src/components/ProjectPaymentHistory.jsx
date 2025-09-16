@@ -50,8 +50,11 @@ const ProjectPaymentHistory = () => {
         const clients = clientsResponse.data || [];
         const client = clients.find(c => c.id === contract.client_id);
         
+        // Calculate paid amount from actual payments instead of billed_amount
+        const payments = paymentsResponse.data || [];
+        const paidAmount = payments.reduce((total, payment) => total + (parseFloat(payment.amount) || 0), 0);
+        
         const totalContractValue = (parseFloat(contract.total_hours) || 0) * (parseFloat(contract.hourly_rate) || 0);
-        const paidAmount = parseFloat(contract.billed_amount) || 0;
         const pendingAmount = Math.max(0, totalContractValue - paidAmount);
         
         itemData = {
@@ -82,9 +85,13 @@ const ProjectPaymentHistory = () => {
         ]);
         
         const project = projectResponse.data;
+        
+        // Calculate paid amount from actual payments instead of paid_amount
+        const payments = paymentsResponse.data || [];
+        const paidAmount = payments.reduce((total, payment) => total + (parseFloat(payment.amount) || 0), 0);
+        
         const totalProjectValue = parseFloat(project.total_amount) || 
           ((parseFloat(project.hourly_rate) || 0) * (parseFloat(project.estimated_hours) || 0));
-        const paidAmount = parseFloat(project.paid_amount) || 0;
         const pendingAmount = Math.max(0, totalProjectValue - paidAmount);
         
         itemData = {
@@ -108,7 +115,7 @@ const ProjectPaymentHistory = () => {
           lastPaymentDate: project.last_payment_date || null
         };
         
-        paymentsData = paymentsResponse.data || [];
+        paymentsData = payments;
       }
       
       setItem(itemData);
@@ -161,7 +168,19 @@ const ProjectPaymentHistory = () => {
   };
 
   const handlePaymentSaved = async () => {
-    await loadProjectData();
+    // Force refresh of data
+    setLoading(true);
+    
+    // Add a small delay to ensure database has updated and then force reload
+    setTimeout(async () => {
+      try {
+        // Clear any potential cached data by re-fetching
+        await loadProjectData();
+      } catch (error) {
+        console.error('Error refreshing payment data:', error);
+      }
+    }, 200);
+    
     setIsPaymentWizardOpen(false);
   };
 

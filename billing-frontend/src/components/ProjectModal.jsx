@@ -51,6 +51,7 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
           hourly_rate: project.hourly_rate || '',
           total_amount: project.total_amount || '',
           is_paid: project.is_paid || false,
+          purchase_order_number: project.purchase_order_number || '',
           notes: project.notes || '',
         });
       } else {
@@ -209,6 +210,7 @@ const ProjectModal = ({ isOpen, onClose, project, isEditing, onProjectSaved, cli
         submitData.hourly_rate = formData.hourly_rate ? parseFloat(formData.hourly_rate) : null;
         submitData.total_amount = formData.total_amount ? parseFloat(formData.total_amount) : calculateTotalAmount();
         submitData.is_paid = formData.is_paid;
+        submitData.purchase_order_number = formData.purchase_order_number || null;
       }
 
       // Debug: Log what we're sending
