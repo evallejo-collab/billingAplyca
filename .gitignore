@@ -29,9 +29,24 @@ build/
 *.swp
 *.swo
 
+# Development SQL files (except organized ones)
+*.sql
+!billing-frontend/database-updates/*.sql
+!supabase/functions/**/*.sql
+
+# Development and backup files
+*.md.backup
+*.backup
+*_backup.*
+*_broken.*
+*_old.*
+*.bak
+test_*.json
+
 # Logs
 logs/
 *.log
+scripts/logs/
 
 # Temporary files
 tmp/
