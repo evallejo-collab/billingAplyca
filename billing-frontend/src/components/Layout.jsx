@@ -321,6 +321,35 @@ const Layout = () => {
                 );
               })}
               
+              {/* Mega menu items for mobile */}
+              {Object.entries(megaMenuItems).map(([key, megaMenu]) => (
+                <div key={key} className="space-y-1">
+                  <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    {megaMenu.name}
+                  </div>
+                  {megaMenu.items.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <NavLink
+                        key={item.name}
+                        to={item.href}
+                        className={({ isActive }) =>
+                          `flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ml-4 ${
+                            isActive
+                              ? 'bg-violet-100 text-violet-700'
+                              : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                          }`
+                        }
+                        onClick={() => setSidebarOpen(false)}
+                      >
+                        <Icon className="w-5 h-5 mr-3" />
+                        {item.name}
+                      </NavLink>
+                    );
+                  })}
+                </div>
+              ))}
+              
               <div className="border-t pt-4 mt-4">
                 <div className="px-3 py-2 text-xs text-gray-500">
                   <div className="font-medium">{user?.full_name}</div>
