@@ -1147,6 +1147,7 @@ const ClientPortal = () => {
                 </div>
 
                 {/* Deuda Soporte Fijo */}
+                {((summary.recurrentSupportPayments && summary.recurrentSupportPayments.length > 0) || (summary.debtRecurrentSupport > 0)) && (
                 <div className="bg-white border border-gray-100 rounded-2xl p-8 hover:shadow-xl hover:border-red-200 transition-all duration-300 transform hover:-translate-y-2 hover:bg-gradient-to-br hover:from-white hover:to-red-50">
                   <div className="text-center">
                     <div className={`text-4xl font-normal  mb-2 ${
@@ -1166,8 +1167,10 @@ const ClientPortal = () => {
                     </div>
                   </div>
                 </div>
+                )}
 
                 {/* Deuda Soporte y Evolutivos */}
+                {((summary.supportAndDevelopmentPayments && summary.supportAndDevelopmentPayments.length > 0) || (summary.debtSupportAndDevelopment > 0)) && (
                 <div className="bg-white border border-gray-100 rounded-2xl p-8 hover:shadow-xl hover:border-orange-200 transition-all duration-300 transform hover:-translate-y-2 hover:bg-gradient-to-br hover:from-white hover:to-orange-50">
                   <div className="text-center">
                     <div className={`text-4xl font-normal  mb-2 ${
@@ -1187,6 +1190,7 @@ const ClientPortal = () => {
                     </div>
                   </div>
                 </div>
+                )}
 
               </div>
             </div>
@@ -1473,7 +1477,7 @@ const ClientPortal = () => {
           )}
 
           {/* Pago de Soporte Recurrente Section */}
-          {summary.recurrentSupportPayments && summary.recurrentSupportPayments.length > 0 && (
+          {((summary.recurrentSupportPayments && summary.recurrentSupportPayments.length > 0) || (summary.debtRecurrentSupport > 0)) && (
             <div className="bg-gray-50 border border-gray-200">
               <div className="px-8 py-6 border-b border-gray-200 bg-white">
                 <button
@@ -1659,7 +1663,7 @@ const ClientPortal = () => {
           )}
 
           {/* Pago de Soporte y Evolutivos Section */}
-          {summary.supportAndDevelopmentPayments && summary.supportAndDevelopmentPayments.length > 0 && (
+          {((summary.supportAndDevelopmentPayments && summary.supportAndDevelopmentPayments.length > 0) || (summary.debtSupportAndDevelopment > 0)) && (
             <div className="bg-gray-50 border border-gray-200">
               <div className="px-8 py-6 border-b border-gray-200 bg-white">
                 <button
