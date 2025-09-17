@@ -49,11 +49,11 @@ const LoginPage = () => {
             <div className="flex items-center justify-center">
               <img 
                 src="/Logo_Aplyca_Violet.svg" 
-                alt="Aplyca Logo" 
-                className="h-16 w-auto"
+                alt="Nexus Logo" 
+                className="h-20 w-auto"
               />
             </div>
-            <h3 className="text-2xl font-bold text-gray-800">Management System</h3>
+            <h2 className="text-2xl font-medium text-gray-600 tracking-wide">NEXUS</h2>
           </div>
           <p className="mt-4 text-center text-sm text-gray-600">
             Inicia sesión para acceder al sistema

@@ -155,7 +155,7 @@ const Layout = () => {
             <div className="flex items-center">
               <img 
                 src="/Logo_Aplyca_Violet.svg" 
-                alt="Aplyca" 
+                alt="Nexus" 
                 className="h-10 w-auto filter brightness-0 invert"
               />
             </div>
@@ -289,7 +289,7 @@ const Layout = () => {
             <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200" style={{backgroundColor: '#382C74'}}>
               <div className="flex items-center">
                 <div className="ml-2">
-                  <h1 className="text-lg font-bold text-white">Aplyca</h1>
+                  <h1 className="text-lg font-bold text-white">Nexus</h1>
                 </div>
               </div>
               <button

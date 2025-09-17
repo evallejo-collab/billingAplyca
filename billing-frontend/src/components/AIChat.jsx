@@ -79,7 +79,7 @@ const AIChat = () => {
     {
       id: 1,
       type: 'bot',
-      content: '¡Hola! Soy tu asistente de IA. Puedo ayudarte con consultas sobre tiempo, contratos, clientes y proyectos. ¿En qué puedo ayudarte?',
+      content: '¡Hola! Soy Aply, tu asistente inteligente de Aplyca. Puedo ayudarte con consultas sobre tiempo, contratos, clientes y proyectos. ¿En qué puedo ayudarte?',
       timestamp: new Date()
     }
   ]);
@@ -100,7 +100,7 @@ const AIChat = () => {
       {
         id: 1,
         type: 'bot',
-        content: '¡Hola! Soy tu asistente de IA. Puedo ayudarte con consultas sobre tiempo, contratos, clientes y proyectos. ¿En qué puedo ayudarte?',
+        content: '¡Hola! Soy Aply, tu asistente inteligente de Aplyca. Puedo ayudarte con consultas sobre tiempo, contratos, clientes y proyectos. ¿En qué puedo ayudarte?',
         timestamp: new Date()
       }
     ]);
@@ -203,7 +203,7 @@ const AIChat = () => {
           <div className="flex items-center justify-between p-4 bg-violet-600 text-white rounded-t-lg">
             <div className="flex items-center space-x-2">
               <Bot className="w-5 h-5" />
-              <h3 className="font-semibold">Asistente IA</h3>
+              <h3 className="font-semibold">Aply</h3>
             </div>
             <button
               onClick={handleCloseChat}
