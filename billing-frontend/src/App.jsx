@@ -15,6 +15,7 @@ import Users from './components/Users';
 import ClientPortal from './components/ClientPortal';
 import UserClientManagement from './components/UserClientManagement';
 import ProjectPaymentHistory from './components/ProjectPaymentHistory';
+import CapacityDashboard from './components/CapacityDashboard';
 import LoginPage from './components/LoginPage';
 import AuthCallback from './components/AuthCallback';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -59,6 +60,7 @@ const AppRoutes = () => {
             <Route path="time-entries" element={<TimeEntries />} />
             <Route path="billing" element={<Billing />} />
             <Route path="billing/:type/:id" element={<ProjectPaymentHistory />} />
+            <Route path="capacity" element={<CapacityDashboard />} />
             <Route path="reports" element={<Reports />} />
             <Route path="users" element={<Users />} />
             <Route path="portal" element={<ClientPortal />} />

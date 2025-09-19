@@ -947,6 +947,451 @@ export const usersApi = {
   }
 };
 
+// ================ CAPACITY COORDINATION API ================
+export const capacityApi = {
+  // ================ TEAM MEMBERS ================
+  async getAllTeamMembers() {
+    const { data, error } = await supabase
+      .from('team_members')
+      .select('*')
+      .eq('is_active', true)
+      .order('name');
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  async createTeamMember(member) {
+    try {
+      // Limpiar campos vacíos y preparar datos
+      const cleanMember = {
+        ...member,
+        email: member.email && member.email.trim() !== '' ? member.email.trim() : null,
+        hire_date: member.hire_date && member.hire_date !== '' ? member.hire_date : null,
+        notes: member.notes && member.notes.trim() !== '' ? member.notes.trim() : null,
+        hourly_rate: parseFloat(member.hourly_rate) || 0,
+        weekly_capacity: parseInt(member.weekly_capacity) || 40,
+        skills: Array.isArray(member.skills) ? member.skills : []
+      };
+
+      const { data, error } = await supabase
+        .from('team_members')
+        .insert([cleanMember])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return { success: true, data };
+    } catch (error) {
+      console.error('Error creating team member:', error);
+      throw error;
+    }
+  },
+
+  async updateTeamMember(id, member) {
+    try {
+      // Limpiar campos vacíos y preparar datos
+      const cleanMember = {
+        ...member,
+        email: member.email && member.email.trim() !== '' ? member.email.trim() : null,
+        hire_date: member.hire_date && member.hire_date !== '' ? member.hire_date : null,
+        notes: member.notes && member.notes.trim() !== '' ? member.notes.trim() : null,
+        hourly_rate: parseFloat(member.hourly_rate) || 0,
+        weekly_capacity: parseInt(member.weekly_capacity) || 40,
+        skills: Array.isArray(member.skills) ? member.skills : []
+      };
+
+      // Verificar que el registro existe primero
+      const { data: existingMember, error: checkError } = await supabase
+        .from('team_members')
+        .select('id')
+        .eq('id', id)
+        .single();
+
+      if (checkError || !existingMember) {
+        throw new Error('Miembro no encontrado');
+      }
+
+      const { data, error } = await supabase
+        .from('team_members')
+        .update(cleanMember)
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return { success: true, data };
+    } catch (error) {
+      console.error('Error updating team member:', error);
+      throw error;
+    }
+  },
+
+  // ================ CAPACITY ASSIGNMENTS ================
+  async getAssignmentsByWeek(weekStartDate) {
+    const { data, error } = await supabase
+      .from('capacity_assignments')
+      .select(`
+        *,
+        project:projects(id, name, client:clients(name)),
+        member:team_members!member_id(id, name, weekly_capacity, department),
+        leader:team_members!leader_id(id, name)
+      `)
+      .eq('week_start_date', weekStartDate)
+      .order('member_id');
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  async createAssignment(assignment) {
+    // Validar disponibilidad antes de crear
+    const availability = await this.checkMemberAvailability(
+      assignment.member_id, 
+      assignment.week_start_date
+    );
+    
+    if (!availability.success) {
+      throw new Error(availability.error);
+    }
+
+    // Limpiar campos UUID vacíos
+    const cleanAssignment = {
+      ...assignment,
+      project_id: parseInt(assignment.project_id),
+      leader_id: assignment.leader_id && assignment.leader_id.trim() !== '' ? assignment.leader_id : null
+    };
+
+    const { data, error } = await supabase
+      .from('capacity_assignments')
+      .insert([cleanAssignment])
+      .select(`
+        *,
+        project:projects(id, name, client:clients(name)),
+        member:team_members!member_id(id, name, weekly_capacity),
+        leader:team_members!leader_id(id, name)
+      `)
+      .single();
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  async updateAssignment(id, assignment) {
+    // Limpiar campos UUID vacíos
+    const cleanAssignment = {
+      ...assignment,
+      project_id: assignment.project_id ? parseInt(assignment.project_id) : assignment.project_id,
+      leader_id: assignment.leader_id && assignment.leader_id.trim() !== '' ? assignment.leader_id : null
+    };
+
+    const { data, error } = await supabase
+      .from('capacity_assignments')
+      .update(cleanAssignment)
+      .eq('id', id)
+      .select(`
+        *,
+        project:projects(id, name, client:clients(name)),
+        member:team_members!member_id(id, name, weekly_capacity),
+        leader:team_members!leader_id(id, name)
+      `)
+      .single();
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  async deleteAssignment(id) {
+    const { error } = await supabase
+      .from('capacity_assignments')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return { success: true };
+  },
+
+  // ================ BULK OPERATIONS ================
+  async bulkCreateAssignments(assignments) {
+    // Limpiar campos UUID vacíos en todas las asignaciones
+    const cleanAssignments = assignments.map(assignment => ({
+      ...assignment,
+      project_id: parseInt(assignment.project_id),
+      leader_id: assignment.leader_id && assignment.leader_id.trim() !== '' ? assignment.leader_id : null
+    }));
+
+    const { data, error } = await supabase
+      .from('capacity_assignments')
+      .insert(cleanAssignments)
+      .select(`
+        *,
+        project:projects(id, name, client:clients(name)),
+        member:team_members!member_id(id, name, weekly_capacity)
+      `);
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  async copyWeekAssignments(sourceWeek, targetWeek, projectIds = null) {
+    try {
+      // Convertir projectIds a integers si se proporciona
+      const intProjectIds = projectIds ? projectIds.map(id => parseInt(id)) : null;
+      
+      const { data, error } = await supabase.rpc('copy_week_assignments', {
+        p_source_week: sourceWeek,
+        p_target_week: targetWeek,
+        p_project_ids: intProjectIds
+      });
+
+      if (error) throw error;
+      return { success: true, copiedCount: data };
+    } catch (error) {
+      console.error('Error copying assignments:', error);
+      throw error;
+    }
+  },
+
+  // ================ UTILIZATION CALCULATIONS ================
+  async getMemberUtilization(memberId, weekStartDate) {
+    try {
+      const { data, error } = await supabase.rpc('calculate_member_utilization', {
+        p_member_id: memberId,
+        p_week_start: weekStartDate
+      });
+
+      if (error) throw error;
+      return { success: true, data };
+    } catch (error) {
+      console.error('Error calculating utilization:', error);
+      throw error;
+    }
+  },
+
+  async getWeeklyTeamUtilization(weekStartDate) {
+    const { data, error } = await supabase
+      .from('weekly_member_utilization')
+      .select('*')
+      .eq('week_start_date', weekStartDate)
+      .order('member_name');
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  async checkMemberAvailability(memberId, weekStartDate) {
+    try {
+      // Obtener capacidad del miembro
+      const { data: member, error: memberError } = await supabase
+        .from('team_members')
+        .select('weekly_capacity')
+        .eq('id', memberId)
+        .single();
+
+      if (memberError) throw memberError;
+
+      // Obtener asignaciones actuales
+      const { data: assignments, error: assignError } = await supabase
+        .from('capacity_assignments')
+        .select('assigned_hours')
+        .eq('member_id', memberId)
+        .eq('week_start_date', weekStartDate)
+        .eq('status', 'Activa');
+
+      if (assignError) throw assignError;
+
+      const totalAssigned = assignments.reduce((sum, a) => sum + parseFloat(a.assigned_hours), 0);
+      const available = member.weekly_capacity - totalAssigned;
+      const utilizationPercentage = (totalAssigned / member.weekly_capacity) * 100;
+
+      return {
+        success: true,
+        data: {
+          member_id: memberId,
+          week_start_date: weekStartDate,
+          weekly_capacity: member.weekly_capacity,
+          total_assigned: totalAssigned,
+          available_hours: available,
+          utilization_percentage: utilizationPercentage,
+          can_assign_more: available > 0
+        }
+      };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  // ================ PROJECT SUMMARIES ================
+  async getProjectCapacitySummary(projectId, weekStartDate) {
+    try {
+      const { data, error } = await supabase.rpc('get_project_capacity_summary', {
+        p_project_id: parseInt(projectId), // Convertir a INTEGER
+        p_week_start: weekStartDate
+      });
+
+      if (error) throw error;
+      return { success: true, data };
+    } catch (error) {
+      console.error('Error getting project summary:', error);
+      throw error;
+    }
+  },
+
+  async getWeeklyProjectSummaries(weekStartDate) {
+    const { data, error } = await supabase
+      .from('project_capacity_summary')
+      .select('*')
+      .eq('week_start_date', weekStartDate)
+      .order('total_hours', { ascending: false });
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  // ================ ALERTS ================
+  async getActiveAlerts(limit = 50) {
+    const { data, error } = await supabase
+      .from('capacity_alerts')
+      .select(`
+        *,
+        member:team_members(name),
+        project:projects(name)
+      `)
+      .eq('is_resolved', false)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  async resolveAlert(alertId, resolvedBy) {
+    const { data, error } = await supabase
+      .from('capacity_alerts')
+      .update({
+        is_resolved: true,
+        resolved_at: new Date().toISOString(),
+        resolved_by: resolvedBy
+      })
+      .eq('id', alertId)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  // ================ SETTINGS ================
+  async getSettings() {
+    const { data, error } = await supabase
+      .from('capacity_settings')
+      .select('*')
+      .order('setting_key');
+    
+    if (error) throw error;
+    
+    // Convert to key-value object
+    const settings = {};
+    data.forEach(setting => {
+      settings[setting.setting_key] = setting.setting_value;
+    });
+    
+    return { success: true, data: settings };
+  },
+
+  async updateSetting(key, value, updatedBy) {
+    const { data, error } = await supabase
+      .from('capacity_settings')
+      .upsert({
+        setting_key: key,
+        setting_value: value,
+        updated_by: updatedBy,
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  // ================ TEMPLATES ================
+  async getAssignmentTemplates() {
+    const { data, error } = await supabase
+      .from('assignment_templates')
+      .select('*')
+      .eq('is_active', true)
+      .order('template_name');
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  async createAssignmentTemplate(template) {
+    const { data, error } = await supabase
+      .from('assignment_templates')
+      .insert([template])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return { success: true, data };
+  },
+
+  // ================ DASHBOARD DATA ================
+  async getDashboardData(weekStartDate) {
+    try {
+      // Obtener todas las métricas en paralelo
+      const [
+        teamUtilization,
+        projectSummaries,
+        activeAlerts,
+        settings
+      ] = await Promise.all([
+        this.getWeeklyTeamUtilization(weekStartDate),
+        this.getWeeklyProjectSummaries(weekStartDate),
+        this.getActiveAlerts(10),
+        this.getSettings()
+      ]);
+
+      // Calcular métricas agregadas
+      const totalCapacity = teamUtilization.data.reduce((sum, member) => 
+        sum + member.weekly_capacity, 0);
+      const totalAssigned = teamUtilization.data.reduce((sum, member) => 
+        sum + member.total_assigned, 0);
+      const avgUtilization = totalCapacity > 0 ? (totalAssigned / totalCapacity) * 100 : 0;
+
+      const overallocatedMembers = teamUtilization.data.filter(member => 
+        member.utilization_percentage > 100).length;
+      const underutilizedMembers = teamUtilization.data.filter(member => 
+        member.utilization_percentage < 60).length;
+
+      return {
+        success: true,
+        data: {
+          week_start_date: weekStartDate,
+          team_metrics: {
+            total_members: teamUtilization.data.length,
+            total_capacity: totalCapacity,
+            total_assigned: totalAssigned,
+            total_available: totalCapacity - totalAssigned,
+            avg_utilization: Math.round(avgUtilization * 10) / 10,
+            overallocated_members: overallocatedMembers,
+            underutilized_members: underutilizedMembers
+          },
+          team_utilization: teamUtilization.data,
+          project_summaries: projectSummaries.data,
+          active_alerts: activeAlerts.data,
+          settings: settings.data
+        }
+      };
+    } catch (error) {
+      console.error('Error getting dashboard data:', error);
+      throw error;
+    }
+  }
+};
+
 // ================ UTILITY FUNCTIONS ================
 export const formatCurrency = (amount) => {
   return new Intl.NumberFormat('es-CO', {

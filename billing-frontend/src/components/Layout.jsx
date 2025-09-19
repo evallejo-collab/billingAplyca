@@ -15,7 +15,8 @@ import {
   ChevronDown,
   TrendingUp,
   UserCheck,
-  Briefcase
+  Briefcase,
+  Target
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { hasPermission, PERMISSIONS, ROLES } from '../utils/roles';
@@ -65,6 +66,7 @@ const Layout = () => {
         items: [
           { name: 'Registro de Tiempo', href: '/time-entries', icon: Clock, description: 'Control de tiempo trabajado', permission: PERMISSIONS.VIEW_TIME_ENTRIES },
           { name: 'Facturación', href: '/billing', icon: Receipt, description: 'Gestión de pagos y facturación', permission: PERMISSIONS.VIEW_PAYMENTS },
+          { name: 'Coordinación de Capacidad', href: '/capacity', icon: Target, description: 'Gestión de asignaciones y capacidad del equipo', permission: PERMISSIONS.VIEW_PROJECTS },
         ]
       },
       'analisis': {
