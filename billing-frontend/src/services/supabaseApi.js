@@ -958,6 +958,10 @@ export const capacityApi = {
       .order('name');
     
     if (error) throw error;
+    
+    // Log para debug (opcional)
+    // console.log('Active team members loaded:', data?.length || 0, 'members');
+    
     return { success: true, data };
   },
 
@@ -1001,47 +1005,183 @@ export const capacityApi = {
         skills: Array.isArray(member.skills) ? member.skills : []
       };
 
-      // Verificar que el registro existe primero
+      // Verificar que el miembro existe y está activo
+      console.log('Checking member with ID:', id);
       const { data: existingMember, error: checkError } = await supabase
         .from('team_members')
-        .select('id')
+        .select('id, name, is_active')
         .eq('id', id)
         .single();
 
-      if (checkError || !existingMember) {
+      console.log('Existing member check:', { existingMember, checkError });
+
+      if (checkError) {
+        console.error('Error checking existing member:', checkError);
         throw new Error('Miembro no encontrado');
       }
 
+      if (!existingMember) {
+        throw new Error('Miembro no encontrado');
+      }
+
+      // Si el miembro está inactivo, no permitir actualización
+      if (!existingMember.is_active) {
+        console.log('Member is inactive:', existingMember);
+        throw new Error('No se puede actualizar un miembro inactivo');
+      }
+
+      console.log('Member is active, proceeding with update:', existingMember);
+
+      // Actualizar solo si el miembro está activo
       const { data, error } = await supabase
         .from('team_members')
         .update(cleanMember)
         .eq('id', id)
-        .select()
-        .single();
+        .eq('is_active', true)
+        .select();
       
-      if (error) throw error;
-      return { success: true, data };
+      if (error) {
+        console.error('Error updating member:', error);
+        throw error;
+      }
+      
+      // Verificar que se actualizó algún registro
+      console.log('Update result:', { data, dataLength: data?.length });
+      if (!data || data.length === 0) {
+        // Verificar nuevamente el estado del miembro
+        const { data: recheckMember } = await supabase
+          .from('team_members')
+          .select('id, name, is_active')
+          .eq('id', id)
+          .single();
+        
+        console.log('Member recheck after failed update:', recheckMember);
+        throw new Error('No se pudo actualizar el miembro. Es posible que ya no esté activo.');
+      }
+      
+      // Manejar el caso donde la respuesta puede ser un array
+      const updatedMember = Array.isArray(data) ? data[0] : data;
+      return { success: true, data: updatedMember };
     } catch (error) {
       console.error('Error updating team member:', error);
       throw error;
     }
   },
 
+  async deleteTeamMember(id) {
+    try {
+      // Primero verificar que el miembro existe y está activo
+      const { data: existingMember, error: checkError } = await supabase
+        .from('team_members')
+        .select('id, name, is_active')
+        .eq('id', id)
+        .single();
+
+      if (checkError) {
+        console.error('Error checking member existence:', checkError);
+        throw new Error('Miembro no encontrado');
+      }
+
+      if (!existingMember) {
+        throw new Error('Miembro no encontrado');
+      }
+
+      // Si ya está inactivo, considerar que ya fue eliminado
+      if (!existingMember.is_active) {
+        console.log('Member already inactive:', existingMember);
+        return { success: true, data: existingMember, message: 'El miembro ya estaba inactivo' };
+      }
+
+      // Soft delete - marcar como inactivo
+      const { data, error } = await supabase
+        .from('team_members')
+        .update({ is_active: false })
+        .eq('id', id)
+        .eq('is_active', true) // Solo actualizar si está activo
+        .select();
+      
+      if (error) throw error;
+      
+      // Manejar el caso donde la respuesta puede ser un array
+      const updatedMember = Array.isArray(data) ? data[0] : data;
+      
+      // Log para debug
+      console.log('Member deleted successfully:', updatedMember);
+      
+      if (!updatedMember) {
+        // Esto puede pasar si otro proceso ya eliminó el miembro
+        console.warn('No rows updated, member might have been deleted by another process');
+        return { success: true, data: existingMember, message: 'Miembro eliminado (ya estaba inactivo)' };
+      }
+      
+      return { success: true, data: updatedMember };
+    } catch (error) {
+      console.error('Error deleting team member:', error);
+      throw error;
+    }
+  },
+
   // ================ CAPACITY ASSIGNMENTS ================
   async getAssignmentsByWeek(weekStartDate) {
-    const { data, error } = await supabase
-      .from('capacity_assignments')
-      .select(`
-        *,
-        project:projects(id, name, client:clients(name)),
-        member:team_members!member_id(id, name, weekly_capacity, department),
-        leader:team_members!leader_id(id, name)
-      `)
-      .eq('week_start_date', weekStartDate)
-      .order('member_id');
-    
-    if (error) throw error;
-    return { success: true, data };
+    try {
+      // Obtener asignaciones básicas sin joins
+      const { data: assignments, error: assignmentsError } = await supabase
+        .from('capacity_assignments')
+        .select('*')
+        .eq('week_start_date', weekStartDate)
+        .order('member_id');
+
+      if (assignmentsError) throw assignmentsError;
+      if (!assignments || assignments.length === 0) {
+        return { success: true, data: [] };
+      }
+
+      // Obtener IDs únicos para hacer queries separadas
+      const projectIds = [...new Set(assignments.map(a => a.project_id))];
+      const memberIds = [...new Set(assignments.map(a => a.member_id))];
+
+      // Obtener proyectos con sus clientes
+      const { data: projects, error: projectsError } = await supabase
+        .from('projects')
+        .select('id, name, client_id, clients(name)')
+        .in('id', projectIds);
+
+      if (projectsError) throw projectsError;
+
+      // Obtener miembros
+      const { data: members, error: membersError } = await supabase
+        .from('team_members')
+        .select('id, name, weekly_capacity, department')
+        .in('id', memberIds);
+
+      if (membersError) throw membersError;
+
+      // Combinar los datos
+      const enrichedAssignments = assignments.map(assignment => {
+        const project = projects.find(p => p.id === assignment.project_id);
+        const member = members.find(m => m.id === assignment.member_id);
+        
+        return {
+          ...assignment,
+          project: project ? {
+            id: project.id,
+            name: project.name,
+            client: project.clients ? { name: project.clients.name } : null
+          } : null,
+          member: member ? {
+            id: member.id,
+            name: member.name,
+            weekly_capacity: member.weekly_capacity,
+            department: member.department
+          } : null
+        };
+      });
+
+      return { success: true, data: enrichedAssignments };
+    } catch (error) {
+      console.error('Error in getAssignmentsByWeek:', error);
+      throw error;
+    }
   },
 
   async createAssignment(assignment) {
@@ -1059,18 +1199,12 @@ export const capacityApi = {
     const cleanAssignment = {
       ...assignment,
       project_id: parseInt(assignment.project_id),
-      leader_id: assignment.leader_id && assignment.leader_id.trim() !== '' ? assignment.leader_id : null
     };
 
     const { data, error } = await supabase
       .from('capacity_assignments')
       .insert([cleanAssignment])
-      .select(`
-        *,
-        project:projects(id, name, client:clients(name)),
-        member:team_members!member_id(id, name, weekly_capacity),
-        leader:team_members!leader_id(id, name)
-      `)
+      .select('id')
       .single();
     
     if (error) throw error;
@@ -1078,27 +1212,56 @@ export const capacityApi = {
   },
 
   async updateAssignment(id, assignment) {
-    // Limpiar campos UUID vacíos
-    const cleanAssignment = {
-      ...assignment,
-      project_id: assignment.project_id ? parseInt(assignment.project_id) : assignment.project_id,
-      leader_id: assignment.leader_id && assignment.leader_id.trim() !== '' ? assignment.leader_id : null
-    };
-
-    const { data, error } = await supabase
-      .from('capacity_assignments')
-      .update(cleanAssignment)
-      .eq('id', id)
-      .select(`
-        *,
-        project:projects(id, name, client:clients(name)),
-        member:team_members!member_id(id, name, weekly_capacity),
-        leader:team_members!leader_id(id, name)
-      `)
-      .single();
+    console.log('updateAssignment called with:', { id, assignment });
     
-    if (error) throw error;
-    return { success: true, data };
+    try {
+      // Solo actualizar las columnas que sabemos que existen
+      const updateData = {};
+      
+      if (assignment.project_id !== undefined) {
+        updateData.project_id = parseInt(assignment.project_id);
+      }
+      if (assignment.assigned_hours !== undefined) {
+        updateData.assigned_hours = assignment.assigned_hours;
+      }
+      if (assignment.assignment_type !== undefined) {
+        updateData.assignment_type = assignment.assignment_type;
+      }
+      if (assignment.priority !== undefined) {
+        updateData.priority = assignment.priority;
+      }
+      if (assignment.is_billable !== undefined) {
+        updateData.is_billable = assignment.is_billable;
+      }
+      if (assignment.notes !== undefined) {
+        updateData.notes = assignment.notes;
+      }
+      if (assignment.week_start_date !== undefined) {
+        updateData.week_start_date = assignment.week_start_date;
+      }
+      if (assignment.member_id !== undefined) {
+        updateData.member_id = assignment.member_id;
+      }
+      
+      console.log('Filtered update data:', updateData);
+      
+      const { error } = await supabase
+        .from('capacity_assignments')
+        .update(updateData)
+        .eq('id', id);
+      
+      console.log('Basic update result:', { error });
+      
+      if (error) {
+        console.error('Basic update failed:', error);
+        throw error;
+      }
+      
+      return { success: true, data: { id, ...updateData } };
+    } catch (error) {
+      console.error('updateAssignment complete failure:', error);
+      throw error;
+    }
   },
 
   async deleteAssignment(id) {

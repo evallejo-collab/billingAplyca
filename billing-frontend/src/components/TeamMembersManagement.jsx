@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, User, Mail, Clock, Building } from 'lucide-react';
+import { Plus, Edit, Trash2, User, Mail, Clock, Building, AlertTriangle, CheckCircle, X } from 'lucide-react';
 import { capacityApi } from '../services/supabaseApi';
 
 const TeamMembersManagement = () => {
@@ -7,6 +7,9 @@ const TeamMembersManagement = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [memberToDelete, setMemberToDelete] = useState(null);
+  const [notification, setNotification] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -50,8 +53,10 @@ const TeamMembersManagement = () => {
 
       if (editingMember) {
         await capacityApi.updateTeamMember(editingMember.id, memberData);
+        showNotification(`${memberData.name} ha sido actualizado exitosamente`, 'success');
       } else {
         await capacityApi.createTeamMember(memberData);
+        showNotification(`${memberData.name} ha sido añadido al equipo`, 'success');
       }
 
       setShowModal(false);
@@ -60,7 +65,7 @@ const TeamMembersManagement = () => {
       loadMembers();
     } catch (error) {
       console.error('Error saving member:', error);
-      alert('Error al guardar el miembro: ' + error.message);
+      showNotification(`Error al guardar el miembro: ${error.message}`, 'error');
     }
   };
 
@@ -80,15 +85,41 @@ const TeamMembersManagement = () => {
     setShowModal(true);
   };
 
-  const handleDelete = async (memberId) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar este miembro?')) return;
-    
+  // Función para mostrar notificaciones
+  const showNotification = (message, type = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 4000);
+  };
+
+  const handleDeleteClick = (member) => {
+    setMemberToDelete(member);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteConfirm = async () => {
     try {
-      await capacityApi.updateTeamMember(memberId, { is_active: false });
-      loadMembers();
+      const result = await capacityApi.deleteTeamMember(memberToDelete.id);
+      
+      // Actualizar el estado local inmediatamente para feedback rápido
+      setMembers(prevMembers => 
+        prevMembers.filter(member => member.id !== memberToDelete.id)
+      );
+      
+      showNotification(`${memberToDelete.name} ha sido eliminado del equipo`, 'success');
+      
+      // Recargar desde la base de datos para asegurar consistencia
+      setTimeout(async () => {
+        await loadMembers();
+      }, 1000);
+      
     } catch (error) {
       console.error('Error deleting member:', error);
-      alert('Error al eliminar el miembro: ' + error.message);
+      showNotification(`Error al eliminar el miembro: ${error.message}`, 'error');
+      // Si hay error, recargar para mostrar el estado real
+      loadMembers();
+    } finally {
+      setShowDeleteConfirm(false);
+      setMemberToDelete(null);
     }
   };
 
@@ -219,7 +250,7 @@ const TeamMembersManagement = () => {
                     <Edit className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={() => handleDelete(member.id)}
+                    onClick={() => handleDeleteClick(member)}
                     className="text-red-600 hover:text-red-900"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -397,6 +428,94 @@ const TeamMembersManagement = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmación para eliminar */}
+      {showDeleteConfirm && memberToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Confirmar eliminación
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Esta acción no se puede deshacer
+                  </p>
+                </div>
+              </div>
+              
+              <div className="mb-6">
+                <p className="text-gray-700">
+                  ¿Estás seguro de que quieres eliminar a{' '}
+                  <span className="font-semibold text-gray-900">
+                    {memberToDelete.name}
+                  </span>{' '}
+                  del equipo?
+                </p>
+                <p className="text-sm text-gray-500 mt-2">
+                  El miembro será marcado como inactivo y no aparecerá en las asignaciones futuras.
+                </p>
+              </div>
+              
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleDeleteConfirm}
+                  className="flex-1 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 transition-colors font-medium"
+                >
+                  Sí, eliminar
+                </button>
+                <button
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setMemberToDelete(null);
+                  }}
+                  className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notificación toast */}
+      {notification && (
+        <div className="fixed top-4 right-4 z-50 transition-all duration-300 ease-in-out transform translate-x-0">
+          <div className={`flex items-center space-x-3 p-4 rounded-lg shadow-lg max-w-md ${
+            notification.type === 'success' 
+              ? 'bg-green-50 border border-green-200' 
+              : 'bg-red-50 border border-red-200'
+          }`}>
+            <div className={`flex-shrink-0 ${
+              notification.type === 'success' ? 'text-green-600' : 'text-red-600'
+            }`}>
+              {notification.type === 'success' ? (
+                <CheckCircle className="w-5 h-5" />
+              ) : (
+                <AlertTriangle className="w-5 h-5" />
+              )}
+            </div>
+            <p className={`text-sm font-medium ${
+              notification.type === 'success' ? 'text-green-800' : 'text-red-800'
+            }`}>
+              {notification.message}
+            </p>
+            <button
+              onClick={() => setNotification(null)}
+              className={`flex-shrink-0 ${
+                notification.type === 'success' ? 'text-green-600 hover:text-green-800' : 'text-red-600 hover:text-red-800'
+              }`}
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         </div>
       )}

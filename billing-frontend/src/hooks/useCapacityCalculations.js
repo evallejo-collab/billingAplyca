@@ -375,18 +375,32 @@ export const useWeekUtils = () => {
   // Función para obtener el lunes de una fecha
   const getWeekStart = useCallback((date) => {
     const d = new Date(date);
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Lunes
-    const monday = new Date(d.setDate(diff));
+    const day = d.getDay(); // 0 = domingo, 1 = lunes, etc.
+    
+    // Calcular días hasta el lunes anterior/actual
+    const daysToMonday = day === 0 ? -6 : 1 - day;
+    
+    // Crear nueva fecha para el lunes
+    const monday = new Date(d);
+    monday.setDate(d.getDate() + daysToMonday);
     monday.setHours(0, 0, 0, 0);
+    
     return monday.toISOString().split('T')[0];
   }, []);
 
   // Función para navegar semanas
   const addWeeks = useCallback((dateString, weeks) => {
-    const date = new Date(dateString);
-    date.setDate(date.getDate() + (weeks * 7));
-    return getWeekStart(date);
+    if (!dateString) return '';
+    
+    // Parsear la fecha string como formato YYYY-MM-DD
+    const [year, month, day] = dateString.split('-').map(Number);
+    const date = new Date(year, month - 1, day); // month - 1 porque Date usa 0-indexado
+    
+    // Añadir semanas (7 días por semana)
+    const newDate = new Date(date);
+    newDate.setDate(date.getDate() + (weeks * 7));
+    
+    return getWeekStart(newDate);
   }, [getWeekStart]);
 
   // Función para formatear semana

@@ -3,19 +3,18 @@ import {
   Users, 
   Clock, 
   TrendingUp, 
-  TrendingDown, 
   AlertTriangle,
   Calendar,
   ChevronLeft,
   ChevronRight,
   RefreshCw,
-  Download,
   Copy,
-  Settings,
   Briefcase,
   Target,
   Activity
 } from 'lucide-react';
+
+// CAPACITY DASHBOARD MINIMALISTA - v2.0
 import { useWeekUtils, useCapacityAlerts, useBulkOperations } from '../hooks/useCapacityCalculations';
 import { capacityApi } from '../services/supabaseApi';
 import AssignmentTable from './AssignmentTable';
@@ -78,7 +77,7 @@ const CapacityDashboard = () => {
     }
   };
 
-  // Componente para métricas principales
+  // Componente para métricas principales - DISEÑO MINIMALISTA
   const MetricsCards = () => {
     if (!dashboardData) return null;
 
@@ -87,75 +86,63 @@ const CapacityDashboard = () => {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Capacidad Total */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <Clock className="w-8 h-8 text-blue-500" />
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Capacidad Total</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{team_metrics.total_capacity}h</p>
+              <p className="text-xs text-gray-500 mt-1">{team_metrics.total_members} miembros activos</p>
             </div>
-            <div className="ml-4">
-              <div className="text-2xl font-bold text-gray-900">
-                {team_metrics.total_capacity}h
-              </div>
-              <div className="text-sm text-gray-500">Capacidad Total</div>
-              <div className="text-xs text-gray-400 mt-1">
-                {team_metrics.total_members} miembros activos
-              </div>
+            <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
+              <Clock className="w-6 h-6 text-blue-600" />
             </div>
           </div>
         </div>
 
         {/* Horas Asignadas */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <Target className="w-8 h-8 text-green-500" />
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Horas Asignadas</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{team_metrics.total_assigned}h</p>
+              <p className="text-xs text-gray-500 mt-1">{team_metrics.avg_utilization}% utilización</p>
             </div>
-            <div className="ml-4">
-              <div className="text-2xl font-bold text-gray-900">
-                {team_metrics.total_assigned}h
-              </div>
-              <div className="text-sm text-gray-500">Horas Asignadas</div>
-              <div className="text-xs text-gray-400 mt-1">
-                {team_metrics.avg_utilization}% utilización promedio
-              </div>
+            <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
+              <Target className="w-6 h-6 text-blue-600" />
             </div>
           </div>
         </div>
 
         {/* Disponibilidad */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <Activity className="w-8 h-8 text-purple-500" />
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Horas Disponibles</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{team_metrics.total_available}h</p>
+              <p className="text-xs text-gray-500 mt-1">{((team_metrics.total_available / team_metrics.total_capacity) * 100).toFixed(1)}% disponible</p>
             </div>
-            <div className="ml-4">
-              <div className="text-2xl font-bold text-gray-900">
-                {team_metrics.total_available}h
-              </div>
-              <div className="text-sm text-gray-500">Horas Disponibles</div>
-              <div className="text-xs text-gray-400 mt-1">
-                {((team_metrics.total_available / team_metrics.total_capacity) * 100).toFixed(1)}% disponible
-              </div>
+            <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
+              <Activity className="w-6 h-6 text-blue-600" />
             </div>
           </div>
         </div>
 
         {/* Alertas */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <AlertTriangle className={`w-8 h-8 ${
-                team_metrics.overallocated_members > 0 ? 'text-red-500' : 'text-gray-400'
-              }`} />
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Sobrecargados</p>
+              <p className={`text-3xl font-bold mt-2 ${
+                team_metrics.overallocated_members > 0 ? 'text-red-600' : 'text-gray-900'
+              }`}>{team_metrics.overallocated_members}</p>
+              <p className="text-xs text-gray-500 mt-1">{team_metrics.underutilized_members} subutilizados</p>
             </div>
-            <div className="ml-4">
-              <div className="text-2xl font-bold text-red-600">
-                {team_metrics.overallocated_members}
-              </div>
-              <div className="text-sm text-gray-500">Sobrecargados</div>
-              <div className="text-xs text-gray-400 mt-1">
-                {team_metrics.underutilized_members} subutilizados
-              </div>
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+              team_metrics.overallocated_members > 0 ? 'bg-red-50' : 'bg-gray-50'
+            }`}>
+              <AlertTriangle className={`w-6 h-6 ${
+                team_metrics.overallocated_members > 0 ? 'text-red-600' : 'text-gray-400'
+              }`} />
             </div>
           </div>
         </div>
@@ -163,44 +150,42 @@ const CapacityDashboard = () => {
     );
   };
 
-  // Componente para resumen de proyectos
+  // Componente para resumen de proyectos - DISEÑO MINIMALISTA
   const ProjectSummary = () => {
     if (!dashboardData?.project_summaries) return null;
 
     return (
-      <div className="bg-white rounded-lg border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Proyectos Activos</h3>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div className="p-6 border-b border-gray-100">
+          <h3 className="text-xl font-semibold text-gray-900">Proyectos Activos</h3>
+          <p className="text-gray-600 text-sm mt-1">{dashboardData.project_summaries.length} proyectos esta semana</p>
         </div>
         <div className="p-6">
-          <div className="space-y-4">
-            {dashboardData.project_summaries.slice(0, 5).map((project) => (
-              <div key={project.project_id} className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <Briefcase className="w-4 h-4 text-gray-400" />
-                  <div>
-                    <div className="text-sm font-medium text-gray-900">
-                      {project.project_name}
+          {dashboardData.project_summaries.length === 0 ? (
+            <div className="text-center py-12">
+              <Briefcase className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <h4 className="text-lg font-medium text-gray-900 mb-2">No hay proyectos asignados</h4>
+              <p className="text-gray-500">Los proyectos aparecerán aquí cuando tengan asignaciones</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {dashboardData.project_summaries.slice(0, 6).map((project) => (
+                <div key={project.project_id} className="flex items-center justify-between p-4 rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                      <Briefcase className="w-5 h-5 text-blue-600" />
                     </div>
-                    <div className="text-xs text-gray-500">
-                      {project.client_name}
+                    <div>
+                      <h4 className="font-medium text-gray-900">{project.project_name}</h4>
+                      <p className="text-sm text-gray-600">{project.client_name}</p>
                     </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-gray-900">{project.total_hours}h</p>
+                    <p className="text-sm text-gray-500">{project.assigned_members} miembro(s)</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-sm font-medium text-gray-900">
-                    {project.total_hours}h
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {project.assigned_members} miembro(s)
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          {dashboardData.project_summaries.length === 0 && (
-            <div className="text-center text-gray-500 py-4">
-              No hay proyectos asignados esta semana
+              ))}
             </div>
           )}
         </div>
@@ -208,44 +193,46 @@ const CapacityDashboard = () => {
     );
   };
 
-  // Componente para alertas recientes
+  // Componente para alertas recientes - DISEÑO MINIMALISTA
   const RecentAlerts = () => {
     return (
-      <div className="bg-white rounded-lg border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Alertas Recientes</h3>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div className="p-6 border-b border-gray-100">
+          <h3 className="text-xl font-semibold text-gray-900">Alertas del Sistema</h3>
+          <p className="text-gray-600 text-sm mt-1">{alerts.length} alertas activas</p>
         </div>
         <div className="p-6">
-          <div className="space-y-3">
-            {alerts.slice(0, 5).map((alert) => (
-              <div key={alert.id} className={`p-3 rounded-lg border ${
-                alert.severity === 'CRITICAL' ? 'bg-red-50 border-red-200' :
-                alert.severity === 'HIGH' ? 'bg-orange-50 border-orange-200' :
-                alert.severity === 'MEDIUM' ? 'bg-yellow-50 border-yellow-200' :
-                'bg-blue-50 border-blue-200'
-              }`}>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-gray-900">
-                      {alert.message}
+          {alerts.length === 0 ? (
+            <div className="text-center py-12">
+              <AlertTriangle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <h4 className="text-lg font-medium text-gray-900 mb-2">No hay alertas activas</h4>
+              <p className="text-gray-500">El sistema está funcionando correctamente</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {alerts.slice(0, 6).map((alert) => (
+                <div key={alert.id} className={`p-4 rounded-lg border transition-all ${
+                  alert.severity === 'CRITICAL' ? 'bg-red-50 border-red-200' :
+                  alert.severity === 'HIGH' ? 'bg-red-50 border-red-200' :
+                  alert.severity === 'MEDIUM' ? 'bg-blue-50 border-blue-200' :
+                  'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900 text-sm">{alert.message}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {new Date(alert.created_at).toLocaleDateString('es-ES')}
+                      </p>
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      {new Date(alert.created_at).toLocaleDateString('es-ES')}
-                    </div>
+                    <button
+                      onClick={() => resolveAlert(alert.id, 'current_user_id')}
+                      className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded hover:bg-white transition-colors"
+                    >
+                      Resolver
+                    </button>
                   </div>
-                  <button
-                    onClick={() => resolveAlert(alert.id, 'current_user_id')}
-                    className="text-xs text-gray-500 hover:text-gray-700"
-                  >
-                    Resolver
-                  </button>
                 </div>
-              </div>
-            ))}
-          </div>
-          {alerts.length === 0 && (
-            <div className="text-center text-gray-500 py-4">
-              No hay alertas activas
+              ))}
             </div>
           )}
         </div>
@@ -330,24 +317,24 @@ const CapacityDashboard = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <RefreshCw className="w-8 h-8 animate-spin text-violet-600" />
-        <span className="ml-2 text-gray-600">Cargando dashboard...</span>
+      <div className="flex items-center justify-center py-16">
+        <RefreshCw className="w-8 h-8 animate-spin text-blue-600" />
+        <span className="ml-3 text-gray-600 font-medium">Cargando dashboard...</span>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+      <div className="bg-red-50 rounded-xl p-6 border border-red-200">
         <div className="flex items-center">
-          <AlertTriangle className="w-6 h-6 text-red-500 mr-3" />
+          <AlertTriangle className="w-6 h-6 text-red-600 mr-3" />
           <div>
             <h3 className="text-lg font-semibold text-red-800">Error al cargar datos</h3>
             <p className="text-red-600 mt-1">{error}</p>
             <button
               onClick={refreshData}
-              className="mt-3 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
             >
               Reintentar
             </button>
@@ -358,44 +345,44 @@ const CapacityDashboard = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header con navegación de semanas */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <h1 className="text-2xl font-bold text-gray-900">Coordinación de Capacidad</h1>
-          <div className="flex items-center space-x-2">
+    <div className="p-6 bg-gray-50 min-h-screen">
+      {/* Header con navegación de semanas - DISEÑO MINIMALISTA */}
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center space-x-6">
+          <h1 className="text-3xl font-bold text-gray-900">Coordinación de Capacidad</h1>
+          <div className="flex items-center space-x-3">
             <button
               onClick={() => navigateWeek(-1)}
-              className="p-2 text-gray-500 hover:text-gray-700 border border-gray-300 rounded"
+              className="p-2 text-gray-500 hover:text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <div className="flex items-center space-x-2 px-3 py-2 bg-violet-50 border border-violet-200 rounded">
-              <Calendar className="w-4 h-4 text-violet-600" />
-              <span className="text-sm font-medium text-violet-900">
+            <div className="flex items-center space-x-3 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+              <Calendar className="w-4 h-4 text-blue-600" />
+              <span className="text-sm font-semibold text-blue-900">
                 {formatWeekRange(currentWeek)}
               </span>
             </div>
             <button
               onClick={() => navigateWeek(1)}
-              className="p-2 text-gray-500 hover:text-gray-700 border border-gray-300 rounded"
+              className="p-2 text-gray-500 hover:text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-3">
           <button
             onClick={() => setShowCopyModal(true)}
-            className="flex items-center px-3 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50"
+            className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
           >
             <Copy className="w-4 h-4 mr-2" />
             Copiar Semana
           </button>
           <button
             onClick={refreshData}
-            className="flex items-center px-3 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50"
+            className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
           >
             <RefreshCw className="w-4 h-4 mr-2" />
             Actualizar
@@ -410,7 +397,7 @@ const CapacityDashboard = () => {
             onClick={() => setActiveTab('dashboard')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'dashboard'
-                ? 'border-violet-500 text-violet-600'
+                ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
@@ -420,7 +407,7 @@ const CapacityDashboard = () => {
             onClick={() => setActiveTab('assignments')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'assignments'
-                ? 'border-violet-500 text-violet-600'
+                ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
@@ -430,7 +417,7 @@ const CapacityDashboard = () => {
             onClick={() => setActiveTab('team')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'team'
-                ? 'border-violet-500 text-violet-600'
+                ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
@@ -440,7 +427,7 @@ const CapacityDashboard = () => {
             onClick={() => setActiveTab('kanban')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'kanban'
-                ? 'border-violet-500 text-violet-600'
+                ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
@@ -450,7 +437,7 @@ const CapacityDashboard = () => {
             onClick={() => setActiveTab('members')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'members'
-                ? 'border-violet-500 text-violet-600'
+                ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
