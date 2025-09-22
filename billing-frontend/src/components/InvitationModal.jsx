@@ -20,22 +20,22 @@ const InvitationModal = ({ isOpen, onClose, invitation, status }) => {
     switch (status) {
       case 'loading':
         return {
-          title: 'Enviando invitación...',
-          message: 'Creando cuenta y enviando email de confirmación.'
+          title: 'Creando usuario...',
+          message: 'Configurando cuenta y permisos en el sistema.'
         };
       case 'success':
         return {
-          title: '¡Invitación enviada!',
-          message: `Se ha enviado un email de confirmación a ${invitation?.email}. El usuario recibirá instrucciones para activar su cuenta.`
+          title: '¡Usuario creado exitosamente!',
+          message: `El usuario ${invitation?.full_name} ha sido creado y ya puede acceder al sistema.`
         };
       case 'error':
         return {
-          title: 'Error al enviar invitación',
-          message: 'Ha ocurrido un problema. La invitación se guardó pero el email podría no haberse enviado.'
+          title: 'Error al crear usuario',
+          message: 'Ha ocurrido un problema durante la creación del usuario. Verifica los datos e intenta nuevamente.'
         };
       default:
         return {
-          title: 'Invitación',
+          title: 'Crear Usuario',
           message: ''
         };
     }
@@ -62,19 +62,30 @@ const InvitationModal = ({ isOpen, onClose, invitation, status }) => {
 
             {invitation && status === 'success' && (
               <div className="bg-gray-50 rounded-lg p-4 w-full mb-4 text-left">
-                <h3 className="font-medium text-gray-900 mb-2">Detalles de la invitación:</h3>
+                <h3 className="font-medium text-gray-900 mb-2">Detalles del usuario creado:</h3>
                 <div className="text-sm text-gray-600 space-y-1 mb-4">
                   <p><strong>Usuario:</strong> {invitation.full_name}</p>
                   <p><strong>Email:</strong> {invitation.email}</p>
                   <p><strong>Rol:</strong> {invitation.role}</p>
+                  {invitation.password && (
+                    <p><strong>Contraseña:</strong> {invitation.password}</p>
+                  )}
                 </div>
                 
-                {invitation.instructions && (
+                {invitation.instructions ? (
                   <div className="bg-blue-50 border border-blue-200 rounded p-3">
-                    <h4 className="font-medium text-blue-900 mb-2">📧 Siguientes pasos:</h4>
+                    <h4 className="font-medium text-blue-900 mb-2">📧 Instrucciones:</h4>
                     <pre className="text-sm text-blue-800 whitespace-pre-wrap font-sans">
                       {invitation.instructions}
                     </pre>
+                  </div>
+                ) : (
+                  <div className="bg-green-50 border border-green-200 rounded p-3">
+                    <h4 className="font-medium text-green-900 mb-2">✅ Usuario listo para usar:</h4>
+                    <p className="text-sm text-green-800">
+                      El usuario ya puede iniciar sesión en el sistema con las credenciales mostradas arriba. 
+                      Tiene acceso inmediato a todas las funciones según su rol asignado.
+                    </p>
                   </div>
                 )}
               </div>

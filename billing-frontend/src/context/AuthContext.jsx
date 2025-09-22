@@ -9,11 +9,37 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
 
+  // Simple function to update user role from database (called after UI loads)
+  const updateUserRole = async (userId) => {
+    try {
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('role, full_name, is_active')
+        .eq('id', userId)
+        .single();
+
+      if (profile && user) {
+        console.log('🔄 Updating user role from database:', profile.role);
+        setUser(prev => ({
+          ...prev,
+          role: profile.role,
+          full_name: profile.full_name || prev.full_name,
+          is_active: profile.is_active !== false
+        }));
+      }
+    } catch (error) {
+      console.log('Could not update role from database:', error.message);
+    }
+  };
+
+
   useEffect(() => {
-    // Simple initial session check
-    const checkSession = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+    // Ultra-simple session check - no async/await to prevent hanging
+    const checkSession = () => {
+      console.log('🔄 Starting simple session check...');
+      
+      supabase.auth.getSession().then(({ data: { session }, error }) => {
+        console.log('📡 Session response received');
         
         if (error) {
           console.error('Error checking session:', error);
@@ -24,28 +50,38 @@ export const AuthProvider = ({ children }) => {
         setSession(session);
         
         if (session?.user) {
-          // Simple hardcoded role assignment to prevent loops
-          setUser({
+          console.log('👤 User found in session:', session.user.email);
+          // Set user immediately with simple logic
+          const simpleUser = {
             id: session.user.id,
             email: session.user.email,
             full_name: session.user.user_metadata?.full_name || session.user.email || 'Usuario',
             username: session.user.email?.split('@')[0] || 'user',
-            role: session.user.email === 'evallejo@aplyca.com' ? 'admin' : 'client',
+            role: session.user.email === 'evallejo@aplyca.com' ? 'admin' : 'collaborator',
             is_active: true,
             client_id: null
-          });
+          };
+          
+          setUser(simpleUser);
+          console.log('✅ User set immediately:', simpleUser);
+          
+          // Update role from database after UI loads
+          setTimeout(() => {
+            updateUserRole(session.user.id);
+          }, 1000);
         }
         
         setLoading(false);
-      } catch (error) {
-        console.error('Error in checkSession:', error);
+        console.log('✅ Loading completed');
+      }).catch((error) => {
+        console.error('Session check failed:', error);
         setLoading(false);
-      }
+      });
     };
 
     checkSession();
 
-    // Listen to auth changes
+    // Listen to auth changes - simplified
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('🔄 Auth state change:', event, session ? 'has session' : 'no session');
       
@@ -60,15 +96,24 @@ export const AuthProvider = ({ children }) => {
       
       if (session?.user) {
         console.log('👤 User signed in:', session.user.email);
-        setUser({
+        // Set user immediately with simple logic
+        const simpleUser = {
           id: session.user.id,
           email: session.user.email,
           full_name: session.user.user_metadata?.full_name || session.user.email || 'Usuario',
           username: session.user.email?.split('@')[0] || 'user',
-          role: session.user.email === 'evallejo@aplyca.com' ? 'admin' : 'client',
+          role: session.user.email === 'evallejo@aplyca.com' ? 'admin' : 'collaborator',
           is_active: true,
           client_id: null
-        });
+        };
+        
+        setUser(simpleUser);
+        console.log('✅ User set on auth change:', simpleUser);
+        
+        // Update role from database after a delay
+        setTimeout(() => {
+          updateUserRole(session.user.id);
+        }, 1000);
       } else {
         console.log('❌ No session');
         setUser(null);

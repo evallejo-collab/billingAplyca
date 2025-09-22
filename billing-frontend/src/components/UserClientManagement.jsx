@@ -95,14 +95,14 @@ const UserClientManagement = () => {
       const enrichedAssociations = await Promise.all(
         (associationsData || []).map(async (assoc) => {
           // Get user profile
-          const { data: userProfile } = await supabase
+          const { data: userProfile, error: userError } = await supabase
             .from('user_profiles')
             .select('email, full_name, role')
             .eq('id', assoc.user_id)
             .single();
 
           // Get client
-          const { data: client } = await supabase
+          const { data: client, error: clientError } = await supabase
             .from('clients')
             .select('name, email')
             .eq('id', assoc.client_id)
@@ -110,8 +110,15 @@ const UserClientManagement = () => {
 
           return {
             ...assoc,
-            user_profiles: userProfile,
-            clients: client
+            user_profiles: userProfile || { 
+              email: 'Usuario no encontrado', 
+              full_name: 'Usuario no encontrado', 
+              role: 'unknown' 
+            },
+            clients: client || { 
+              name: 'Cliente no encontrado', 
+              email: 'Cliente no encontrado' 
+            }
           };
         })
       );
@@ -197,9 +204,9 @@ const UserClientManagement = () => {
   };
 
   const filteredAssociations = associations.filter(assoc =>
-    assoc.user_profiles.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    assoc.user_profiles.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    assoc.clients.name.toLowerCase().includes(searchTerm.toLowerCase())
+    assoc.user_profiles?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    assoc.user_profiles?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    assoc.clients?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const availableUsers = users.filter(u => u.role !== 'admin' && u.is_active);

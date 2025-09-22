@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
+import { supabaseAdmin } from '../config/supabaseAdmin';
 import { useAuth } from '../context/AuthContext';
 import { 
   Plus, 
@@ -39,9 +40,18 @@ const Users = () => {
     password: '',
     full_name: '',
     role: ROLES.COLLABORATOR,
-    client_id: '',
     is_active: true
   });
+
+  // Función para generar contraseña temporal
+  const generateTemporaryPassword = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
 
   useEffect(() => {
     if (!hasPermission(currentUser?.role, PERMISSIONS.MANAGE_USERS)) {
@@ -59,6 +69,8 @@ const Users = () => {
       setLoading(true);
       setError(null);
 
+      console.log('👥 Cargando usuarios desde user_profiles...');
+      
       // Get profiles from user_profiles table
       const { data: profiles, error: profilesError } = await supabase
         .from('user_profiles')
@@ -66,8 +78,32 @@ const Users = () => {
         .order('created_at', { ascending: false });
 
       if (profilesError) {
-        console.error('Error loading profiles:', profilesError);
+        console.error('❌ Error loading profiles:', profilesError);
         // Don't throw, continue to show any available data
+      } else {
+        console.log(`✅ Encontrados ${profiles?.length || 0} perfiles en user_profiles:`, profiles);
+        
+        // También obtener todos los usuarios de Auth para comparar
+        if (supabaseAdmin) {
+          try {
+            const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers();
+            if (!authError) {
+              console.log(`🔐 Usuarios en Auth: ${authUsers.users?.length || 0}`);
+              console.log('📋 Lista de Auth:', authUsers.users?.map(u => ({ id: u.id, email: u.email })));
+              
+              const profileIds = profiles?.map(p => p.id) || [];
+              const authIds = authUsers.users?.map(u => u.id) || [];
+              const missingProfiles = authIds.filter(id => !profileIds.includes(id));
+              
+              if (missingProfiles.length > 0) {
+                console.log('⚠️ Usuarios en Auth sin perfil:', missingProfiles);
+                console.log('📝 Estos usuarios necesitan perfiles en user_profiles');
+              }
+            }
+          } catch (authListError) {
+            console.log('ℹ️ No se pudo listar usuarios de Auth:', authListError.message);
+          }
+        }
       }
 
       // Try to get current user's auth data to show additional context
@@ -77,6 +113,7 @@ const Users = () => {
       
       // If current user is not in profiles, add them
       if (session?.user && !allUsers.find(u => u.id === session.user.id)) {
+        console.log('➕ Agregando usuario actual que no está en perfiles');
         allUsers.unshift({
           id: session.user.id,
           email: session.user.email,
@@ -89,6 +126,7 @@ const Users = () => {
         });
       }
 
+      console.log(`📋 Total usuarios a mostrar: ${allUsers.length}`);
       setUsers(allUsers);
     } catch (err) {
       setError(`Error cargando usuarios: ${err.message}. Para ver todos los usuarios creados en Supabase, necesitas crear manualmente los perfiles o usar la consola de Supabase.`);
@@ -124,7 +162,6 @@ const Users = () => {
       password: '',
       full_name: '',
       role: ROLES.COLLABORATOR,
-      client_id: '',
       is_active: true
     });
     setIsModalOpen(true);
@@ -138,7 +175,6 @@ const Users = () => {
       password: '',
       full_name: user.full_name || '',
       role: user.role || ROLES.COLLABORATOR,
-      client_id: user.client_id || '',
       is_active: user.is_active !== false
     });
     setIsModalOpen(true);
@@ -154,13 +190,40 @@ const Users = () => {
 
     try {
       setLoading(true);
+      console.log('🗑️ Eliminando usuario:', userToDelete.id);
 
+      // Eliminar del perfil primero
       const { error: profileError } = await supabase
         .from('user_profiles')
         .delete()
         .eq('id', userToDelete.id);
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error('Error eliminando perfil:', profileError);
+        throw profileError;
+      }
+      console.log('✅ Perfil eliminado exitosamente');
+
+      // Eliminar de Auth si tenemos acceso de admin
+      if (supabaseAdmin) {
+        try {
+          const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userToDelete.id);
+          if (authError) {
+            console.error('Error eliminando de Auth:', authError);
+            // No fallar completamente si no se puede eliminar de Auth, 
+            // pero informar al usuario
+            setError(`Usuario eliminado del sistema, pero no se pudo eliminar completamente de Auth: ${authError.message}`);
+          } else {
+            console.log('✅ Usuario eliminado de Auth exitosamente');
+          }
+        } catch (authDeleteError) {
+          console.error('Error eliminando de Auth:', authDeleteError);
+          setError(`Usuario eliminado del sistema, pero no se pudo eliminar completamente de Auth: ${authDeleteError.message}`);
+        }
+      } else {
+        console.warn('⚠️ Admin client no disponible, no se puede eliminar de Auth');
+        setError('Usuario eliminado del sistema, pero para eliminarlo completamente de Auth, debe hacerse manualmente en Supabase Dashboard');
+      }
 
       await loadUsers();
       setShowDeleteConfirm(false);
@@ -183,7 +246,6 @@ const Users = () => {
         const updateData = {
           full_name: formData.full_name,
           role: formData.role,
-          client_id: formData.client_id || null,
           is_active: formData.is_active
         };
 
@@ -208,53 +270,187 @@ const Users = () => {
           if (error) throw error;
         }
       } else {
-        // Show loading modal
+        // Crear usuario directamente
         setInvitationStatus('loading');
         setInvitationModalOpen(true);
         
         try {
-          // Store the invitation in pending_invitations table
-          const { data: invitation, error: inviteError } = await supabase
-            .from('pending_invitations')
-            .insert({
-              email: formData.email,
-              full_name: formData.full_name,
-              role: formData.role,
-              client_id: formData.client_id || null,
-              invited_by: currentUser.id,
-              status: 'pending'
-            })
-            .select()
-            .single();
+          console.log('🔄 Iniciando creación de usuario...');
+          console.log('📋 Datos del formulario:', formData);
+          
+          // Verificar que tenemos acceso al admin client
+          if (!supabaseAdmin) {
+            console.log('⚠️ Admin client no disponible, usando flujo de invitación mejorado');
+            // Fallback: Crear invitación con instrucciones claras
+            const { data: invitation, error: inviteError } = await supabase
+              .from('pending_invitations')
+              .insert({
+                email: formData.email,
+                full_name: formData.full_name,
+                role: formData.role,
+                invited_by: currentUser.id,
+                status: 'pending'
+              })
+              .select()
+              .single();
 
-          if (inviteError) {
-            throw new Error(inviteError.message || 'Error storing invitation');
+            if (inviteError) {
+              throw new Error(inviteError.message || 'Error almacenando invitación');
+            }
+
+            setCurrentInvitation({
+              ...invitation,
+              instructions: `🔧 CONFIGURACIÓN REQUERIDA:\n\nPara habilitar la creación directa de usuarios, agrega esta línea a tu archivo .env.local:\n\nVITE_SUPABASE_SERVICE_ROLE_KEY=tu_service_role_key\n\n📧 MIENTRAS TANTO - Pasos manuales:\n1. Ve a Supabase Dashboard → Authentication → Users\n2. Clic en "Invite a user"\n3. Email: ${formData.email}\n4. Envía la invitación\n\nEl usuario tendrá rol: ${getRoleLabel(formData.role)}`
+            });
+
+            setInvitationStatus('success');
+            return;
+          }
+          console.log('✅ Admin client disponible');
+
+          const temporaryPassword = formData.password || generateTemporaryPassword();
+          console.log('🔐 Contraseña generada:', temporaryPassword ? 'Sí' : 'No');
+          
+          // Verificar si el usuario ya existe en Auth
+          console.log('🔍 Verificando si el usuario ya existe en Auth...');
+          let authData = null;
+          let userExists = false;
+          
+          try {
+            const { data: existingUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+            if (!listError) {
+              const existingUser = existingUsers.users.find(u => u.email === formData.email);
+              if (existingUser) {
+                userExists = true;
+                authData = { user: existingUser };
+                console.log('⚠️ Usuario ya existe en Auth:', existingUser.id);
+                console.log('🔄 Usando usuario existente y creando solo el perfil...');
+              }
+            }
+          } catch (listError) {
+            console.warn('No se pudo verificar usuarios existentes:', listError.message);
           }
 
+          if (!userExists) {
+            // Usar la función de administrador de Supabase para crear el usuario
+            console.log('👤 Creando usuario nuevo en Auth...');
+            const { data: newUserData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+              email: formData.email,
+              password: temporaryPassword,
+              email_confirm: true, // Auto-confirmar email
+              user_metadata: {
+                full_name: formData.full_name,
+                role: formData.role
+              }
+            });
+
+            if (authError) {
+              console.error('❌ Error en Auth:', authError);
+              throw new Error('Error creando usuario en autenticación: ' + authError.message);
+            }
+            authData = newUserData;
+            console.log('✅ Usuario creado en Auth:', authData.user.id);
+          }
+
+          // Crear el perfil del usuario
+          console.log('📝 Creando perfil de usuario...');
+          const profileData = {
+            id: authData.user.id,
+            email: formData.email,
+            full_name: formData.full_name,
+            role: formData.role,
+            is_active: formData.is_active
+          };
+          console.log('📋 Datos del perfil:', profileData);
+          
+          // Intentar crear el perfil con reintentos
+          let profileResult = null;
+          let attempts = 0;
+          const maxAttempts = 3;
+          
+          while (attempts < maxAttempts && !profileResult) {
+            attempts++;
+            console.log(`📝 Intento ${attempts}/${maxAttempts} de crear perfil...`);
+            
+            const { data: result, error: profileError } = await supabase
+              .from('user_profiles')
+              .insert(profileData)
+              .select()
+              .single();
+
+            if (profileError) {
+              console.error(`⚠️ Error en intento ${attempts}:`, profileError);
+              console.error('⚠️ Detalles del error:', {
+                message: profileError.message,
+                code: profileError.code,
+                details: profileError.details,
+                hint: profileError.hint
+              });
+              
+              if (attempts === maxAttempts) {
+                // Si no se puede crear el perfil después de varios intentos, es un error serio
+                throw new Error('Error creando perfil de usuario después de ' + maxAttempts + ' intentos: ' + profileError.message);
+              } else {
+                // Esperar un poco antes del siguiente intento
+                await new Promise(resolve => setTimeout(resolve, 1000));
+              }
+            } else {
+              profileResult = result;
+              console.log('✅ Perfil creado exitosamente:', profileResult);
+            }
+          }
+
+          // Eliminar invitación pendiente si existe
+          console.log('🧹 Limpiando invitaciones pendientes...');
+          await supabase
+            .from('pending_invitations')
+            .delete()
+            .eq('email', formData.email);
+
           setCurrentInvitation({
-            ...invitation,
-            instructions: `Para completar la invitación:
-
-1. Ve al Dashboard de Supabase → Authentication → Users
-2. Haz clic en "Invite a user"
-3. Ingresa el email: ${formData.email}
-4. Envía la invitación
-
-El usuario recibirá un email y cuando se registre, automáticamente tendrá el rol asignado: ${getRoleLabel(formData.role)}`
+            email: formData.email,
+            full_name: formData.full_name,
+            role: formData.role,
+            password: temporaryPassword,
+            success: true
           });
 
-          // For now, don't try automatic signup due to trigger issues
-          // Just show success with manual instructions
+          // Verificar que el perfil se creó correctamente
+          console.log('🔍 Verificando que el perfil se creó correctamente...');
+          const { data: verifyProfile, error: verifyError } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('id', authData.user.id)
+            .single();
+            
+          if (verifyError || !verifyProfile) {
+            console.error('❌ Error: El perfil no se encuentra en la base de datos', verifyError);
+            throw new Error('El usuario se creó en Auth pero el perfil no se pudo verificar en la base de datos');
+          }
+          
+          console.log('✅ Perfil verificado exitosamente:', verifyProfile);
           setInvitationStatus('success');
           
-        } catch (inviteError) {
-          console.error('Invitation error:', inviteError);
+        } catch (createError) {
+          console.error('Error creating user:', createError);
+          console.error('Error details:', {
+            message: createError.message,
+            code: createError.code,
+            details: createError.details,
+            hint: createError.hint,
+            stack: createError.stack
+          });
           setInvitationStatus('error');
+          setError('Error creando usuario: ' + createError.message);
         }
       }
 
+      // Esperar un poco para asegurar que los datos se sincronicen y recargar
+      console.log('🔄 Recargando lista de usuarios...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
       await loadUsers();
       await loadPendingInvitations();
+      
       setIsModalOpen(false);
       setSelectedUser(null);
     } catch (err) {
@@ -330,11 +526,20 @@ El usuario recibirá un email y cuando se registre, automáticamente tendrá el 
             INVITACIONES ({pendingInvitations.length})
           </button>
           <button 
+            onClick={loadUsers}
+            className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            title="Actualizar lista de usuarios"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+          <button 
             onClick={handleCreateUser}
             className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-4 h-4 mr-2" />
-            INVITAR USUARIO
+            CREAR USUARIO
           </button>
         </div>
       </div>
@@ -489,7 +694,6 @@ El usuario recibirá un email y cuando se registre, automáticamente tendrá el 
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     <div className="space-y-1">
-                      <div>{user.client_id ? `Cliente ID: ${user.client_id}` : '-'}</div>
                       {(user._needs_profile || user._is_current_user) && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
                           Sin perfil completo
@@ -540,7 +744,7 @@ El usuario recibirá un email y cuando se registre, automáticamente tendrá el 
           <div className="bg-white rounded-lg w-full max-w-md">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">
-                {isEditing ? 'Editar Usuario' : 'Invitar Usuario'}
+                {isEditing ? 'Editar Usuario' : 'Crear Nuevo Usuario'}
               </h2>
               <button 
                 onClick={() => setIsModalOpen(false)}
@@ -583,13 +787,27 @@ El usuario recibirá un email y cuando se registre, automáticamente tendrá el 
               </div>
 
               {!isEditing && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <p className="text-sm text-blue-800">
-                    <strong>📧 Invitación Automática:</strong> El sistema creará automáticamente la cuenta 
-                    y enviará un email de confirmación al usuario. El usuario deberá confirmar su email 
-                    y establecer su contraseña.
-                  </p>
-                </div>
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Contraseña (opcional)
+                    </label>
+                    <input
+                      type="password"
+                      name="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      placeholder="Dejar vacío para generar automáticamente"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <p className="text-sm text-green-800">
+                      <strong>✅ Creación Directa:</strong> El usuario se creará inmediatamente con acceso completo al sistema. 
+                      Si no especificas contraseña, se generará una automáticamente.
+                    </p>
+                  </div>
+                </>
               )}
 
               <div>
@@ -635,7 +853,7 @@ El usuario recibirá un email y cuando se registre, automáticamente tendrá el 
                   disabled={loading}
                   className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                 >
-                  {loading ? 'ENVIANDO...' : (isEditing ? 'ACTUALIZAR' : 'ENVIAR INVITACIÓN')}
+                  {loading ? 'CREANDO...' : (isEditing ? 'ACTUALIZAR' : 'CREAR USUARIO')}
                 </button>
               </div>
             </form>

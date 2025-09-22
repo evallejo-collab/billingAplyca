@@ -23,11 +23,16 @@ import ProtectedRoute from './components/ProtectedRoute';
 const DefaultRoute = () => {
   const { user } = useAuth();
   
-  // Redirect client users to their portal, others to dashboard
+  // Redirect users based on their role
   if (user?.role === ROLES.CLIENT) {
     return <Navigate to="/portal" replace />;
   }
   
+  if (user?.role === ROLES.COLLABORATOR) {
+    return <Navigate to="/projects" replace />;
+  }
+  
+  // Admin and others go to dashboard
   return <Dashboard />;
 };
 
@@ -54,16 +59,56 @@ const AppRoutes = () => {
         <>
           <Route path="/" element={<Layout />}>
             <Route index element={<DefaultRoute />} />
-            <Route path="clients" element={<Clients />} />
-            <Route path="contracts" element={<Contracts />} />
-            <Route path="projects" element={<Projects />} />
-            <Route path="time-entries" element={<TimeEntries />} />
-            <Route path="billing" element={<Billing />} />
-            <Route path="billing/:type/:id" element={<ProjectPaymentHistory />} />
-            <Route path="capacity" element={<CapacityDashboard />} />
-            <Route path="reports" element={<Reports />} />
-            <Route path="users" element={<Users />} />
-            <Route path="portal" element={<ClientPortal />} />
+            <Route path="clients" element={
+              <ProtectedRoute requiredPermission="view_clients">
+                <Clients />
+              </ProtectedRoute>
+            } />
+            <Route path="contracts" element={
+              <ProtectedRoute requiredPermission="view_contracts">
+                <Contracts />
+              </ProtectedRoute>
+            } />
+            <Route path="projects" element={
+              <ProtectedRoute requiredPermission="view_projects">
+                <Projects />
+              </ProtectedRoute>
+            } />
+            <Route path="time-entries" element={
+              <ProtectedRoute requiredPermission="view_time_entries">
+                <TimeEntries />
+              </ProtectedRoute>
+            } />
+            <Route path="billing" element={
+              <ProtectedRoute requiredPermission="view_payments">
+                <Billing />
+              </ProtectedRoute>
+            } />
+            <Route path="billing/:type/:id" element={
+              <ProtectedRoute requiredPermission="view_payments">
+                <ProjectPaymentHistory />
+              </ProtectedRoute>
+            } />
+            <Route path="capacity" element={
+              <ProtectedRoute requiredPermission="view_capacity">
+                <CapacityDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="reports" element={
+              <ProtectedRoute requiredPermission="view_reports">
+                <Reports />
+              </ProtectedRoute>
+            } />
+            <Route path="users" element={
+              <ProtectedRoute requiredPermission="manage_users">
+                <Users />
+              </ProtectedRoute>
+            } />
+            <Route path="portal" element={
+              <ProtectedRoute requiredPermission="view_client_portal">
+                <ClientPortal />
+              </ProtectedRoute>
+            } />
             <Route path="user-client-management" element={
               <ProtectedRoute requiredPermission="manage_users">
                 <UserClientManagement />

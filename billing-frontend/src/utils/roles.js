@@ -51,6 +51,10 @@ export const PERMISSIONS = {
   // Cliente Portal
   VIEW_CLIENT_PORTAL: 'view_client_portal',
   
+  // Coordinación de capacidad
+  VIEW_CAPACITY: 'view_capacity',
+  MANAGE_CAPACITY: 'manage_capacity',
+  
   // Administración
   MANAGE_USERS: 'manage_users',
   MANAGE_SYSTEM: 'manage_system'
@@ -103,21 +107,16 @@ export const ROLE_PERMISSIONS = {
     // Cliente Portal
     PERMISSIONS.VIEW_CLIENT_PORTAL,
     
+    // Coordinación de capacidad
+    PERMISSIONS.VIEW_CAPACITY,
+    PERMISSIONS.MANAGE_CAPACITY,
+    
     // Administración
     PERMISSIONS.MANAGE_USERS,
     PERMISSIONS.MANAGE_SYSTEM
   ],
   
   [ROLES.COLLABORATOR]: [
-    // Dashboard completo
-    PERMISSIONS.VIEW_DASHBOARD,
-    
-    // Clientes - solo lectura
-    PERMISSIONS.VIEW_CLIENTS,
-    
-    // Contratos - solo lectura
-    PERMISSIONS.VIEW_CONTRACTS,
-    
     // Proyectos - acceso completo
     PERMISSIONS.VIEW_PROJECTS,
     PERMISSIONS.CREATE_PROJECTS,
@@ -129,15 +128,9 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.EDIT_TIME_ENTRIES,
     PERMISSIONS.DELETE_TIME_ENTRIES,
     
-    // Pagos - solo lectura
-    PERMISSIONS.VIEW_PAYMENTS,
-    
-    // Reportes - acceso completo
-    PERMISSIONS.VIEW_REPORTS,
-    PERMISSIONS.VIEW_MONTHLY_REPORTS,
-    PERMISSIONS.VIEW_CONTRACT_REPORTS,
-    PERMISSIONS.VIEW_PROJECT_REPORTS,
-    PERMISSIONS.VIEW_TIME_REPORTS
+    // Coordinación de capacidad
+    PERMISSIONS.VIEW_CAPACITY,
+    PERMISSIONS.MANAGE_CAPACITY
   ],
   
   [ROLES.CLIENT]: [
@@ -206,6 +199,10 @@ export const getAllowedRoutes = (userRole) => {
   
   if (hasPermission(userRole, PERMISSIONS.VIEW_CLIENT_PORTAL)) {
     routes.push('/portal');
+  }
+  
+  if (hasPermission(userRole, PERMISSIONS.VIEW_CAPACITY)) {
+    routes.push('/capacity');
   }
   
   return routes;

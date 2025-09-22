@@ -34,21 +34,38 @@ const Layout = () => {
     { name: 'Mi Portal', href: '/portal', icon: UserCheck, permission: PERMISSIONS.VIEW_CLIENT_PORTAL },
   ];
 
-  // Regular navigation for admins and collaborators (empty - everything is in mega menus)
+  // Collaborator navigation (flat menu)
+  const collaboratorNavigation = [
+    { name: 'Proyectos', href: '/projects', icon: Folder, permission: PERMISSIONS.VIEW_PROJECTS },
+    { name: 'Registro de Tiempo', href: '/time-entries', icon: Clock, permission: PERMISSIONS.VIEW_TIME_ENTRIES },
+    { name: 'Coordinación de Capacidad', href: '/capacity', icon: Target, permission: PERMISSIONS.VIEW_CAPACITY },
+  ];
+
+  // Regular navigation for admins (empty - uses mega menus)
   const allNavigation = [];
 
   // Choose navigation based on user role
   const isClientUser = user?.role === ROLES.CLIENT;
-  const navigationItems = isClientUser ? clientNavigation : allNavigation;
+  const isCollaboratorUser = user?.role === ROLES.COLLABORATOR;
+  
+  let navigationItems = [];
+  if (isClientUser) {
+    navigationItems = clientNavigation;
+  } else if (isCollaboratorUser) {
+    navigationItems = collaboratorNavigation;
+  }
+  
+  // Debug info
+  console.log('User role:', user?.role, 'Is client:', isClientUser, 'Is collaborator:', isCollaboratorUser, 'Navigation items:', navigationItems.length);
   
   const navigation = navigationItems.filter(item => 
     !item.permission || hasPermission(user?.role, item.permission)
   );
 
-  // Create mega menu items with permission filtering (only for non-client users)
+  // Create mega menu items with permission filtering (only for admin users)
   const createMegaMenuItems = () => {
-    // Client users don't get mega menus
-    if (isClientUser) return {};
+    // Client and collaborator users don't get mega menus
+    if (isClientUser || isCollaboratorUser) return {};
     
     const baseItems = {
       'gestion': {
@@ -66,7 +83,7 @@ const Layout = () => {
         items: [
           { name: 'Registro de Tiempo', href: '/time-entries', icon: Clock, description: 'Control de tiempo trabajado', permission: PERMISSIONS.VIEW_TIME_ENTRIES },
           { name: 'Facturación', href: '/billing', icon: Receipt, description: 'Gestión de pagos y facturación', permission: PERMISSIONS.VIEW_PAYMENTS },
-          { name: 'Coordinación de Capacidad', href: '/capacity', icon: Target, description: 'Gestión de asignaciones y capacidad del equipo', permission: PERMISSIONS.VIEW_PROJECTS },
+          { name: 'Coordinación de Capacidad', href: '/capacity', icon: Target, description: 'Gestión de asignaciones y capacidad del equipo', permission: PERMISSIONS.VIEW_CAPACITY },
         ]
       },
       'analisis': {
@@ -75,7 +92,6 @@ const Layout = () => {
         items: [
           { name: 'Dashboard', href: '/', icon: Home, description: 'Panel de control principal', permission: PERMISSIONS.VIEW_DASHBOARD },
           { name: 'Reportes', href: '/reports', icon: BarChart3, description: 'Análisis y estadísticas', permission: PERMISSIONS.VIEW_REPORTS },
-          { name: 'Portal Cliente', href: '/portal', icon: UserCheck, description: 'Vista del portal para clientes', permission: PERMISSIONS.VIEW_CLIENT_PORTAL },
         ]
       },
       'admin': {
