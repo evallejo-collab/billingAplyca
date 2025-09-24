@@ -8,14 +8,13 @@ import {
   ChevronLeft,
   ChevronRight,
   RefreshCw,
-  Copy,
   Briefcase,
   Target,
   Activity
 } from 'lucide-react';
 
 // CAPACITY DASHBOARD MINIMALISTA - v2.0
-import { useWeekUtils, useCapacityAlerts, useBulkOperations } from '../hooks/useCapacityCalculations';
+import { useWeekUtils, useCapacityAlerts } from '../hooks/useCapacityCalculations';
 import { capacityApi } from '../services/supabaseApi';
 import AssignmentTable from './AssignmentTable';
 import TeamCapacityGrid from './TeamCapacityGrid';
@@ -28,11 +27,9 @@ const CapacityDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('kanban'); // 'dashboard', 'assignments', 'team', 'kanban', 'members'
-  const [showCopyModal, setShowCopyModal] = useState(false);
 
   const { getCurrentWeek, addWeeks, formatWeekRange } = useWeekUtils();
   const { alerts, resolveAlert } = useCapacityAlerts();
-  const { copyWeek, loading: copyLoading } = useBulkOperations();
 
   // Inicializar con semana actual
   useEffect(() => {
@@ -240,80 +237,6 @@ const CapacityDashboard = () => {
     );
   };
 
-  // Modal para copiar semana
-  const CopyWeekModal = () => {
-    const [sourceWeek, setSourceWeek] = useState(addWeeks(currentWeek, -1));
-    const [targetWeek, setTargetWeek] = useState(currentWeek);
-
-    const handleCopy = async () => {
-      const result = await copyWeek(sourceWeek, targetWeek);
-      if (result.success) {
-        alert(result.message);
-        setShowCopyModal(false);
-        refreshData();
-      } else {
-        alert('Error: ' + result.error);
-      }
-    };
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-md">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">Copiar Asignaciones</h3>
-            <button
-              onClick={() => setShowCopyModal(false)}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              ×
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Desde la semana:
-              </label>
-              <input
-                type="date"
-                value={sourceWeek}
-                onChange={(e) => setSourceWeek(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Hacia la semana:
-              </label>
-              <input
-                type="date"
-                value={targetWeek}
-                onChange={(e) => setTargetWeek(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end space-x-3 mt-6">
-            <button
-              onClick={() => setShowCopyModal(false)}
-              className="px-4 py-2 text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={handleCopy}
-              disabled={copyLoading}
-              className="px-4 py-2 bg-violet-600 text-white rounded hover:bg-violet-700 disabled:opacity-50"
-            >
-              {copyLoading ? 'Copiando...' : 'Copiar'}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   if (loading) {
     return (
@@ -373,13 +296,6 @@ const CapacityDashboard = () => {
         </div>
 
         <div className="flex items-center space-x-3">
-          <button
-            onClick={() => setShowCopyModal(true)}
-            className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
-          >
-            <Copy className="w-4 h-4 mr-2" />
-            Copiar Semana
-          </button>
           <button
             onClick={refreshData}
             className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
@@ -472,15 +388,12 @@ const CapacityDashboard = () => {
       )}
 
       {activeTab === 'kanban' && (
-        <CapacityKanban />
+        <CapacityKanban weekStartDate={currentWeek} />
       )}
 
       {activeTab === 'members' && (
         <TeamMembersManagement />
       )}
-
-      {/* Modales */}
-      {showCopyModal && <CopyWeekModal />}
     </div>
   );
 };

@@ -23,8 +23,6 @@ import {
   Briefcase, 
   Plus, 
   AlertTriangle,
-  ChevronLeft,
-  ChevronRight,
   ChevronUp,
   ChevronDown,
   Calendar,
@@ -164,7 +162,10 @@ const DraggableMember = ({ member, totalAssigned = 0, isOverlay = false, departm
 };
 
 // Componente para asignación draggable dentro de proyectos
-const DraggableAssignment = ({ assignment, member, project, isExpanded }) => {
+const DraggableAssignment = ({ assignment, member, project, isExpanded, onUpdateHours }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingHours, setEditingHours] = useState(assignment.assigned_hours);
+  
   const {
     attributes,
     listeners,
@@ -188,17 +189,76 @@ const DraggableAssignment = ({ assignment, member, project, isExpanded }) => {
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const handleHoursClick = (e) => {
+    e.stopPropagation();
+    setIsEditing(true);
+    setEditingHours(assignment.assigned_hours);
+  };
+
+  const handleHoursSubmit = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const newHours = parseFloat(editingHours);
+    if (isNaN(newHours) || newHours <= 0) {
+      setEditingHours(assignment.assigned_hours);
+      setIsEditing(false);
+      return;
+    }
+    
+    await onUpdateHours(assignment.id, newHours);
+    setIsEditing(false);
+  };
+
+  const handleHoursCancel = (e) => {
+    e.stopPropagation();
+    setEditingHours(assignment.assigned_hours);
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleHoursSubmit(e);
+    } else if (e.key === 'Escape') {
+      handleHoursCancel(e);
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...listeners}
-      className="flex items-center justify-between text-xs bg-white p-1.5 rounded-md border border-gray-200 cursor-grab active:cursor-grabbing hover:shadow-sm hover:border-gray-300 transition-all"
+      {...(isEditing ? {} : listeners)}
+      className="flex items-center justify-between text-xs bg-white p-1.5 rounded-md border border-gray-200 hover:shadow-sm hover:border-gray-300 transition-all"
     >
       <span className="text-gray-900 truncate">{member.name}</span>
       <div className="flex items-center space-x-1">
-        <span className="text-gray-600 font-medium">{assignment.assigned_hours}h</span>
+        {isEditing ? (
+          <form onSubmit={handleHoursSubmit} className="flex items-center space-x-1">
+            <input
+              type="number"
+              step="0.5"
+              min="0.5"
+              value={editingHours}
+              onChange={(e) => setEditingHours(e.target.value)}
+              onBlur={handleHoursSubmit}
+              onKeyDown={handleKeyDown}
+              className="w-16 h-6 text-xs text-center border border-blue-300 rounded focus:outline-none focus:border-blue-500 bg-white"
+              autoFocus
+              onClick={(e) => e.stopPropagation()}
+            />
+            <span className="text-gray-500 text-xs">h</span>
+          </form>
+        ) : (
+          <button
+            onClick={handleHoursClick}
+            className="text-gray-600 font-medium hover:text-blue-600 hover:bg-blue-50 px-1 py-0.5 rounded transition-colors"
+            title="Clic para editar horas"
+          >
+            {assignment.assigned_hours}h
+          </button>
+        )}
         <div className={`w-2 h-2 rounded-full shadow-sm ${
           assignment.priority === 'Alta' ? 'bg-red-500' :
           assignment.priority === 'Media' ? 'bg-yellow-500' :
@@ -210,7 +270,7 @@ const DraggableAssignment = ({ assignment, member, project, isExpanded }) => {
 };
 
 // Componente para proyecto (zona de drop) con diseño profesional
-const ProjectDropZone = ({ project, members, assignments, onDropMember }) => {
+const ProjectDropZone = ({ project, members, assignments, onDropMember, onUpdateHours }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const projectAssignments = assignments.filter(a => a.project_id === project.id);
   const totalHours = projectAssignments.reduce((sum, a) => sum + (a.assigned_hours || 0), 0);
@@ -288,6 +348,7 @@ const ProjectDropZone = ({ project, members, assignments, onDropMember }) => {
                   member={member}
                   project={project}
                   isExpanded={isExpanded}
+                  onUpdateHours={onUpdateHours}
                 />
               );
             })}
@@ -314,8 +375,116 @@ const ProjectDropZone = ({ project, members, assignments, onDropMember }) => {
   );
 };
 
+// Componente para asignación editable en vista de cliente
+const EditableAssignmentInClient = ({ assignment, member, project, onUpdateHours }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingHours, setEditingHours] = useState(assignment.assigned_hours);
+  
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ 
+    id: `client-assignment-${assignment.id}`,
+    data: {
+      type: 'assignment',
+      assignment,
+      member,
+      project
+    }
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const handleHoursClick = (e) => {
+    e.stopPropagation();
+    setIsEditing(true);
+    setEditingHours(assignment.assigned_hours);
+  };
+
+  const handleHoursSubmit = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const newHours = parseFloat(editingHours);
+    if (isNaN(newHours) || newHours <= 0) {
+      setEditingHours(assignment.assigned_hours);
+      setIsEditing(false);
+      return;
+    }
+    
+    await onUpdateHours(assignment.id, newHours);
+    setIsEditing(false);
+  };
+
+  const handleHoursCancel = (e) => {
+    e.stopPropagation();
+    setEditingHours(assignment.assigned_hours);
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleHoursSubmit(e);
+    } else if (e.key === 'Escape') {
+      handleHoursCancel(e);
+    }
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...(isEditing ? {} : listeners)}
+      className="flex items-center justify-between text-xs bg-white p-1.5 rounded-md border border-gray-200 cursor-grab active:cursor-grabbing hover:shadow-sm hover:border-gray-300 transition-all"
+    >
+      <span className="text-gray-900 truncate">{member.name}</span>
+      <div className="flex items-center space-x-1">
+        {isEditing ? (
+          <form onSubmit={handleHoursSubmit} className="flex items-center space-x-1">
+            <input
+              type="number"
+              step="0.5"
+              min="0.5"
+              value={editingHours}
+              onChange={(e) => setEditingHours(e.target.value)}
+              onBlur={handleHoursSubmit}
+              onKeyDown={handleKeyDown}
+              className="w-16 h-6 text-xs text-center border border-blue-300 rounded focus:outline-none focus:border-blue-500 bg-white"
+              autoFocus
+              onClick={(e) => e.stopPropagation()}
+            />
+            <span className="text-gray-500 text-xs">h</span>
+          </form>
+        ) : (
+          <button
+            onClick={handleHoursClick}
+            className="text-gray-600 font-medium hover:text-blue-600 hover:bg-blue-50 px-1 py-0.5 rounded transition-colors"
+            title="Clic para editar horas"
+          >
+            {assignment.assigned_hours}h
+          </button>
+        )}
+        <div className={`w-2 h-2 rounded-full shadow-sm ${
+          assignment.priority === 'Alta' ? 'bg-red-500' :
+          assignment.priority === 'Media' ? 'bg-yellow-500' :
+          'bg-green-500'
+        }`} />
+      </div>
+    </div>
+  );
+};
+
 // Componente para cliente (zona de drop) con diseño profesional
-const ClientDropZone = ({ client, projects, members, assignments, onSelectProject }) => {
+const ClientDropZone = ({ client, projects, members, assignments, onSelectProject, onUpdateHours }) => {
   const [expandedProjects, setExpandedProjects] = useState(new Set());
   const clientProjects = projects.filter(p => p.client_id === client.id);
   const clientAssignments = assignments.filter(a => 
@@ -422,17 +591,13 @@ const ClientDropZone = ({ client, projects, members, assignments, onSelectProjec
                         if (!member) return null;
                         
                         return (
-                          <div key={assignment.id} className="flex items-center justify-between text-xs bg-white p-1.5 rounded-md border border-gray-200">
-                            <span className="text-gray-900 truncate">{member.name}</span>
-                            <div className="flex items-center space-x-1">
-                              <span className="text-gray-600 font-medium">{assignment.assigned_hours}h</span>
-                              <div className={`w-2 h-2 rounded-full shadow-sm ${
-                                assignment.priority === 'Alta' ? 'bg-red-500' :
-                                assignment.priority === 'Media' ? 'bg-yellow-500' :
-                                'bg-green-500'
-                              }`} />
-                            </div>
-                          </div>
+                          <EditableAssignmentInClient
+                            key={assignment.id}
+                            assignment={assignment}
+                            member={member}
+                            project={project}
+                            onUpdateHours={onUpdateHours}
+                          />
                         );
                       })}
                       
@@ -467,7 +632,7 @@ const ClientDropZone = ({ client, projects, members, assignments, onSelectProjec
   );
 };
 
-const CapacityKanban = () => {
+const CapacityKanban = ({ weekStartDate }) => {
   // Minimal styles only
   const customStyles = `
     /* Smooth animations for department expand/collapse */
@@ -502,7 +667,7 @@ const CapacityKanban = () => {
     }
   `;
 
-  const [currentWeek, setCurrentWeek] = useState('');
+  const [currentWeek, setCurrentWeek] = useState(weekStartDate || '');
   const [projects, setProjects] = useState([]);
   const [clients, setClients] = useState([]);
   const [members, setMembers] = useState([]);
@@ -533,10 +698,14 @@ const CapacityKanban = () => {
     })
   );
 
-  // Inicializar con semana actual
+  // Actualizar cuando cambie la prop
   useEffect(() => {
-    setCurrentWeek(getCurrentWeek());
-  }, [getCurrentWeek]);
+    if (weekStartDate) {
+      setCurrentWeek(weekStartDate);
+    } else {
+      setCurrentWeek(getCurrentWeek());
+    }
+  }, [weekStartDate, getCurrentWeek]);
 
   // Función para cargar datos
   const loadData = async () => {
@@ -740,6 +909,15 @@ const CapacityKanban = () => {
           targetProject: overData.project,
           mode: 'move_assignment'
         });
+      } else if (overData?.type === 'client') {
+        // Mover asignación a un cliente (requiere seleccionar proyecto)
+        setDragData({
+          assignment: activeData.assignment,
+          member: activeData.member,
+          sourceProject: activeData.project,
+          targetClient: overData.client,
+          mode: 'move_to_client'
+        });
       }
     }
   };
@@ -777,6 +955,16 @@ const CapacityKanban = () => {
     if (activeData?.type === 'assignment') {
       if (overData?.type === 'project' && overData.project.id !== activeData.project.id) {
         handleMoveAssignment(activeData.assignment, activeData.project, overData.project);
+      } else if (overData?.type === 'client') {
+        // Mover asignación a un cliente (requiere seleccionar proyecto)
+        setDragData({
+          assignment: activeData.assignment,
+          member: activeData.member,
+          sourceProject: activeData.project,
+          client: overData.client,
+          mode: 'move_to_client'
+        });
+        setShowProjectSelector(true);
       }
     }
   };
@@ -835,6 +1023,45 @@ const CapacityKanban = () => {
       console.error('Error message:', error.message);
       console.error('Error code:', error.code);
       showNotification(`Error moviendo asignación: ${error.message}`, 'error');
+    }
+  };
+
+  const handleUpdateHours = async (assignmentId, newHours) => {
+    try {
+      const assignment = assignments.find(a => a.id === assignmentId);
+      if (!assignment) {
+        showNotification('Asignación no encontrada', 'error');
+        return;
+      }
+
+      // Actualizar la asignación con las nuevas horas
+      const updatedAssignment = {
+        ...assignment,
+        assigned_hours: newHours
+      };
+
+      console.log('Actualizando horas de asignación:', {
+        assignmentId,
+        oldHours: assignment.assigned_hours,
+        newHours,
+        updatedAssignment
+      });
+
+      await capacityApi.updateAssignment(assignmentId, updatedAssignment);
+      
+      // Recargar datos
+      await loadData();
+      
+      const member = members.find(m => m.id === assignment.member_id);
+      const project = projects.find(p => p.id === assignment.project_id);
+      showNotification(
+        `Horas de ${member?.name || 'miembro'} en ${project?.name || 'proyecto'} actualizadas a ${newHours}h`, 
+        'success'
+      );
+      
+    } catch (error) {
+      console.error('Error updating assignment hours:', error);
+      showNotification(`Error actualizando horas: ${error.message}`, 'error');
     }
   };
 
@@ -920,35 +1147,6 @@ const CapacityKanban = () => {
                   }`}
                 >
                   Clientes
-                </button>
-              </div>
-              
-              {/* Navegación de semanas */}
-              <div className="flex items-center text-sm bg-white rounded-lg px-2 border border-slate-300 shadow-sm">
-                <button
-                  onClick={() => {
-                    const newWeek = addWeeks(currentWeek, -1);
-                    console.log('Navegando hacia atrás:', { currentWeek, newWeek });
-                    setCurrentWeek(newWeek);
-                  }}
-                  className="p-1 hover:bg-slate-100 hover:text-slate-900 rounded transition-colors"
-                >
-                  <ChevronLeft className="w-4 h-4 text-slate-600" />
-                </button>
-                
-                <div className="px-3 py-1 min-w-[140px] text-center text-slate-900 font-medium">
-                  {formatWeekRange(currentWeek)}
-                </div>
-                
-                <button
-                  onClick={() => {
-                    const newWeek = addWeeks(currentWeek, 1);
-                    console.log('Navegando hacia adelante:', { currentWeek, newWeek });
-                    setCurrentWeek(newWeek);
-                  }}
-                  className="p-1 hover:bg-slate-100 hover:text-slate-900 rounded transition-colors"
-                >
-                  <ChevronRight className="w-4 h-4 text-slate-600" />
                 </button>
               </div>
               
@@ -1081,22 +1279,29 @@ const CapacityKanban = () => {
                       project={project}
                       members={members}
                       assignments={assignments}
+                      onUpdateHours={handleUpdateHours}
                     />
                   ))}
                 </div>
               </SortableContext>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                {clients.map(client => (
-                  <ClientDropZone
-                    key={client.id}
-                    client={client}
-                    projects={projects}
-                    members={members}
-                    assignments={assignments}
-                  />
-                ))}
-              </div>
+              <SortableContext
+                items={assignments.map(a => `client-assignment-${a.id}`)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {clients.map(client => (
+                    <ClientDropZone
+                      key={client.id}
+                      client={client}
+                      projects={projects}
+                      members={members}
+                      assignments={assignments}
+                      onUpdateHours={handleUpdateHours}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
             )}
 
             {viewMode === 'projects' && projects.length === 0 && (
@@ -1124,9 +1329,11 @@ const CapacityKanban = () => {
               totalAssigned={membersWithUtilization.find(m => m.id === activeId)?.totalAssigned}
               isOverlay={true}
             />
-          ) : activeId && activeId.startsWith('assignment-') ? (
+          ) : activeId && (activeId.startsWith('assignment-') || activeId.startsWith('client-assignment-')) ? (
             (() => {
-              const assignmentId = parseInt(activeId.replace('assignment-', ''));
+              const assignmentId = activeId.startsWith('client-assignment-') 
+                ? parseInt(activeId.replace('client-assignment-', ''))
+                : parseInt(activeId.replace('assignment-', ''));
               const assignment = assignments.find(a => a.id === assignmentId);
               const member = assignment ? members.find(m => m.id === assignment.member_id) : null;
               
@@ -1155,13 +1362,21 @@ const CapacityKanban = () => {
           client={dragData.client}
           projects={projects.filter(p => p.client_id === dragData.client.id)}
           onSelectProject={(project) => {
-            setDragData({
-              ...dragData,
-              project,
-              mode: 'project'
-            });
-            setShowProjectSelector(false);
-            setShowAssignmentModal(true);
+            if (dragData.mode === 'move_to_client') {
+              // Mover asignación existente directamente al proyecto seleccionado
+              handleMoveAssignment(dragData.assignment, dragData.sourceProject, project);
+              setShowProjectSelector(false);
+              setDragData(null);
+            } else {
+              // Crear nueva asignación
+              setDragData({
+                ...dragData,
+                project,
+                mode: 'project'
+              });
+              setShowProjectSelector(false);
+              setShowAssignmentModal(true);
+            }
           }}
           onCancel={() => {
             setShowProjectSelector(false);
