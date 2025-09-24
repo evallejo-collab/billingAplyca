@@ -302,61 +302,63 @@ const Projects = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode, projectsByClientArray.length, expandedClientGroups.size]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-2 text-gray-600">Cargando proyectos...</span>
-      </div>
-    );
-  }
+  // Render different content based on view mode
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="ml-2 text-gray-600">Cargando proyectos...</span>
+        </div>
+      );
+    }
 
-  // If table view mode is selected, use the new professional table component with view controls
-  if (viewMode === 'table') {
-    return (
-      <div className="space-y-4">
-        {/* Header with view controls */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Gestión de Proyectos</h1>
-            <p className="text-sm text-gray-600 mt-1">Vista de tabla profesional</p>
-          </div>
-          <div className="flex items-center space-x-3">
-            {/* View Toggle */}
-            <div className="flex items-center border border-gray-300 rounded-lg">
-              <button
-                onClick={() => handleViewModeChange('table')}
-                className={`p-2 text-sm transition-colors ${viewMode === 'table' ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:text-gray-700'}`}
-                title="Vista de tabla profesional"
-              >
-                <List className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => handleViewModeChange('cards')}
-                className={`p-2 text-sm transition-colors ${viewMode === 'cards' ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:text-gray-700'}`}
-                title="Vista de tarjetas"
-              >
-                <Grid3X3 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => handleViewModeChange('grouped')}
-                className={`p-2 text-sm transition-colors ${viewMode === 'grouped' ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:text-gray-700'}`}
-                title="Agrupado por cliente"
-              >
-                <Building className="w-4 h-4" />
-              </button>
+    // If table view mode is selected, use the new professional table component with view controls
+    if (viewMode === 'table') {
+      return (
+        <div className="space-y-4">
+          {/* Header with view controls */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-900">Gestión de Proyectos</h1>
+              <p className="text-sm text-gray-600 mt-1">Vista de tabla profesional</p>
+            </div>
+            <div className="flex items-center space-x-3">
+              {/* View Toggle */}
+              <div className="flex items-center border border-gray-300 rounded-lg">
+                <button
+                  onClick={() => handleViewModeChange('table')}
+                  className={`p-2 text-sm transition-colors ${viewMode === 'table' ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:text-gray-700'}`}
+                  title="Vista de tabla profesional"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleViewModeChange('cards')}
+                  className={`p-2 text-sm transition-colors ${viewMode === 'cards' ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:text-gray-700'}`}
+                  title="Vista de tarjetas"
+                >
+                  <Grid3X3 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleViewModeChange('grouped')}
+                  className={`p-2 text-sm transition-colors ${viewMode === 'grouped' ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:text-gray-700'}`}
+                  title="Agrupado por cliente"
+                >
+                  <Building className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
+          <ProjectsTable />
         </div>
-        <ProjectsTable />
-      </div>
-    );
-  }
+      );
+    }
 
-  // If grouped view mode is selected, show projects grouped by client
-  if (viewMode === 'grouped') {
-    return (
-      <div className="space-y-4">
+    // If grouped view mode is selected, show projects grouped by client
+    if (viewMode === 'grouped') {
+      return (
+        <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -574,12 +576,13 @@ const Projects = () => {
             </p>
           </div>
         )}
-      </div>
-    );
-  }
+        </div>
+      );
+    }
 
-  return (
-    <div className="space-y-4">
+    // Default view (cards)
+    return (
+      <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -895,6 +898,13 @@ const Projects = () => {
           )}
         </div>
       )}
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      {renderContent()}
 
       {/* Modals */}
       <ProjectModal
