@@ -22,7 +22,9 @@ import {
   Pause,
   Target,
   List,
-  Grid3X3
+  Grid3X3,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import ProjectModal from './ProjectModal';
 import ProjectWizard from './ProjectWizard';
@@ -48,10 +50,12 @@ const Projects = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState(null);
+  const [expandedClientGroups, setExpandedClientGroups] = useState(new Set());
 
   useEffect(() => {
     loadData();
   }, []);
+
 
   const loadData = async () => {
     try {
@@ -148,6 +152,30 @@ const Projects = () => {
     localStorage.setItem('projects_view_mode', mode);
   };
 
+  // Funciones para manejar grupos de clientes
+  const toggleClientGroup = (clientId) => {
+    setExpandedClientGroups(prev => {
+      const newExpanded = new Set(prev);
+      if (newExpanded.has(clientId)) {
+        newExpanded.delete(clientId);
+      } else {
+        newExpanded.add(clientId);
+      }
+      return newExpanded;
+    });
+  };
+
+  const toggleAllClientGroups = (projectsByClient) => {
+    const allClientIds = projectsByClient.map(group => group.client.id);
+    const allExpanded = allClientIds.every(clientId => expandedClientGroups.has(clientId));
+    
+    if (allExpanded) {
+      setExpandedClientGroups(new Set()); // Colapsar todos
+    } else {
+      setExpandedClientGroups(new Set(allClientIds)); // Expandir todos
+    }
+  };
+
   const getStatusBadge = (status) => {
     const statusConfig = {
       active: { label: 'Activo', className: 'bg-emerald-50 text-emerald-700 border border-emerald-200', icon: CheckCircle },
@@ -235,6 +263,45 @@ const Projects = () => {
     return matchesSearch && matchesClient && matchesType;
   });
 
+  // Agrupar proyectos por cliente para la vista agrupada
+  const projectsByClient = filteredProjects.reduce((acc, project) => {
+    const client = clients.find(c => c.id === project.client_id) || { 
+      id: null, 
+      name: 'Proyectos Independientes' 
+    };
+    
+    const clientId = client.id || 'independent';
+    
+    if (!acc[clientId]) {
+      acc[clientId] = {
+        client,
+        projects: []
+      };
+    }
+    
+    acc[clientId].projects.push(project);
+    return acc;
+  }, {});
+
+  // Convertir a array y ordenar
+  const projectsByClientArray = Object.values(projectsByClient).sort((a, b) => {
+    // Poner "Proyectos Independientes" al final
+    if (a.client.name === 'Proyectos Independientes') return 1;
+    if (b.client.name === 'Proyectos Independientes') return -1;
+    return a.client.name.localeCompare(b.client.name);
+  });
+
+  // Expandir todos los grupos cuando se cambia a vista agrupada
+  useEffect(() => {
+    if (viewMode === 'grouped' && projectsByClientArray.length > 0) {
+      const allClientIds = projectsByClientArray.map(group => group.client.id || 'independent');
+      if (expandedClientGroups.size === 0) {
+        setExpandedClientGroups(new Set(allClientIds));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode, projectsByClientArray.length, expandedClientGroups.size]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -244,9 +311,271 @@ const Projects = () => {
     );
   }
 
-  // If table view mode is selected, use the new professional table component
+  // If table view mode is selected, use the new professional table component with view controls
   if (viewMode === 'table') {
-    return <ProjectsTable />;
+    return (
+      <div className="space-y-4">
+        {/* Header with view controls */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">Gestión de Proyectos</h1>
+            <p className="text-sm text-gray-600 mt-1">Vista de tabla profesional</p>
+          </div>
+          <div className="flex items-center space-x-3">
+            {/* View Toggle */}
+            <div className="flex items-center border border-gray-300 rounded-lg">
+              <button
+                onClick={() => handleViewModeChange('table')}
+                className={`p-2 text-sm transition-colors ${viewMode === 'table' ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:text-gray-700'}`}
+                title="Vista de tabla profesional"
+              >
+                <List className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => handleViewModeChange('cards')}
+                className={`p-2 text-sm transition-colors ${viewMode === 'cards' ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:text-gray-700'}`}
+                title="Vista de tarjetas"
+              >
+                <Grid3X3 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => handleViewModeChange('grouped')}
+                className={`p-2 text-sm transition-colors ${viewMode === 'grouped' ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:text-gray-700'}`}
+                title="Agrupado por cliente"
+              >
+                <Building className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+        <ProjectsTable />
+      </div>
+    );
+  }
+
+  // If grouped view mode is selected, show projects grouped by client
+  if (viewMode === 'grouped') {
+    return (
+      <div className="space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">Gestión de Proyectos</h1>
+            <p className="text-sm text-gray-600 mt-1">Proyectos agrupados por cliente</p>
+          </div>
+          <div className="flex items-center space-x-3">
+            {/* View Toggle */}
+            <div className="flex items-center border border-gray-300 rounded-lg">
+              <button
+                onClick={() => handleViewModeChange('table')}
+                className={`p-2 text-sm transition-colors ${viewMode === 'table' ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:text-gray-700'}`}
+                title="Vista de tabla profesional"
+              >
+                <List className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => handleViewModeChange('cards')}
+                className={`p-2 text-sm transition-colors ${viewMode === 'cards' ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:text-gray-700'}`}
+                title="Vista de tarjetas"
+              >
+                <Grid3X3 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => handleViewModeChange('grouped')}
+                className={`p-2 text-sm transition-colors ${viewMode === 'grouped' ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:text-gray-700'}`}
+                title="Agrupado por cliente"
+              >
+                <Building className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <button
+              onClick={handleCreateProject}
+              className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-3 h-3 mr-1" />
+              NUEVO PROYECTO
+            </button>
+          </div>
+        </div>
+
+        {/* Header con botón para expandir/colapsar todos */}
+        {projectsByClientArray.length > 1 && (
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Proyectos por Cliente ({projectsByClientArray.length} clientes)
+            </h3>
+            <button
+              onClick={() => toggleAllClientGroups(projectsByClientArray)}
+              className="text-sm px-3 py-1 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded text-gray-700 hover:text-gray-900 transition-colors"
+              title="Expandir/Colapsar todos los grupos de clientes"
+            >
+              {projectsByClientArray.every(group => expandedClientGroups.has(group.client.id || 'independent')) ? (
+                <span className="flex items-center space-x-1">
+                  <ChevronUp className="w-4 h-4" />
+                  <span>Colapsar todos</span>
+                </span>
+              ) : (
+                <span className="flex items-center space-x-1">
+                  <ChevronDown className="w-4 h-4" />
+                  <span>Expandir todos</span>
+                </span>
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* Grupos de proyectos por cliente */}
+        <div className="space-y-6">
+          {projectsByClientArray.map(({ client, projects: clientProjects }) => {
+            const clientId = client.id || 'independent';
+            const isExpanded = expandedClientGroups.has(clientId);
+
+            return (
+              <div key={clientId} className="border border-gray-200 rounded-lg bg-white shadow-sm">
+                {/* Header del cliente */}
+                <button
+                  onClick={() => toggleClientGroup(clientId)}
+                  className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors rounded-t-lg"
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <Building className="w-4 h-4 text-gray-600" />
+                    </div>
+                    <div className="text-left">
+                      <h4 className="font-semibold text-gray-900">
+                        {client.name}
+                      </h4>
+                      <div className="text-sm text-gray-600">
+                        {clientProjects.length} proyecto{clientProjects.length !== 1 ? 's' : ''}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className={`transform transition-transform duration-200 ${
+                    isExpanded ? 'rotate-180' : 'rotate-0'
+                  }`}>
+                    <ChevronDown className="w-5 h-5 text-gray-500" />
+                  </div>
+                </button>
+
+                {/* Proyectos del cliente */}
+                {isExpanded && (
+                  <div className="p-4 pt-0 border-t border-gray-100">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {clientProjects.map(project => (
+                        <div key={project.id} className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
+                          {/* Project Header */}
+                          <div className="p-4 border-b border-gray-100">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="text-sm font-medium text-gray-900 truncate">
+                                  {project.name}
+                                </h3>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {getClientName(project)}
+                                </p>
+                              </div>
+                              <div className="flex items-center space-x-1 ml-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleViewProject(project);
+                                  }}
+                                  className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                                  title="Ver detalles"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditProject(project);
+                                  }}
+                                  className="p-1 text-gray-400 hover:text-green-600 transition-colors"
+                                  title="Editar"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteProject(project);
+                                  }}
+                                  className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                                  title="Eliminar"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Project Content */}
+                          <div className="p-4 space-y-3">
+                            {/* Status and Type */}
+                            <div className="flex items-center justify-between">
+                              {getStatusBadge(project.status)}
+                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
+                                project.is_independent 
+                                  ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                  : 'bg-green-50 text-green-700 border border-green-200'
+                              }`}>
+                                {project.is_independent ? 'Independiente' : 'Por Contrato'}
+                              </span>
+                            </div>
+
+                            {/* Budget */}
+                            {project.budget && (
+                              <div className="flex items-center text-sm">
+                                <DollarSign className="w-4 h-4 text-gray-400 mr-1" />
+                                <span className="font-medium text-gray-900">
+                                  ${parseFloat(project.budget).toLocaleString()}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Dates */}
+                            <div className="space-y-1 text-xs text-gray-500">
+                              {project.start_date && (
+                                <div className="flex items-center">
+                                  <Calendar className="w-3 h-3 mr-1" />
+                                  Inicio: {new Date(project.start_date).toLocaleDateString()}
+                                </div>
+                              )}
+                              {project.end_date && (
+                                <div className="flex items-center">
+                                  <Clock className="w-3 h-3 mr-1" />
+                                  Fin: {new Date(project.end_date).toLocaleDateString()}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Empty State */}
+        {projectsByClientArray.length === 0 && (
+          <div className="text-center py-12">
+            <Building className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No hay proyectos agrupados</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              {filteredProjects.length === 0 
+                ? 'No se encontraron proyectos con los filtros aplicados.' 
+                : 'Los proyectos aparecerán aquí agrupados por cliente.'
+              }
+            </p>
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -273,6 +602,13 @@ const Projects = () => {
               title="Vista de tarjetas"
             >
               <Grid3X3 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => handleViewModeChange('grouped')}
+              className={`p-2 text-sm transition-colors ${viewMode === 'grouped' ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:text-gray-700'}`}
+              title="Agrupado por cliente"
+            >
+              <Building className="w-4 h-4" />
             </button>
           </div>
           
