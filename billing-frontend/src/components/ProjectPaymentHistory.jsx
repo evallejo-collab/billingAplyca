@@ -370,8 +370,13 @@ const ProjectPaymentHistory = () => {
           ) : (
             <div className="space-y-4">
               {(() => {
+                // Sort payments by date (most recent first)
+                const sortedPayments = [...payments].sort((a, b) => {
+                  return new Date(b.payment_date) - new Date(a.payment_date);
+                });
+
                 // Group payments by type
-                const groupedPayments = payments.reduce((acc, payment) => {
+                const groupedPayments = sortedPayments.reduce((acc, payment) => {
                   const type = payment.payment_type;
                   if (!acc[type]) {
                     acc[type] = [];

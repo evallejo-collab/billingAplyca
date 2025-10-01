@@ -118,7 +118,7 @@ const Users = () => {
           id: session.user.id,
           email: session.user.email,
           full_name: session.user.user_metadata?.full_name || session.user.email,
-          role: session.user.email === 'evallejo@aplyca.com' ? 'admin' : 'client',
+          role: 'collaborator', // Default role for users without profile
           is_active: true,
           created_at: session.user.created_at,
           _is_current_user: true,

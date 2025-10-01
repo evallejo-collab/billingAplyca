@@ -9,38 +9,56 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
 
-  // Simple function to update user role from database (called after UI loads)
+  // Function to get user profile from database and set user
   const updateUserRole = async (userId) => {
-    try {
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('role, full_name, is_active')
-        .eq('id', userId)
-        .single();
+    return new Promise(async (resolve, reject) => {
+      try {
+        const { data: profile, error } = await supabase
+          .from('user_profiles')
+          .select('role, full_name, is_active')
+          .eq('id', userId)
+          .single();
 
-      if (profile && user) {
-        console.log('🔄 Updating user role from database:', profile.role);
-        setUser(prev => ({
-          ...prev,
-          role: profile.role,
-          full_name: profile.full_name || prev.full_name,
-          is_active: profile.is_active !== false
-        }));
+        if (error) {
+          console.error('Could not get user profile:', error.message);
+          throw error;
+        }
+
+        if (profile) {
+          
+          // Get current session to build complete user object
+          const { data: { session } } = await supabase.auth.getSession();
+          
+          if (session?.user) {
+            const updatedUser = {
+              id: session.user.id,
+              email: session.user.email,
+              full_name: profile.full_name || session.user.user_metadata?.full_name || session.user.email || 'Usuario',
+              username: session.user.email?.split('@')[0] || 'user',
+              role: profile.role,
+              is_active: profile.is_active !== false,
+              client_id: null  // Set to null as default
+            };
+            
+            setUser(updatedUser);
+            resolve(updatedUser);
+          } else {
+            reject(new Error('No session found'));
+          }
+        } else {
+          reject(new Error('No profile found'));
+        }
+      } catch (error) {
+        console.error('Error in updateUserRole:', error.message);
+        reject(error);
       }
-    } catch (error) {
-      console.log('Could not update role from database:', error.message);
-    }
+    });
   };
 
 
   useEffect(() => {
-    // Ultra-simple session check - no async/await to prevent hanging
     const checkSession = () => {
-      console.log('🔄 Starting simple session check...');
-      
       supabase.auth.getSession().then(({ data: { session }, error }) => {
-        console.log('📡 Session response received');
-        
         if (error) {
           console.error('Error checking session:', error);
           setLoading(false);
@@ -50,29 +68,30 @@ export const AuthProvider = ({ children }) => {
         setSession(session);
         
         if (session?.user) {
-          console.log('👤 User found in session:', session.user.email);
-          // Set user immediately with simple logic
-          const simpleUser = {
-            id: session.user.id,
-            email: session.user.email,
-            full_name: session.user.user_metadata?.full_name || session.user.email || 'Usuario',
-            username: session.user.email?.split('@')[0] || 'user',
-            role: session.user.email === 'evallejo@aplyca.com' ? 'admin' : 'collaborator',
-            is_active: true,
-            client_id: null
-          };
-          
-          setUser(simpleUser);
-          console.log('✅ User set immediately:', simpleUser);
-          
-          // Update role from database after UI loads
-          setTimeout(() => {
-            updateUserRole(session.user.id);
-          }, 1000);
+          // Get role from database
+          updateUserRole(session.user.id).then(() => {
+            // Success - user updated with correct role
+          }).catch((error) => {
+            // Only use fallback if profile doesn't exist
+            if (error.message.includes('No profile found') || error.message.includes('No rows returned')) {
+              const fallbackUser = {
+                id: session.user.id,
+                email: session.user.email,
+                full_name: session.user.user_metadata?.full_name || session.user.email || 'Usuario',
+                username: session.user.email?.split('@')[0] || 'user',
+                role: 'collaborator',
+                is_active: true,
+                client_id: null
+              };
+              
+              setUser(fallbackUser);
+            } else {
+              console.error('Unexpected error in updateUserRole:', error);
+            }
+          });
         }
         
         setLoading(false);
-        console.log('✅ Loading completed');
       }).catch((error) => {
         console.error('Session check failed:', error);
         setLoading(false);
@@ -81,41 +100,38 @@ export const AuthProvider = ({ children }) => {
 
     checkSession();
 
-    // Listen to auth changes - simplified
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('🔄 Auth state change:', event, session ? 'has session' : 'no session');
-      
       setSession(session);
       
       if (event === 'SIGNED_OUT') {
-        console.log('👋 User signed out');
         setUser(null);
         setSession(null);
         return;
       }
       
       if (session?.user) {
-        console.log('👤 User signed in:', session.user.email);
-        // Set user immediately with simple logic
-        const simpleUser = {
-          id: session.user.id,
-          email: session.user.email,
-          full_name: session.user.user_metadata?.full_name || session.user.email || 'Usuario',
-          username: session.user.email?.split('@')[0] || 'user',
-          role: session.user.email === 'evallejo@aplyca.com' ? 'admin' : 'collaborator',
-          is_active: true,
-          client_id: null
-        };
-        
-        setUser(simpleUser);
-        console.log('✅ User set on auth change:', simpleUser);
-        
-        // Update role from database after a delay
-        setTimeout(() => {
-          updateUserRole(session.user.id);
-        }, 1000);
+        // Get role from database
+        updateUserRole(session.user.id).then(() => {
+          // Success - user updated with correct role
+        }).catch((error) => {
+          // Only use fallback if profile doesn't exist
+          if (error.message.includes('No profile found') || error.message.includes('No rows returned')) {
+            const fallbackUser = {
+              id: session.user.id,
+              email: session.user.email,
+              full_name: session.user.user_metadata?.full_name || session.user.email || 'Usuario',
+              username: session.user.email?.split('@')[0] || 'user',
+              role: 'collaborator',
+              is_active: true,
+              client_id: null
+            };
+            
+            setUser(fallbackUser);
+          } else {
+            console.error('Unexpected error in updateUserRole on auth change:', error);
+          }
+        });
       } else {
-        console.log('❌ No session');
         setUser(null);
       }
     });
@@ -140,20 +156,15 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      console.log('🔄 Starting logout process...');
-      
-      // Clear state immediately to prevent any UI flicker
+      // Clear state immediately
       setUser(null);
       setSession(null);
       setLoading(false);
       
-      // Sign out from Supabase with scope 'local' to clear all storage
-      const { error } = await supabase.auth.signOut({ scope: 'local' });
-      if (error) {
-        console.error('Supabase signOut error:', error);
-      }
+      // Sign out from Supabase
+      await supabase.auth.signOut({ scope: 'local' });
       
-      // Additional cleanup - clear all Supabase related localStorage
+      // Clear Supabase storage
       const keysToRemove = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
@@ -161,12 +172,9 @@ export const AuthProvider = ({ children }) => {
           keysToRemove.push(key);
         }
       }
-      keysToRemove.forEach(key => {
-        console.log('🧹 Clearing localStorage key:', key);
-        localStorage.removeItem(key);
-      });
+      keysToRemove.forEach(key => localStorage.removeItem(key));
       
-      // Also clear session storage
+      // Clear session storage
       const sessionKeysToRemove = [];
       for (let i = 0; i < sessionStorage.length; i++) {
         const key = sessionStorage.key(i);
@@ -174,21 +182,15 @@ export const AuthProvider = ({ children }) => {
           sessionKeysToRemove.push(key);
         }
       }
-      sessionKeysToRemove.forEach(key => {
-        console.log('🧹 Clearing sessionStorage key:', key);
-        sessionStorage.removeItem(key);
-      });
+      sessionKeysToRemove.forEach(key => sessionStorage.removeItem(key));
       
-      console.log('✅ Logout completed - all storage cleared');
-      
-      // Force a page reload to ensure clean state
+      // Reload page for clean state
       setTimeout(() => {
         window.location.reload();
       }, 100);
       
     } catch (error) {
       console.error('Logout error:', error);
-      // Even if everything fails, clear state and reload
       setUser(null);
       setSession(null);
       setLoading(false);

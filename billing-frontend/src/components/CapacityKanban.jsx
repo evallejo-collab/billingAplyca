@@ -229,10 +229,14 @@ const DraggableAssignment = ({ assignment, member, project, isExpanded, onUpdate
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...(isEditing ? {} : listeners)}
       className="flex items-center justify-between text-xs bg-white p-1.5 rounded-md border border-gray-200 hover:shadow-sm hover:border-gray-300 transition-all"
     >
-      <span className="text-gray-900 truncate">{member.name}</span>
+      <span 
+        {...(isEditing ? {} : listeners)}
+        className="text-gray-900 truncate cursor-grab active:cursor-grabbing flex-1"
+      >
+        {member.name}
+      </span>
       <div className="flex items-center space-x-1">
         {isEditing ? (
           <form onSubmit={handleHoursSubmit} className="flex items-center space-x-1">
@@ -388,7 +392,7 @@ const EditableAssignmentInClient = ({ assignment, member, project, onUpdateHours
     transition,
     isDragging,
   } = useSortable({ 
-    id: `client-assignment-${assignment.id}`,
+    id: `assignment-${assignment.id}`,
     data: {
       type: 'assignment',
       assignment,
@@ -443,10 +447,14 @@ const EditableAssignmentInClient = ({ assignment, member, project, onUpdateHours
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...(isEditing ? {} : listeners)}
-      className="flex items-center justify-between text-xs bg-white p-1.5 rounded-md border border-gray-200 cursor-grab active:cursor-grabbing hover:shadow-sm hover:border-gray-300 transition-all"
+      className="flex items-center justify-between text-xs bg-white p-1.5 rounded-md border border-gray-200 hover:shadow-sm hover:border-gray-300 transition-all"
     >
-      <span className="text-gray-900 truncate">{member.name}</span>
+      <span 
+        {...(isEditing ? {} : listeners)}
+        className="text-gray-900 truncate cursor-grab active:cursor-grabbing flex-1"
+      >
+        {member.name}
+      </span>
       <div className="flex items-center space-x-1">
         {isEditing ? (
           <form onSubmit={handleHoursSubmit} className="flex items-center space-x-1">
@@ -953,9 +961,16 @@ const CapacityKanban = ({ weekStartDate }) => {
     
     // Mover asignación entre proyectos
     if (activeData?.type === 'assignment') {
+      // Si arrastramos sobre un proyecto directamente
       if (overData?.type === 'project' && overData.project.id !== activeData.project.id) {
         handleMoveAssignment(activeData.assignment, activeData.project, overData.project);
-      } else if (overData?.type === 'client') {
+      } 
+      // Si arrastramos sobre otra asignación (mover al proyecto de esa asignación)
+      else if (overData?.type === 'assignment' && overData.project.id !== activeData.project.id) {
+        handleMoveAssignment(activeData.assignment, activeData.project, overData.project);
+      }
+      // Si arrastramos sobre un cliente
+      else if (overData?.type === 'client') {
         // Mover asignación a un cliente (requiere seleccionar proyecto)
         setDragData({
           assignment: activeData.assignment,
@@ -1286,7 +1301,7 @@ const CapacityKanban = ({ weekStartDate }) => {
               </SortableContext>
             ) : (
               <SortableContext
-                items={assignments.map(a => `client-assignment-${a.id}`)}
+                items={assignments.map(a => `assignment-${a.id}`)}
                 strategy={verticalListSortingStrategy}
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">

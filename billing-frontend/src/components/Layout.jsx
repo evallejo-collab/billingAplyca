@@ -100,6 +100,7 @@ const Layout = () => {
         items: [
           { name: 'Usuarios', href: '/users', icon: Users, description: 'Gestión de usuarios del sistema', permission: PERMISSIONS.MANAGE_USERS },
           { name: 'Asociaciones', href: '/user-client-management', icon: UserCheck, description: 'Asociar usuarios con clientes', permission: PERMISSIONS.MANAGE_USERS },
+          { name: 'Portal', href: '/portal', icon: UserCheck, description: 'Vista del portal de clientes', permission: PERMISSIONS.VIEW_CLIENT_PORTAL },
         ]
       }
     };

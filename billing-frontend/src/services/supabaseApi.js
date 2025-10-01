@@ -462,11 +462,32 @@ export const contractsApi = {
     // Calculate remaining hours and transform data
     const contractsWithHours = await Promise.all(
       data.map(async (contract) => {
-        // Get total hours used from time_entries
-        const { data: timeEntries, error: timeError } = await supabase
-          .from('time_entries')
-          .select('hours_used')
-          .eq('contract_id', contract.id);
+        // Get all projects associated with this contract first
+        const { data: contractProjects, error: projectsError } = await supabase
+          .from('projects')
+          .select('id')
+          .eq('contract_id', contract.id)
+          .eq('is_independent', false);
+        
+        if (projectsError) {
+          console.error('Error fetching contract projects:', projectsError);
+        }
+        
+        const projectIds = contractProjects?.map(p => p.id) || [];
+        
+        // Get total hours used from time_entries for projects in this contract
+        let timeEntries = [];
+        let timeError = null;
+        
+        if (projectIds.length > 0) {
+          const { data: entries, error: entriesError } = await supabase
+            .from('time_entries')
+            .select('hours_used')
+            .in('project_id', projectIds);
+          
+          timeEntries = entries;
+          timeError = entriesError;
+        }
         
         
         const directHours = timeEntries?.reduce((sum, entry) => {
@@ -521,11 +542,34 @@ export const contractsApi = {
     
     if (error) throw error;
     
-    // Get total hours used from time_entries
-    const { data: timeEntries } = await supabase
-      .from('time_entries')
-      .select('hours_used')
-      .eq('contract_id', id);
+    // Get all projects associated with this contract first
+    const { data: contractProjects, error: projectsError } = await supabase
+      .from('projects')
+      .select('id')
+      .eq('contract_id', id)
+      .eq('is_independent', false);
+    
+    if (projectsError) {
+      console.error('Error fetching contract projects:', projectsError);
+    }
+    
+    const projectIds = contractProjects?.map(p => p.id) || [];
+    
+    // Get total hours used from time_entries for projects in this contract
+    let timeEntries = [];
+    
+    if (projectIds.length > 0) {
+      const { data: entries, error: entriesError } = await supabase
+        .from('time_entries')
+        .select('hours_used')
+        .in('project_id', projectIds);
+      
+      if (entriesError) {
+        console.error('Error fetching time entries:', entriesError);
+      } else {
+        timeEntries = entries;
+      }
+    }
     
     const totalUsedHours = timeEntries?.reduce((sum, entry) => sum + (parseFloat(entry.hours_used) || 0), 0) || 0;
     
@@ -537,20 +581,6 @@ export const contractsApi = {
         client_name: data.client?.name || data.client?.company || 'Cliente desconocido'
       }
     };
-  },
-
-  async getById(id) {
-    const { data, error } = await supabase
-      .from('contracts')
-      .select(`
-        *,
-        client:clients(name, email)
-      `)
-      .eq('id', id)
-      .single();
-    
-    if (error) throw error;
-    return { success: true, data };
   },
 
   async create(contract) {
