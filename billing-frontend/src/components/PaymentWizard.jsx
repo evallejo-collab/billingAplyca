@@ -201,7 +201,9 @@ const PaymentWizard = ({ isOpen, onClose, onPaymentSaved, item, payment = null, 
           break;
         case 'recurring_support':
           paymentAmount = parseFloat(formData.amount);
-          description = `Soporte fijo - ${formData.billingMonth}${description ? ` - ${description}` : ''}`;
+          if (!description.includes('Soporte fijo')) {
+            description = `Soporte fijo - ${formData.billingMonth}${description ? ` - ${description}` : ''}`;
+          }
           break;
         case 'project_scope':
           const selectedProject = availableProjects.find(p => p.id === parseInt(formData.selectedProjectId));

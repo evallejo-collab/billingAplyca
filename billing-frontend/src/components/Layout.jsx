@@ -262,31 +262,68 @@ const Layout = () => {
       {/* Mega Menu Dropdown */}
       {megaMenuOpen && (
         <div 
-          className="fixed top-16 left-0 right-0 z-40 bg-white border-b border-gray-200 shadow-lg hidden md:block"
+          className="fixed top-16 left-0 right-0 z-40 bg-white border-b border-gray-200 shadow-xl hidden md:block"
           data-megamenu
+          style={{
+            background: 'linear-gradient(180deg, #ffffff 0%, #fafafa 100%)',
+            backdropFilter: 'blur(10px)'
+          }}
         >
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="py-4">
-              <div className="flex flex-wrap gap-4">
-                {megaMenuItems[megaMenuOpen].items.map((item) => {
+          <div className="max-w-7xl mx-auto px-6 lg:px-8">
+            <div className="py-8">
+              {/* Active Section Header */}
+              <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-gray-100">
+                {(() => {
+                  const SectionIcon = megaMenuItems[megaMenuOpen].icon;
+                  return (
+                    <>
+                      <div className="p-2 rounded-lg bg-violet-100">
+                        <SectionIcon className="w-6 h-6 text-violet-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          {megaMenuItems[megaMenuOpen].name}
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                          Gestiona y controla todas las funciones de {megaMenuItems[megaMenuOpen].name.toLowerCase()}
+                        </p>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+              
+              {/* Active Section Items - Vertical List */}
+              <div className="max-w-2xl space-y-2">
+                {megaMenuItems[megaMenuOpen].items.map((item, index) => {
                   const Icon = item.icon;
                   return (
                     <NavLink
                       key={item.name}
                       to={item.href}
-                      className="group flex items-center p-3 rounded-lg hover:bg-gray-50 transition-colors border border-gray-100 hover:border-violet-200 min-w-[200px]"
+                      className="group flex items-center py-3 px-4 rounded-lg hover:bg-violet-50 transition-all duration-200 border border-transparent hover:border-violet-200"
                       onClick={() => setMegaMenuOpen(null)}
                     >
-                      <div className="flex-shrink-0">
-                        <Icon className="w-5 h-5 text-violet-600 group-hover:text-violet-700" />
+                      {/* Icon */}
+                      <div className="flex-shrink-0 p-2 rounded-lg bg-gray-100 group-hover:bg-violet-100 transition-colors duration-200">
+                        <Icon className="w-5 h-5 text-gray-600 group-hover:text-violet-600 transition-colors duration-200" />
                       </div>
-                      <div className="ml-3">
-                        <div className="text-sm font-medium text-gray-900 group-hover:text-violet-700">
+                      
+                      {/* Content */}
+                      <div className="ml-4 flex-1 min-w-0">
+                        <div className="text-base font-medium text-gray-900 group-hover:text-violet-700 transition-colors duration-200">
                           {item.name}
                         </div>
-                        <div className="text-xs text-gray-500 mt-1">
+                        <div className="text-sm text-gray-500 group-hover:text-gray-600 transition-colors duration-200 mt-0.5">
                           {item.description}
                         </div>
+                      </div>
+                      
+                      {/* Arrow indicator */}
+                      <div className="flex-shrink-0 ml-3 opacity-0 group-hover:opacity-100 transition-all duration-200 transform group-hover:translate-x-1">
+                        <svg className="w-4 h-4 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
                       </div>
                     </NavLink>
                   );

@@ -119,6 +119,8 @@ const ProjectPaymentHistory = () => {
       }
       
       setItem(itemData);
+      
+      
       setPayments(paymentsData);
     } catch (error) {
       console.error('Error loading project data:', error);
@@ -407,6 +409,7 @@ const ProjectPaymentHistory = () => {
                   const typeInfo = getPaymentTypeInfo(paymentType);
                   const Icon = typeInfo.icon;
                   const totalAmount = typePayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+                  
                   
                   return (
                     <div key={paymentType} className="bg-white rounded-lg border border-gray-200">

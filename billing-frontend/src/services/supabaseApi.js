@@ -981,17 +981,35 @@ export const usersApi = {
 export const capacityApi = {
   // ================ TEAM MEMBERS ================
   async getAllTeamMembers() {
+    // Forzar una consulta fresca sin cache
     const { data, error } = await supabase
       .from('team_members')
       .select('*')
       .eq('is_active', true)
       .order('name');
     
+    if (error) {
+      console.error('Error loading team members:', error);
+      throw error;
+    }
+    
+    console.log('Active team members loaded:', data?.length || 0, 'members');
+    console.log('Team members data:', data);
+    
+    return { success: true, data: data || [] };
+  },
+
+  async getTeamMemberById(id) {
+    console.log('Getting team member by ID:', id);
+    const { data, error } = await supabase
+      .from('team_members')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    console.log('Team member by ID result:', { data, error });
+    
     if (error) throw error;
-    
-    // Log para debug (opcional)
-    // console.log('Active team members loaded:', data?.length || 0, 'members');
-    
     return { success: true, data };
   },
 
@@ -1026,71 +1044,59 @@ export const capacityApi = {
     try {
       // Limpiar campos vacíos y preparar datos
       const cleanMember = {
-        ...member,
-        email: member.email && member.email.trim() !== '' ? member.email.trim() : null,
-        hire_date: member.hire_date && member.hire_date !== '' ? member.hire_date : null,
-        notes: member.notes && member.notes.trim() !== '' ? member.notes.trim() : null,
-        hourly_rate: parseFloat(member.hourly_rate) || 0,
+        name: member.name?.trim() || '',
+        email: member.email?.trim() || null,
+        role: member.role || 'Developer',
         weekly_capacity: parseInt(member.weekly_capacity) || 40,
-        skills: Array.isArray(member.skills) ? member.skills : []
+        hourly_rate: parseFloat(member.hourly_rate) || 0,
+        department: member.department || 'Development',
+        hire_date: member.hire_date || null,
+        skills: Array.isArray(member.skills) ? member.skills : [],
+        notes: member.notes?.trim() || null
       };
 
-      // Verificar que el miembro existe y está activo
-      console.log('Checking member with ID:', id);
+      console.log('Updating team member:', { id, cleanMember });
+
+      // Primero verificar que el miembro existe
       const { data: existingMember, error: checkError } = await supabase
         .from('team_members')
-        .select('id, name, is_active')
+        .select('*')
         .eq('id', id)
         .single();
 
-      console.log('Existing member check:', { existingMember, checkError });
-
-      if (checkError) {
-        console.error('Error checking existing member:', checkError);
-        throw new Error('Miembro no encontrado');
+      if (checkError || !existingMember) {
+        console.error('Member not found:', { id, checkError });
+        throw new Error(`Miembro con ID ${id} no encontrado`);
       }
 
-      if (!existingMember) {
-        throw new Error('Miembro no encontrado');
-      }
+      console.log('Found existing member:', existingMember);
 
-      // Si el miembro está inactivo, no permitir actualización
-      if (!existingMember.is_active) {
-        console.log('Member is inactive:', existingMember);
-        throw new Error('No se puede actualizar un miembro inactivo');
-      }
-
-      console.log('Member is active, proceeding with update:', existingMember);
-
-      // Actualizar solo si el miembro está activo
-      const { data, error } = await supabase
+      // Actualizar el miembro sin .select() para evitar problemas de permisos
+      const { error: updateError } = await supabase
         .from('team_members')
         .update(cleanMember)
+        .eq('id', id);
+      
+      console.log('Update result:', { updateError });
+
+      if (updateError) {
+        console.error('Error updating member:', updateError);
+        throw new Error(`Error actualizando miembro: ${updateError.message}`);
+      }
+      
+      // Obtener el miembro actualizado en una consulta separada
+      const { data: updatedMember, error: fetchError } = await supabase
+        .from('team_members')
+        .select('*')
         .eq('id', id)
-        .eq('is_active', true)
-        .select();
-      
-      if (error) {
-        console.error('Error updating member:', error);
-        throw error;
+        .single();
+
+      if (fetchError || !updatedMember) {
+        console.error('Error fetching updated member:', fetchError);
+        throw new Error('No se pudo obtener el miembro actualizado');
       }
       
-      // Verificar que se actualizó algún registro
-      console.log('Update result:', { data, dataLength: data?.length });
-      if (!data || data.length === 0) {
-        // Verificar nuevamente el estado del miembro
-        const { data: recheckMember } = await supabase
-          .from('team_members')
-          .select('id, name, is_active')
-          .eq('id', id)
-          .single();
-        
-        console.log('Member recheck after failed update:', recheckMember);
-        throw new Error('No se pudo actualizar el miembro. Es posible que ya no esté activo.');
-      }
-      
-      // Manejar el caso donde la respuesta puede ser un array
-      const updatedMember = Array.isArray(data) ? data[0] : data;
+      console.log('Member updated and fetched successfully:', updatedMember);
       return { success: true, data: updatedMember };
     } catch (error) {
       console.error('Error updating team member:', error);
@@ -1100,51 +1106,28 @@ export const capacityApi = {
 
   async deleteTeamMember(id) {
     try {
-      // Primero verificar que el miembro existe y está activo
-      const { data: existingMember, error: checkError } = await supabase
-        .from('team_members')
-        .select('id, name, is_active')
-        .eq('id', id)
-        .single();
-
-      if (checkError) {
-        console.error('Error checking member existence:', checkError);
-        throw new Error('Miembro no encontrado');
-      }
-
-      if (!existingMember) {
-        throw new Error('Miembro no encontrado');
-      }
-
-      // Si ya está inactivo, considerar que ya fue eliminado
-      if (!existingMember.is_active) {
-        console.log('Member already inactive:', existingMember);
-        return { success: true, data: existingMember, message: 'El miembro ya estaba inactivo' };
-      }
+      console.log('Deleting team member:', id);
 
       // Soft delete - marcar como inactivo
       const { data, error } = await supabase
         .from('team_members')
         .update({ is_active: false })
         .eq('id', id)
-        .eq('is_active', true) // Solo actualizar si está activo
         .select();
       
-      if (error) throw error;
-      
-      // Manejar el caso donde la respuesta puede ser un array
-      const updatedMember = Array.isArray(data) ? data[0] : data;
-      
-      // Log para debug
-      console.log('Member deleted successfully:', updatedMember);
-      
-      if (!updatedMember) {
-        // Esto puede pasar si otro proceso ya eliminó el miembro
-        console.warn('No rows updated, member might have been deleted by another process');
-        return { success: true, data: existingMember, message: 'Miembro eliminado (ya estaba inactivo)' };
+      if (error) {
+        console.error('Error deleting member:', error);
+        throw new Error(`Error eliminando miembro: ${error.message}`);
       }
       
-      return { success: true, data: updatedMember };
+      if (!data || data.length === 0) {
+        throw new Error('No se encontró el miembro para eliminar');
+      }
+      
+      // Tomar el primer elemento del array de resultados
+      const deletedMember = Array.isArray(data) ? data[0] : data;
+      console.log('Member deleted successfully:', deletedMember);
+      return { success: true, data: deletedMember };
     } catch (error) {
       console.error('Error deleting team member:', error);
       throw error;

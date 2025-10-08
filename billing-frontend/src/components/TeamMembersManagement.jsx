@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, User, Mail, Clock, Building, AlertTriangle, CheckCircle, X } from 'lucide-react';
+import { Plus, Edit, Trash2, User, Mail, Clock, Building, AlertTriangle, CheckCircle, X, RefreshCw } from 'lucide-react';
 import { capacityApi } from '../services/supabaseApi';
 
 const TeamMembersManagement = () => {
@@ -10,6 +10,7 @@ const TeamMembersManagement = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [memberToDelete, setMemberToDelete] = useState(null);
   const [notification, setNotification] = useState(null);
+  const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -32,10 +33,14 @@ const TeamMembersManagement = () => {
   const loadMembers = async () => {
     try {
       setLoading(true);
+      console.log('Loading team members...');
       const response = await capacityApi.getAllTeamMembers();
+      console.log('Team members loaded:', response);
       setMembers(response.data || []);
     } catch (error) {
       console.error('Error loading team members:', error);
+      showNotification(`Error cargando miembros: ${error.message}`, 'error');
+      setMembers([]);
     } finally {
       setLoading(false);
     }
@@ -43,33 +48,79 @@ const TeamMembersManagement = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validación básica
+    if (!formData.name || formData.name.trim() === '') {
+      showNotification('El nombre es obligatorio', 'error');
+      return;
+    }
+
     try {
+      setSaving(true);
       const memberData = {
         ...formData,
+        name: formData.name.trim(),
         hourly_rate: parseFloat(formData.hourly_rate) || 0,
         weekly_capacity: parseInt(formData.weekly_capacity) || 40,
-        skills: formData.skills ? formData.skills.split(',').map(s => s.trim()) : []
+        skills: formData.skills ? formData.skills.split(',').map(s => s.trim()).filter(s => s) : []
       };
 
+      console.log('Submitting member data:', memberData);
+
+      let result;
       if (editingMember) {
-        await capacityApi.updateTeamMember(editingMember.id, memberData);
+        console.log('Updating member:', { 
+          editingMember, 
+          id: editingMember.id, 
+          memberData 
+        });
+        result = await capacityApi.updateTeamMember(editingMember.id, memberData);
+        console.log('Update result:', result);
+        
+        // Actualizar el estado local inmediatamente
+        if (result.success && result.data) {
+          setMembers(prevMembers => 
+            prevMembers.map(member => 
+              member.id === editingMember.id ? result.data : member
+            )
+          );
+        }
+        
         showNotification(`${memberData.name} ha sido actualizado exitosamente`, 'success');
       } else {
-        await capacityApi.createTeamMember(memberData);
+        console.log('Creating new member');
+        result = await capacityApi.createTeamMember(memberData);
+        console.log('Create result:', result);
+        
+        // Agregar el nuevo miembro al estado local
+        if (result.success && result.data) {
+          setMembers(prevMembers => [...prevMembers, result.data]);
+        }
+        
         showNotification(`${memberData.name} ha sido añadido al equipo`, 'success');
       }
 
       setShowModal(false);
       setEditingMember(null);
       resetForm();
-      loadMembers();
+      
+      // Asegurar que la lista se recargue
+      console.log('Reloading members after save...');
+      await loadMembers();
     } catch (error) {
       console.error('Error saving member:', error);
-      showNotification(`Error al guardar el miembro: ${error.message}`, 'error');
+      const errorMessage = error.message || 'Error desconocido al guardar el miembro';
+      showNotification(`Error: ${errorMessage}`, 'error');
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleEdit = (member) => {
+    console.log('=== HANDLE EDIT CALLED ===');
+    console.log('Opening edit modal for member:', member);
+    console.log('Current showModal state:', showModal);
+    
     setEditingMember(member);
     setFormData({
       name: member.name || '',
@@ -82,7 +133,10 @@ const TeamMembersManagement = () => {
       skills: member.skills ? member.skills.join(', ') : '',
       notes: member.notes || ''
     });
+    
+    console.log('Setting showModal to true...');
     setShowModal(true);
+    console.log('=== END HANDLE EDIT ===');
   };
 
   // Función para mostrar notificaciones
@@ -98,29 +152,44 @@ const TeamMembersManagement = () => {
 
   const handleDeleteConfirm = async () => {
     try {
+      console.log('Deleting member:', memberToDelete);
       const result = await capacityApi.deleteTeamMember(memberToDelete.id);
-      
-      // Actualizar el estado local inmediatamente para feedback rápido
-      setMembers(prevMembers => 
-        prevMembers.filter(member => member.id !== memberToDelete.id)
-      );
+      console.log('Delete result:', result);
       
       showNotification(`${memberToDelete.name} ha sido eliminado del equipo`, 'success');
       
-      // Recargar desde la base de datos para asegurar consistencia
-      setTimeout(async () => {
-        await loadMembers();
-      }, 1000);
+      // Recargar los miembros para mostrar el estado actualizado
+      await loadMembers();
       
     } catch (error) {
       console.error('Error deleting member:', error);
-      showNotification(`Error al eliminar el miembro: ${error.message}`, 'error');
-      // Si hay error, recargar para mostrar el estado real
-      loadMembers();
+      const errorMessage = error.message || 'Error desconocido al eliminar el miembro';
+      showNotification(`Error: ${errorMessage}`, 'error');
     } finally {
       setShowDeleteConfirm(false);
       setMemberToDelete(null);
     }
+  };
+
+  // Función para generar email automáticamente
+  const generateEmail = (fullName) => {
+    if (!fullName || fullName.trim() === '') return '';
+    
+    const names = fullName.trim().split(' ');
+    if (names.length < 2) return '';
+    
+    const firstName = names[0].toLowerCase();
+    const lastName = names[names.length - 1].toLowerCase();
+    
+    return `${firstName.charAt(0)}${lastName}@aplyca.com`;
+  };
+
+  // Contar cuántos emails necesitan actualización
+  const getEmailsToUpdate = () => {
+    return members.filter(member => {
+      const standardEmail = generateEmail(member.name);
+      return standardEmail && member.email !== standardEmail;
+    });
   };
 
   const resetForm = () => {
@@ -138,9 +207,13 @@ const TeamMembersManagement = () => {
   };
 
   const handleNewMember = () => {
+    console.log('=== HANDLE NEW MEMBER CALLED ===');
+    console.log('Current showModal state:', showModal);
     setEditingMember(null);
     resetForm();
+    console.log('Setting showModal to true...');
     setShowModal(true);
+    console.log('=== END HANDLE NEW MEMBER ===');
   };
 
   if (loading) {
@@ -158,14 +231,133 @@ const TeamMembersManagement = () => {
         <div>
           <h2 className="text-2xl font-semibold text-gray-900">Gestión de Equipo</h2>
           <p className="text-gray-600">Administra los miembros del equipo y su información</p>
+          {/* Debug info */}
+          <p className="text-xs text-purple-600 mt-1">
+            Modal: {showModal ? 'ABIERTO' : 'CERRADO'} | 
+            Editando: {editingMember ? editingMember.name : 'NINGUNO'} | 
+            Miembros: {members.length}
+          </p>
         </div>
-        <button
-          onClick={handleNewMember}
-          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Nuevo Miembro
-        </button>
+        <div className="flex space-x-3">
+          <button
+            onClick={async () => {
+              try {
+                console.log('Updating all emails to standard format...');
+                setSaving(true);
+                
+                let updatedCount = 0;
+                const emailsToUpdate = getEmailsToUpdate();
+                console.log(`Found ${emailsToUpdate.length} emails to update`);
+                
+                for (const member of emailsToUpdate) {
+                  const standardEmail = generateEmail(member.name);
+                  console.log(`Updating email for ${member.name}: ${member.email} -> ${standardEmail}`);
+                  try {
+                    // Enviar solo los campos que queremos actualizar
+                    await capacityApi.updateTeamMember(member.id, {
+                      name: member.name,
+                      email: standardEmail,
+                      role: member.role,
+                      weekly_capacity: member.weekly_capacity,
+                      hourly_rate: member.hourly_rate,
+                      department: member.department,
+                      hire_date: member.hire_date,
+                      skills: member.skills,
+                      notes: member.notes
+                    });
+                    updatedCount++;
+                  } catch (error) {
+                    console.error(`Error updating email for ${member.name}:`, error);
+                  }
+                }
+                
+                await loadMembers();
+                showNotification(`${updatedCount} emails actualizados al formato estándar`, 'success');
+              } catch (error) {
+                console.error('Bulk email update failed:', error);
+                showNotification(`Error al actualizar emails: ${error.message}`, 'error');
+              } finally {
+                setSaving(false);
+              }
+            }}
+            disabled={saving}
+            className={`flex items-center px-3 py-2 rounded-lg transition-colors ${
+              saving 
+                ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                : 'bg-orange-600 text-white hover:bg-orange-700'
+            }`}
+          >
+            <Mail className="w-4 h-4 mr-2" />
+            {saving ? 'Actualizando...' : `Fix Emails (${getEmailsToUpdate().length})`}
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                console.log('Refreshing team members...');
+                await loadMembers();
+                showNotification('Lista de miembros actualizada', 'success');
+              } catch (error) {
+                console.error('Refresh failed:', error);
+                showNotification(`Error al actualizar: ${error.message}`, 'error');
+              }
+            }}
+            className="flex items-center px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refrescar
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                console.log('Testing single member update...');
+                if (members.length > 0) {
+                  const firstMember = members[0];
+                  console.log('Testing update with first member:', firstMember);
+                  
+                  // Test simple: solo cambiar las notas
+                  const testUpdate = {
+                    name: firstMember.name,
+                    email: firstMember.email,
+                    role: firstMember.role,
+                    weekly_capacity: firstMember.weekly_capacity,
+                    hourly_rate: firstMember.hourly_rate,
+                    department: firstMember.department,
+                    hire_date: firstMember.hire_date,
+                    skills: firstMember.skills,
+                    notes: `Test update ${new Date().toLocaleTimeString()}`
+                  };
+                  
+                  console.log('Sending test update:', testUpdate);
+                  const result = await capacityApi.updateTeamMember(firstMember.id, testUpdate);
+                  console.log('Test update result:', result);
+                  
+                  await loadMembers();
+                  showNotification(`Test actualización exitosa: ${firstMember.name}`, 'success');
+                } else {
+                  showNotification('No hay miembros para probar', 'error');
+                }
+              } catch (error) {
+                console.error('Test update failed:', error);
+                showNotification(`Error en test: ${error.message}`, 'error');
+              }
+            }}
+            className="flex items-center px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            Test Update
+          </button>
+          <button
+            onClick={() => {
+              console.log('=== NUEVO MIEMBRO CLICKED ===');
+              console.log('Current showModal:', showModal);
+              handleNewMember();
+              console.log('After handleNewMember called');
+            }}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Nuevo Miembro
+          </button>
+        </div>
       </div>
 
       {/* Members Table */}
@@ -244,14 +436,22 @@ const TeamMembersManagement = () => {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <button
-                    onClick={() => handleEdit(member)}
+                    onClick={() => {
+                      console.log('Edit button clicked for member:', member);
+                      handleEdit(member);
+                    }}
                     className="text-blue-600 hover:text-blue-900 mr-4"
+                    title="Editar miembro"
                   >
                     <Edit className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={() => handleDeleteClick(member)}
+                    onClick={() => {
+                      console.log('Delete button clicked for member:', member);
+                      handleDeleteClick(member);
+                    }}
                     className="text-red-600 hover:text-red-900"
+                    title="Eliminar miembro"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -283,9 +483,21 @@ const TeamMembersManagement = () => {
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              {editingMember ? 'Editar Miembro' : 'Nuevo Miembro'}
-            </h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium text-gray-900">
+                {editingMember ? 'Editar Miembro' : 'Nuevo Miembro'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  console.log('Closing modal with X button');
+                  setShowModal(false);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
             
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
@@ -296,7 +508,17 @@ const TeamMembersManagement = () => {
                   type="text"
                   required
                   value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  onChange={(e) => {
+                    const newName = e.target.value;
+                    setFormData({
+                      ...formData, 
+                      name: newName,
+                      // Auto-generar email si no tiene un email personalizado
+                      email: formData.email === '' || formData.email.includes('@aplyca.com') 
+                        ? generateEmail(newName) 
+                        : formData.email
+                    });
+                  }}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -305,12 +527,32 @@ const TeamMembersManagement = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Email
                 </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <div className="flex space-x-2">
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const generatedEmail = generateEmail(formData.name);
+                      if (generatedEmail) {
+                        setFormData({...formData, email: generatedEmail});
+                      }
+                    }}
+                    className="px-3 py-2 bg-blue-100 text-blue-700 border border-blue-300 rounded-md hover:bg-blue-200 transition-colors text-sm"
+                    title="Generar email automático"
+                  >
+                    Auto
+                  </button>
+                </div>
+                {formData.name && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Sugerido: {generateEmail(formData.name)}
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -415,9 +657,17 @@ const TeamMembersManagement = () => {
               <div className="flex space-x-3 pt-4">
                 <button
                   type="submit"
-                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors"
+                  disabled={saving}
+                  className={`flex-1 py-2 px-4 rounded-md transition-colors ${
+                    saving 
+                      ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
                 >
-                  {editingMember ? 'Actualizar' : 'Crear'}
+                  {saving 
+                    ? (editingMember ? 'Actualizando...' : 'Creando...') 
+                    : (editingMember ? 'Actualizar' : 'Crear')
+                  }
                 </button>
                 <button
                   type="button"
