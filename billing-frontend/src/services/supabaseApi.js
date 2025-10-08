@@ -654,11 +654,15 @@ export const timeEntriesApi = {
     
     if (error) throw error;
     
+    // Get current user info
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    
     // Get user profiles separately
     const userIds = [...new Set(data.map(entry => entry.created_by).filter(Boolean))];
     let userProfiles = {};
     
     if (userIds.length > 0) {
+      // Try to get profiles from user_profiles table
       const { data: profiles, error: profilesError } = await supabase
         .from('user_profiles')
         .select('id, full_name, username')
@@ -670,11 +674,29 @@ export const timeEntriesApi = {
           return acc;
         }, {});
       }
+
+      // For current user, use their information if not found in profiles
+      if (currentUser && userIds.includes(currentUser.id) && !userProfiles[currentUser.id]) {
+        userProfiles[currentUser.id] = {
+          id: currentUser.id,
+          full_name: currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || 'Usuario Actual',
+          username: currentUser.email?.split('@')[0] || 'Usuario Actual'
+        };
+      }
     }
     
     // Transform data to flatten embedded fields for backward compatibility
     const transformedData = data.map(entry => {
       const userProfile = userProfiles[entry.created_by];
+      let createdByDisplay = 'Usuario desconocido';
+      
+      if (userProfile) {
+        createdByDisplay = userProfile.full_name || userProfile.username;
+      } else if (entry.created_by) {
+        // If we have a created_by value but no profile, show the raw value
+        createdByDisplay = entry.created_by;
+      }
+      
       return {
         ...entry,
         contract_number: entry.contract?.contract_number || null,
@@ -682,7 +704,7 @@ export const timeEntriesApi = {
         client_name: entry.contract?.client?.name || entry.contract?.client?.company || 
                      entry.project?.client?.name || entry.project?.client?.company || 'Sin cliente',
         project_name: entry.project?.name || null,
-        created_by: userProfile?.full_name || userProfile?.username || 'Usuario desconocido'
+        created_by: createdByDisplay
       };
     });
     
