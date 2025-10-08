@@ -640,6 +640,46 @@ export const contractsApi = {
   }
 };
 
+// Helper function to ensure user has a profile
+const ensureUserProfile = async (userId, userEmail, userMetadata = {}) => {
+  if (!userId) return null;
+  
+  try {
+    // Check if profile exists
+    const { data: existingProfile, error: checkError } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    
+    if (!checkError && existingProfile) {
+      return existingProfile;
+    }
+    
+    // Create profile if it doesn't exist
+    const profileData = {
+      id: userId,
+      username: userEmail?.split('@')[0] || `user_${userId.substring(0, 8)}`,
+      full_name: userMetadata?.full_name || userEmail?.split('@')[0] || `Usuario ${userId.substring(0, 8)}`,
+      email: userEmail
+    };
+    
+    const { data: newProfile, error: insertError } = await supabase
+      .from('user_profiles')
+      .insert(profileData)
+      .select()
+      .single();
+    
+    if (!insertError) {
+      return newProfile;
+    }
+  } catch (error) {
+    console.log('Could not ensure user profile:', error.message);
+  }
+  
+  return null;
+};
+
 // ================ TIME ENTRIES API ================
 export const timeEntriesApi = {
   async getAll() {
@@ -675,13 +715,31 @@ export const timeEntriesApi = {
         }, {});
       }
 
-      // For current user, use their information if not found in profiles
+      // For current user, ensure they have a profile and use their information if not found
       if (currentUser && userIds.includes(currentUser.id) && !userProfiles[currentUser.id]) {
-        userProfiles[currentUser.id] = {
-          id: currentUser.id,
-          full_name: currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || 'Usuario Actual',
-          username: currentUser.email?.split('@')[0] || 'Usuario Actual'
-        };
+        console.log('Creating profile for current user:', currentUser.email);
+        const userProfile = await ensureUserProfile(currentUser.id, currentUser.email, currentUser.user_metadata);
+        if (userProfile) {
+          userProfiles[currentUser.id] = userProfile;
+          console.log('Profile created successfully:', userProfile);
+        } else {
+          userProfiles[currentUser.id] = {
+            id: currentUser.id,
+            full_name: currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || 'Usuario Actual',
+            username: currentUser.email?.split('@')[0] || 'Usuario Actual'
+          };
+        }
+      }
+      
+      // For any missing users, try to create profiles if we can identify them
+      for (const userId of userIds) {
+        if (!userProfiles[userId]) {
+          // Try to get any existing user info and create a profile
+          const defaultProfile = await ensureUserProfile(userId, null, {});
+          if (defaultProfile) {
+            userProfiles[userId] = defaultProfile;
+          }
+        }
       }
     }
     
@@ -693,8 +751,21 @@ export const timeEntriesApi = {
       if (userProfile) {
         createdByDisplay = userProfile.full_name || userProfile.username;
       } else if (entry.created_by) {
-        // If we have a created_by value but no profile, show the raw value
-        createdByDisplay = entry.created_by;
+        // If we have a created_by value but no profile, try to create a friendly name
+        if (entry.created_by.includes('@')) {
+          // If it looks like an email, use the part before @
+          createdByDisplay = entry.created_by.split('@')[0];
+        } else if (entry.created_by.length > 20) {
+          // If it looks like a UUID, check if it's the current user
+          if (currentUser && entry.created_by === currentUser.id) {
+            createdByDisplay = currentUser.email?.split('@')[0] || 'Tú';
+          } else {
+            createdByDisplay = `Usuario Administrador`;
+          }
+        } else {
+          // If it's a short string, use it as is
+          createdByDisplay = entry.created_by;
+        }
       }
       
       return {

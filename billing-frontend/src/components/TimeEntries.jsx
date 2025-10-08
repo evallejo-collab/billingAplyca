@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { contractsApi, timeEntriesApi } from '../services/supabaseApi';
-import { Plus, Clock, Calendar, Search, Filter, AlertCircle, FileText, Trash2, Edit2, ChevronDown, ChevronRight } from 'lucide-react';
+import { timeEntriesApi } from '../services/supabaseApi';
+import { Plus, Clock, AlertCircle, Trash2, Edit2 } from 'lucide-react';
 import TimeEntryModal from './TimeEntryModal';
 import TimeEntryWizard from './TimeEntryWizard';
 import ConfirmModal from './ConfirmModal';
@@ -8,18 +8,15 @@ import ConfirmModal from './ConfirmModal';
 const TimeEntries = () => {
   const [timeEntries, setTimeEntries] = useState([]);
   const [filteredEntries, setFilteredEntries] = useState([]);
-  const [activeContracts, setActiveContracts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [contractFilter, setContractFilter] = useState('all');
+  const [clientFilter, setClientFilter] = useState('all');
+  const [monthFilter, setMonthFilter] = useState('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [expandedGroups, setExpandedGroups] = useState(new Set());
-  const [groupedEntries, setGroupedEntries] = useState({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState(null);
   const [useWizard, setUseWizard] = useState(true);
@@ -29,23 +26,16 @@ const TimeEntries = () => {
   }, []);
 
   useEffect(() => {
-    filterAndGroupEntries();
-  }, [timeEntries, searchTerm, contractFilter, startDate, endDate]);
+    filterEntries();
+  }, [timeEntries, clientFilter, monthFilter, startDate, endDate]);
 
   const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const [entriesResponse, contractsResponse] = await Promise.all([
-        timeEntriesApi.getAll(),
-        contractsApi.getAll()
-      ]);
-
+      const entriesResponse = await timeEntriesApi.getAll();
       setTimeEntries(entriesResponse.data || []);
-      
-      const activeOnly = (contractsResponse.data || []).filter(contract => contract.status === 'active');
-      setActiveContracts(activeOnly);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -53,87 +43,39 @@ const TimeEntries = () => {
     }
   };
 
-  const filterAndGroupEntries = () => {
+  const filterEntries = () => {
     let filtered = [...timeEntries];
 
-    // Filter by search term
-    if (searchTerm) {
-      filtered = filtered.filter(entry =>
-        (entry.description && entry.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (entry.task_category && entry.task_category.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (entry.contract_number && entry.contract_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (entry.client_name && entry.client_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (entry.created_by && entry.created_by.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
+    // Filter by client
+    if (clientFilter !== 'all') {
+      filtered = filtered.filter(entry => entry.client_name === clientFilter);
     }
 
-    // Filter by contract
-    if (contractFilter !== 'all') {
-      filtered = filtered.filter(entry => entry.contract_id === parseInt(contractFilter));
-    }
-
-    // Filter by date range
-    if (startDate) {
-      filtered = filtered.filter(entry => entry.entry_date >= startDate);
-    }
-    if (endDate) {
-      filtered = filtered.filter(entry => entry.entry_date <= endDate);
-    }
-
-    // Group by client first, then by project within each client
-    const grouped = filtered.reduce((groups, entry) => {
-      const clientName = entry.client_name || 'Sin cliente';
-      const projectName = entry.project_name || `Contrato: ${entry.contract_number}` || 'Soporte y evolutivos';
-      
-      // Create client group if it doesn't exist
-      if (!groups[clientName]) {
-        groups[clientName] = {
-          name: clientName,
-          subtitle: `Cliente`,
-          client: clientName,
-          projects: {},
-          entries: [],
-          totalHours: 0,
-          isClient: true
-        };
+    // Filter by month (takes priority over date range if both are set)
+    if (monthFilter !== 'all') {
+      const [year, month] = monthFilter.split('-');
+      filtered = filtered.filter(entry => {
+        const entryDate = new Date(entry.entry_date);
+        const entryYear = entryDate.getFullYear();
+        const entryMonth = entryDate.getMonth() + 1;
+        return entryYear === parseInt(year) && entryMonth === parseInt(month);
+      });
+    } else {
+      // Filter by date range only if no month filter is selected
+      if (startDate) {
+        filtered = filtered.filter(entry => entry.entry_date >= startDate);
       }
-      
-      // Create project subgroup within client
-      if (!groups[clientName].projects[projectName]) {
-        groups[clientName].projects[projectName] = {
-          name: projectName,
-          subtitle: `Proyecto de ${clientName}`,
-          client: clientName,
-          entries: [],
-          totalHours: 0,
-          isProject: true
-        };
+      if (endDate) {
+        filtered = filtered.filter(entry => entry.entry_date <= endDate);
       }
-      
-      // Add entry to both client and project
-      groups[clientName].entries.push(entry);
-      groups[clientName].projects[projectName].entries.push(entry);
-      groups[clientName].totalHours += parseInt(entry.hours_used) || 0;
-      groups[clientName].projects[projectName].totalHours += parseInt(entry.hours_used) || 0;
-      
-      return groups;
-    }, {});
+    }
 
+    // Sort by date (most recent first)
+    filtered.sort((a, b) => new Date(b.entry_date) - new Date(a.entry_date));
+    
     setFilteredEntries(filtered);
-    setGroupedEntries(grouped);
   };
 
-  const toggleGroupExpansion = (groupKey) => {
-    setExpandedGroups(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(groupKey)) {
-        newSet.delete(groupKey);
-      } else {
-        newSet.add(groupKey);
-      }
-      return newSet;
-    });
-  };
 
   const formatHours = (hours) => {
     return `${hours}h`;
@@ -167,9 +109,31 @@ const TimeEntries = () => {
     }
   };
 
+  const getUniqueClients = () => {
+    const clients = [...new Set(timeEntries.map(entry => entry.client_name).filter(Boolean))];
+    return clients.sort();
+  };
+
+  const getAvailableMonths = () => {
+    const months = [...new Set(timeEntries.map(entry => {
+      const date = new Date(entry.entry_date);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    }))];
+    return months.sort().reverse(); // Most recent first
+  };
+
+  const getMonthLabel = (monthValue) => {
+    const [year, month] = monthValue.split('-');
+    const monthNames = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
+    return `${monthNames[parseInt(month) - 1]} ${year}`;
+  };
+
   const clearFilters = () => {
-    setSearchTerm('');
-    setContractFilter('all');
+    setClientFilter('all');
+    setMonthFilter('all');
     setStartDate('');
     setEndDate('');
   };
@@ -225,263 +189,262 @@ const TimeEntries = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl shadow-sm">
         <div className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-gray-900">Filtros</h3>
-            {(searchTerm || contractFilter !== 'all' || startDate || endDate) && (
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Clock className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Filtros de Tiempo</h3>
+                <p className="text-sm text-gray-600">Personaliza tu vista de entradas</p>
+              </div>
+            </div>
+            {(clientFilter !== 'all' || monthFilter !== 'all' || startDate || endDate) && (
               <button
                 onClick={clearFilters}
-                className="text-sm text-blue-600 hover:text-blue-800"
+                className="px-4 py-2 text-sm font-medium text-blue-700 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors"
               >
                 Limpiar filtros
               </button>
             )}
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            {/* Client Filter */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                👥 Cliente
+              </label>
+              <select
+                value={clientFilter}
+                onChange={(e) => setClientFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              >
+                <option value="all">Todos los clientes</option>
+                {getUniqueClients().map(client => (
+                  <option key={client} value={client}>
+                    {client}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Month Filter */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                🗓️ Mes
+              </label>
+              <select
+                value={monthFilter}
+                onChange={(e) => {
+                  setMonthFilter(e.target.value);
+                  if (e.target.value !== 'all') {
+                    setStartDate('');
+                    setEndDate('');
+                  }
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              >
+                <option value="all">Todos los meses</option>
+                {getAvailableMonths().map(month => (
+                  <option key={month} value={month}>
+                    {getMonthLabel(month)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Start Date */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                📅 Fecha inicio
+              </label>
               <input
-                type="text"
-                placeholder="Buscar..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                type="date"
+                value={startDate}
+                onChange={(e) => {
+                  setStartDate(e.target.value);
+                  if (e.target.value) {
+                    setMonthFilter('all');
+                  }
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-50 disabled:text-gray-500"
+                disabled={monthFilter !== 'all'}
               />
             </div>
-            
-            <select
-              value={contractFilter}
-              onChange={(e) => setContractFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">Todos los contratos</option>
-              {activeContracts.map(contract => (
-                <option key={contract.id} value={contract.id}>
-                  {contract.contract_number} - {contract.client_name}
-                </option>
-              ))}
-            </select>
-            
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Fecha inicio"
-            />
-            
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Fecha fin"
-            />
+
+            {/* End Date */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                📅 Fecha fin
+              </label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => {
+                  setEndDate(e.target.value);
+                  if (e.target.value) {
+                    setMonthFilter('all');
+                  }
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-50 disabled:text-gray-500"
+                disabled={monthFilter !== 'all'}
+              />
+            </div>
           </div>
         </div>
       </div>
 
       {/* Results Summary */}
-      <div className="text-sm text-gray-600">
-        Mostrando {filteredEntries.length} de {timeEntries.length} entradas
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
+            <span className="text-sm font-medium text-blue-700">
+              📊 Mostrando {filteredEntries.length} de {timeEntries.length} entradas
+            </span>
+          </div>
+          {filteredEntries.length > 0 && (
+            <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2">
+              <span className="text-sm font-medium text-green-700">
+                ⏱️ Total: {filteredEntries.reduce((sum, entry) => sum + parseInt(entry.hours_used || 0), 0)}h
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Time Entries */}
-      <div className="space-y-4">
-        {Object.keys(groupedEntries).length === 0 && !loading && (
-          <div className="card">
-            <div className="text-center py-12">
-              <div className="text-gray-400 mb-4">
-                <Clock className="w-12 h-12 mx-auto" />
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No hay entradas de tiempo</h3>
-              <p className="text-gray-500 mb-4">
-                {searchTerm || contractFilter !== 'all' || startDate || endDate
-                  ? 'No se encontraron entradas que coincidan con los filtros'
-                  : 'Comienza registrando tu primera entrada de tiempo'
-                }
-              </p>
-              <button 
-                onClick={handleAddTimeEntry}
-                className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                REGISTRAR TIEMPO
-              </button>
+      {/* Time Entries Table */}
+      <div className="bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+        {filteredEntries.length === 0 && !loading ? (
+          <div className="text-center py-12">
+            <div className="text-gray-400 mb-4">
+              <Clock className="w-12 h-12 mx-auto" />
             </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No hay entradas de tiempo</h3>
+            <p className="text-gray-500 mb-4">
+              {clientFilter !== 'all' || monthFilter !== 'all' || startDate || endDate
+                ? 'No se encontraron entradas que coincidan con los filtros'
+                : 'Comienza registrando tu primera entrada de tiempo'
+              }
+            </p>
+            <button 
+              onClick={handleAddTimeEntry}
+              className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              REGISTRAR TIEMPO
+            </button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">📅 Fecha</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">👥 Cliente</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">📂 Proyecto</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">🏷️ Tipo</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">📝 Descripción</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">⏱️ Horas</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">👤 Creado por</th>
+                  <th className="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">⚙️ Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-100">
+                {filteredEntries.map((entry, index) => (
+                  <tr key={entry.id} className={`hover:bg-blue-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      <div className="flex items-center">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full mr-3"></div>
+                        {new Date(entry.entry_date).toLocaleDateString('es-CO', {
+                          weekday: 'short',
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <div className="flex items-center">
+                        <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center mr-3">
+                          <span className="text-white text-xs font-bold">
+                            {entry.client_name?.charAt(0)?.toUpperCase() || 'C'}
+                          </span>
+                        </div>
+                        <div className="font-medium text-gray-900">{entry.client_name}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900">
+                      <div className="max-w-xs">
+                        <div className="font-medium truncate" title={entry.project_name || entry.contract_number}>
+                          {entry.project_name || `Contrato: ${entry.contract_number}` || 'Soporte y evolutivos'}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold shadow-sm ${
+                        entry.task_category === 'development' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                        entry.task_category === 'support' ? 'bg-green-100 text-green-800 border border-green-200' :
+                        entry.task_category === 'meeting' ? 'bg-purple-100 text-purple-800 border border-purple-200' :
+                        entry.task_category === 'planning' ? 'bg-orange-100 text-orange-800 border border-orange-200' :
+                        'bg-gray-100 text-gray-800 border border-gray-200'
+                      }`}>
+                        {entry.task_category === 'development' ? '💻 Desarrollo' :
+                         entry.task_category === 'support' ? '🛠️ Soporte' :
+                         entry.task_category === 'meeting' ? '👥 Reunión' :
+                         entry.task_category === 'planning' ? '📋 Planeación' :
+                         '📝 General'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-700">
+                      <div className="max-w-xs">
+                        <div className="truncate" title={entry.description}>
+                          {entry.description || '-'}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <div className="flex items-center bg-blue-50 px-3 py-2 rounded-lg border border-blue-100">
+                        <Clock className="w-4 h-4 text-blue-500 mr-2" />
+                        <span className="font-bold text-blue-700">{formatHours(entry.hours_used)}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      <div className="flex items-center">
+                        <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center mr-2">
+                          <span className="text-white text-xs font-bold">
+                            {entry.created_by?.charAt(0)?.toUpperCase() || 'U'}
+                          </span>
+                        </div>
+                        {entry.created_by || '-'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end space-x-1">
+                        <button
+                          onClick={() => handleEditTimeEntry(entry)}
+                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Editar entrada"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTimeEntry(entry)}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Eliminar entrada"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
-
-        {Object.entries(groupedEntries).map(([clientKey, client]) => (
-          <div key={clientKey} className="bg-white border border-gray-200 rounded-lg shadow-sm">
-            {/* CLIENT HEADER */}
-            <div 
-              className="cursor-pointer hover:bg-gray-50 transition-colors"
-              onClick={() => toggleGroupExpansion(clientKey)}
-            >
-              <div className="px-6 py-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    {expandedGroups.has(clientKey) ? (
-                      <ChevronDown className="w-5 h-5 text-gray-400" />
-                    ) : (
-                      <ChevronRight className="w-5 h-5 text-gray-400" />
-                    )}
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">{client.name}</h3>
-                      <p className="text-sm text-gray-500">Cliente</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-6 text-sm">
-                    <div className="flex items-center text-gray-600">
-                      <FileText className="w-4 h-4 mr-1" />
-                      <span className="font-medium">{client.entries.length}</span>
-                      <span className="ml-1 text-gray-500">
-                        {client.entries.length === 1 ? 'entrada' : 'entradas'}
-                      </span>
-                    </div>
-                    <div className="flex items-center text-gray-600">
-                      <Clock className="w-4 h-4 mr-1" />
-                      <span className="font-medium">{formatHours(client.totalHours)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* PROJECTS WITHIN CLIENT */}
-            {expandedGroups.has(clientKey) && (
-              <div className="border-t border-gray-200 bg-gray-50">
-                {Object.entries(client.projects).map(([projectKey, project], index) => {
-                  // Array de colores suaves para diferenciar proyectos
-                  const projectColors = [
-                    'bg-blue-50 hover:bg-blue-100',      // Azul suave
-                    'bg-green-50 hover:bg-green-100',    // Verde suave
-                    'bg-purple-50 hover:bg-purple-100',  // Púrpura suave
-                    'bg-orange-50 hover:bg-orange-100',  // Naranja suave
-                    'bg-indigo-50 hover:bg-indigo-100',  // Índigo suave
-                    'bg-pink-50 hover:bg-pink-100',      // Rosa suave
-                  ];
-                  const colorClass = projectColors[index % projectColors.length];
-                  
-                  return (
-                  <div key={projectKey} className={`${index > 0 ? 'border-t border-gray-100' : ''}`}>
-                    {/* PROJECT HEADER */}
-                    <div 
-                      className={`cursor-pointer transition-colors ${colorClass}`}
-                      onClick={() => toggleGroupExpansion(`${clientKey}-${projectKey}`)}
-                    >
-                      <div className="px-6 py-4 pl-12">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            {expandedGroups.has(`${clientKey}-${projectKey}`) ? (
-                              <ChevronDown className="w-4 h-4 text-gray-400" />
-                            ) : (
-                              <ChevronRight className="w-4 h-4 text-gray-400" />
-                            )}
-                            <div>
-                              <h4 className="text-base font-medium text-gray-900">{project.name}</h4>
-                              <p className="text-xs text-gray-500">Proyecto</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-4 text-sm">
-                            <div className="flex items-center text-gray-600">
-                              <FileText className="w-4 h-4 mr-1" />
-                              <span className="font-medium">{project.entries.length}</span>
-                            </div>
-                            <div className="flex items-center text-gray-600">
-                              <Clock className="w-4 h-4 mr-1" />
-                              <span className="font-medium">{formatHours(project.totalHours)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* PROJECT ENTRIES */}
-                    {expandedGroups.has(`${clientKey}-${projectKey}`) && (
-                      <div className="pl-12 pr-6 pb-4">
-                        <div className="overflow-x-auto">
-                          <table className="w-full">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Horas</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Creado por</th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                              {project.entries.map((entry) => (
-                                <tr key={entry.id} className="hover:bg-gray-50">
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {new Date(entry.entry_date).toLocaleDateString('es-CO')}
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap">
-                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
-                                      entry.task_category === 'development' ? 'bg-blue-100 text-blue-800' :
-                                      entry.task_category === 'support' ? 'bg-green-100 text-green-800' :
-                                      entry.task_category === 'meeting' ? 'bg-purple-100 text-purple-800' :
-                                      entry.task_category === 'planning' ? 'bg-orange-100 text-orange-800' :
-                                      'bg-gray-100 text-gray-800'
-                                    }`}>
-                                      {entry.task_category === 'development' ? 'Desarrollo' :
-                                       entry.task_category === 'support' ? 'Soporte' :
-                                       entry.task_category === 'meeting' ? 'Reunión' :
-                                       entry.task_category === 'planning' ? 'Planeación' :
-                                       entry.task_category || 'General'}
-                                    </span>
-                                  </td>
-                                  <td className="px-6 py-4 text-sm text-gray-900">
-                                    <div className="max-w-xs truncate" title={entry.description}>
-                                      {entry.description || '-'}
-                                    </div>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    <div className="flex items-center">
-                                      <Clock className="w-4 h-4 text-gray-400 mr-2" />
-                                      {formatHours(entry.hours_used)}
-                                    </div>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {entry.created_by || '-'}
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <div className="flex items-center justify-end space-x-2">
-                                      <button
-                                        onClick={() => handleEditTimeEntry(entry)}
-                                        className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-50 transition-colors"
-                                        title="Editar entrada"
-                                      >
-                                        <Edit2 className="w-4 h-4" />
-                                      </button>
-                                      <button
-                                        onClick={() => handleDeleteTimeEntry(entry)}
-                                        className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors"
-                                        title="Eliminar entrada"
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        ))}
       </div>
 
       {/* Modals */}
